@@ -75,11 +75,12 @@ jobs:
                 cmake --build build --config Release
             - name: Check executables
               run: |
-                for executable in ${{ vars.EXECUTABLES }};do
-                 if [ ! -x "$executable" ]; then
-                  echo "File $executable does not exist or is not executable"
-                  exit 1
-                fi
+                for executable in ${{ vars.EXECUTABLES }}; do
+                  if [ ! -x "build/$executable" ]; then
+                    echo "File build/$executable does not exist or is not executable"
+                    exit 1
+                  fi
+                done
             - name: Run tests
               run: |
                 cmake --build build --target test || ctest --test-dir build --output-on-failure
