@@ -47,7 +47,7 @@ cmake -B build -S . -DCMAKE_BUILD_TYPE=Release -DCMAKE_TOOLCHAIN_FILE=./vcpkg/sc
 cmake --build build --config Release
 
 # Run tests
-cmake --build build --target test
+ctest --test-dir build --output-on-failure
 ```
 
 ### Running the Game
@@ -461,7 +461,7 @@ git clone https://github.com/microsoft/vcpkg.git
 **Linux:**
 ```bash
 cmake -B build -S . -DCMAKE_BUILD_TYPE=Release -DCMAKE_TOOLCHAIN_FILE=./vcpkg/scripts/buildsystems/vcpkg.cmake
-cmake --build build
+cmake --build build --config Release
 ```
 
 **Windows (MSVC):**
