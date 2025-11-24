@@ -163,7 +163,7 @@ chore/ci-optimization
 We use **Conventional Commits** for clear project history:
 
 ```bash
-<TYPE>(<scope>): <description courte>
+<TYPE>: <description courte>
 
 Types:
 ADD:      New feature or functionality
