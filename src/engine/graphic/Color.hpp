@@ -7,6 +7,8 @@
 
 #include <cstdint>
 
+#pragma once
+
 class Color
 {
 public:

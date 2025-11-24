@@ -18,7 +18,8 @@ int main(void)
         PollStatus status = renderer.window.pollEvent();
         if (status == QUIT)
             break;
-        
+
+        renderer.clear();
         renderer.drawTexture("test", {100, 100, 100, 100});
         renderer.render();
     }

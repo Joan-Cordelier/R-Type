@@ -10,7 +10,11 @@
 
 Window::Window()
 {
-    SDL_Init(SDL_INIT_EVERYTHING);
+    int initresult = SDL_Init(SDL_INIT_EVERYTHING);
+    if (initresult != 0) {
+        std::cerr << "Failed to initialize SDL: " << SDL_GetError() << std::endl;
+        exit(84);
+    }
     int result = SDL_CreateWindowAndRenderer(1080, 720, 0, &win, &renderer);
 
     if (result != 0)

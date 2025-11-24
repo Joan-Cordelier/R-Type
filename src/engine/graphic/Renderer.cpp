@@ -7,6 +7,20 @@
 
 #include "Renderer.hpp"
 
+Renderer::~Renderer()
+{
+    for (auto &pair : textureCache) {
+        if (pair.second) {
+            SDL_DestroyTexture(pair.second);
+        }
+    }
+}
+
+void Renderer::clear()
+{
+    window.clear();
+}
+
 void Renderer::render()
 {
     window.draw();
@@ -15,13 +29,13 @@ void Renderer::render()
 void Renderer::drawTexture(const std::string &id, Rect rect)
 {
     if (textureCache.find(id) == textureCache.end()) {
-        std::cerr << "Error on texture loading for drawing: " << id << " not found.";
+        std::cerr << "Error on texture loading for drawing: " << id << " not found." << std::endl;;
         return;
     }
     
     SDL_Texture *texture = textureCache[id];
     if (texture == nullptr) {
-        std::cerr << "Error on texture loading for drawing: " << id << " not initialized.";
+        std::cerr << "Error on texture loading for drawing: " << id << " not initialized." << std::endl;
         return;
     }
 
@@ -42,13 +56,13 @@ std::string Renderer::loadTexture(const std::string &filePath, const std::string
     
     SDL_Surface *surface = IMG_Load(filePath.c_str());
     if (surface == nullptr) {
-        std::cerr << "Failed to load image: " << SDL_GetError() << " !";
+        std::cerr << "Failed to load image: " << SDL_GetError() << " !" << std::endl;
         return "";
     }
     
     SDL_Texture *texture = SDL_CreateTextureFromSurface(window.renderer, surface);
     if (texture == nullptr) {
-        std::cerr << "Failed to create texture from image: " << SDL_GetError() << " !";
+        std::cerr << "Failed to create texture from image: " << SDL_GetError() << " !" << std::endl;
         return "";
     }
 

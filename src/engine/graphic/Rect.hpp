@@ -5,6 +5,8 @@
 ** Rect
 */
 
+#pragma once
+
 class Rect
 {
 public:
