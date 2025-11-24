@@ -386,13 +386,30 @@ The `main` branch has stricter protection:
 
 ## Code Quality Standards
 
-#TODO: add linter or clang format
+### Branch Naming Convention Enforcement
+
+We automatically enforce branch naming conventions through GitHub Actions. The `.github/workflows/branch-naming.yml` workflow will block any PR from a branch that doesn't follow our conventions.
+
+**⚠️ Important:** The branch naming check **only runs on Pull Requests**. You won't see it until you create your first PR.
+
+**📖 Documentation:**
+- [Branch Protection Setup Guide](docs/BRANCH_PROTECTION_GUIDE.md) - Complete setup instructions
+- [Workflows Guide](docs/WORKFLOWS_GUIDE.md) - Understanding all GitHub Actions workflows
+
+### Epitech Coding Style
+
+We enforce Epitech coding style standards:
+- Function length limits
+- Code organization
+- Naming conventions
+- Documentation requirements
 
 **Automated Checks:**
 ```yaml
 # .github/workflows/ci.yml enforces:
+- Branch naming convention validation
 - Epitech coding style checker
-- CMake compilation
+- CMake compilation (Linux & Windows)
 - Unit tests execution
 ```
 
