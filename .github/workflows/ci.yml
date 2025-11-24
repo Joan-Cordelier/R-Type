@@ -62,14 +62,14 @@ jobs:
             - name: Install dependencies
               run: |
                 sudo apt-get update
-                sudo apt-get install -y cmake build-essential ninja-build
-            - name: Install package manager (Conan)
+                sudo apt-get install -y cmake build-essential ninja-build curl zip unzip tar
+            - name: Setup vcpkg
               run: |
-                pip install conan
-                conan --version
+                git clone https://github.com/microsoft/vcpkg.git
+                ./vcpkg/bootstrap-vcpkg.sh
             - name: Configure CMake
               run: |
-                cmake -B build -S . -DCMAKE_BUILD_TYPE=Release -G Ninja
+                cmake -B build -S . -DCMAKE_BUILD_TYPE=Release -G Ninja -DCMAKE_TOOLCHAIN_FILE=${{github.workspace}}/vcpkg/scripts/buildsystems/vcpkg.cmake
             - name: Build
               run: |
                 cmake --build build --config Release
