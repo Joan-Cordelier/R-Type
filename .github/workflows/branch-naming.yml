@@ -1,0 +1,52 @@
+name: Branch Naming Convention
+
+on:
+  pull_request:
+    types: [opened, reopened, synchronize]
+
+jobs:
+  check_branch_name:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check branch naming convention
+        run: |
+          BRANCH_NAME="${{ github.head_ref }}"
+          echo "Checking branch name: $BRANCH_NAME"
+          
+          # Define allowed patterns
+          FEATURE_PATTERN="^feature/(engine|network|client|server|gameplay|graphics|ecs|physics)/[a-z0-9-]+$"
+          BUGFIX_PATTERN="^bugfix/(engine|network|client|server|gameplay|graphics|ecs|physics)/[a-z0-9-]+$"
+          HOTFIX_PATTERN="^hotfix/[a-z0-9-]+$"
+          CHORE_PATTERN="^chore/[a-z0-9-]+$"
+          RELEASE_PATTERN="^release/v[0-9]+\.[0-9]+\.[0-9]+$"
+          
+          # Check if branch name matches any pattern
+          if [[ $BRANCH_NAME =~ $FEATURE_PATTERN ]] || \
+             [[ $BRANCH_NAME =~ $BUGFIX_PATTERN ]] || \
+             [[ $BRANCH_NAME =~ $HOTFIX_PATTERN ]] || \
+             [[ $BRANCH_NAME =~ $CHORE_PATTERN ]] || \
+             [[ $BRANCH_NAME =~ $RELEASE_PATTERN ]]; then
+            echo "Branch name follows convention: $BRANCH_NAME"
+            exit 0
+          else
+            echo "Branch name does NOT follow convention: $BRANCH_NAME"
+            echo ""
+            echo "Allowed patterns:"
+            echo "  feature/<scope>/<description>  (scope: engine|network|client|server|gameplay|graphics|ecs|physics)"
+            echo "  bugfix/<scope>/<description>   (scope: engine|network|client|server|gameplay|graphics|ecs|physics)"
+            echo "  hotfix/<description>"
+            echo "  chore/<description>"
+            echo "  release/vX.Y.Z"
+            echo ""
+            echo "Examples:"
+            echo "  feature/engine/ecs-system"
+            echo "  bugfix/network/packet-loss"
+            echo "  hotfix/server-crash"
+            echo "  chore/update-dependencies"
+            echo "  release/v1.0.0"
+            echo ""
+            echo "  feature/my-feature (missing scope)"
+            echo "  Feature/Engine/ecs (uppercase not allowed)"
+            echo "  fix/bug (use 'bugfix' not 'fix')"
+            exit 1
+          fi
