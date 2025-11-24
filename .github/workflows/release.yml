@@ -1,0 +1,82 @@
+name: Release
+on:
+  push:
+    branches: [ main ]
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    outputs:
+      release_created: ${{ steps.rp.outputs.release_created }}
+      tag_name:        ${{ steps.rp.outputs.tag_name }}
+      upload_url:      ${{ steps.rp.outputs.upload_url }}
+    steps:
+      - uses: google-github-actions/release-please-action@v4
+        id: rp
+        with:
+          release-type: simple
+
+  build-and-attach:
+    needs: release
+    if: ${{ needs.release.outputs.release_created == 'true' }}
+    strategy:
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+        include:
+          - os: ubuntu-latest
+            artifact_name: r-type-linux
+            server_binary: build/r-type_server
+            client_binary: build/r-type_client
+          - os: windows-latest
+            artifact_name: r-type-windows
+            server_binary: build/Release/r-type_server.exe
+            client_binary: build/Release/r-type_client.exe
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Install dependencies (Linux)
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y cmake build-essential ninja-build
+          pip install conan
+      
+      - name: Install dependencies (Windows)
+        if: runner.os == 'Windows'
+        run: |
+          choco install cmake ninja
+          pip install conan
+      
+      - name: Configure CMake
+        run: cmake -B build -S . -DCMAKE_BUILD_TYPE=Release -G Ninja
+      
+      - name: Build
+        run: cmake --build build --config Release
+      
+      - name: Package binaries (Linux)
+        if: runner.os == 'Linux'
+        run: |
+          mkdir -p release
+          cp ${{ matrix.server_binary }} release/r-type_server
+          cp ${{ matrix.client_binary }} release/r-type_client
+          tar -czf ${{ matrix.artifact_name }}.tar.gz -C release .
+      
+      - name: Package binaries (Windows)
+        if: runner.os == 'Windows'
+        run: |
+          mkdir release
+          copy ${{ matrix.server_binary }} release\r-type_server.exe
+          copy ${{ matrix.client_binary }} release\r-type_client.exe
+          7z a ${{ matrix.artifact_name }}.zip ./release/*
+      
+      - name: Upload binaries to GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            ${{ matrix.artifact_name }}.*
+          tag_name: ${{ needs.release.outputs.tag_name }}

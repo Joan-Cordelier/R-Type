@@ -1,0 +1,102 @@
+name: CI
+
+on:
+    push:
+        branches-ignore:
+            - "ga-ignore-*"
+    pull_request:
+        branches:
+            - dev
+            - main
+
+jobs:
+    check_repository:
+        name: check_repository
+        runs-on: ubuntu-latest
+        steps:
+            - name: checkout
+              uses: actions/checkout@v4
+            - name: is a mirror répository
+              run: |
+                git remote -v | awk '{print $2}' > test.txt
+                rep=$(head -n 1 test.txt)
+                modified=$(echo "$rep" | sed 's/git@github.com:/https:\/\/github.com\//g')
+                modified=$(echo "$rep" | sed 's/https:\/\/github.com\//git@github.com:/g')
+                echo "$modified.git"
+                if [[ "${modified}.git" == ${{ vars.MIRROR_URL }} ]]
+                then
+                    exit 1
+                else
+                    echo "Good repository"
+                fi
+
+    check_coding_style:
+        runs-on: ubuntu-latest
+        container: ghcr.io/epitech/coding-style-checker:latest
+        needs: check_repository
+        steps:
+            - name: checkout
+              uses: actions/checkout@v4
+            - name: coding-style $(pwd) $(pwd)
+              run: check.sh . /tmp
+            - name: displays each coding style error
+              run: |
+                input=/tmp/coding-style-reports.log
+                while IFS= read -r line; do
+                    set -- $(printf "%s" "$line" | cut -d':' --output-delimiter=' ' -f1-)
+                    echo "::error title=$3 coding style error: ${1#./}#${4#C-}::$4"
+                done < $input
+            - name: is any codingstyle error
+              run: |
+                NB=$(cat /tmp/coding-style-reports.log | wc -l)
+                if [ $NB -gt 0 ]; then
+                  exit 1
+                fi
+
+    check_program_compilation:
+        runs-on: ubuntu-latest
+        needs: check_repository
+        steps:
+            - name: checkout
+              uses: actions/checkout@v4
+            - name: Install dependencies
+              run: |
+                sudo apt-get update
+                sudo apt-get install -y cmake build-essential ninja-build
+            - name: Install package manager (Conan)
+              run: |
+                pip install conan
+                conan --version
+            - name: Configure CMake
+              run: |
+                cmake -B build -S . -DCMAKE_BUILD_TYPE=Release -G Ninja
+            - name: Build
+              run: |
+                cmake --build build --config Release
+            - name: Check executables
+              run: |
+                for executable in ${{ vars.EXECUTABLES }};do
+                 if [ ! -x "$executable" ]; then
+                  echo "File $executable does not exist or is not executable"
+                  exit 1
+                fi
+            - name: Run tests
+              run: |
+                cmake --build build --target test || ctest --test-dir build --output-on-failure
+
+    push_to_mirror:
+        runs-on: ubuntu-latest
+        if: github.event_name == 'push'
+        needs:
+            - check_program_compilation
+            - check_coding_style
+        steps:
+            - name: checkout
+              uses: actions/checkout@v4
+              with:
+                fetch-depth: 0
+            - name: mirror to epitech repo
+              uses: pixta-dev/repository-mirroring-action@v1
+              with:
+                target_repo_url: ${{ vars.MIRROR_URL }}
+                ssh_private_key: ${{ secrets.GIT_SSH_PRIVATE_KEY }}
