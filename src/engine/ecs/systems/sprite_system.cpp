@@ -25,10 +25,9 @@ void SpriteSystem::render(Registry& reg, std::function<void(TextureId, const std
             x = p.x; y = p.y;
         }
 
-        TextureId tid = 0;
+        TextureId tid = "0";
         auto it = textures.find(sp.textureName);
         if (it != textures.end()) tid = it->second;
-        sp.textureIndex = tid;
 
         drawCallback(tid, sp.textureName, x, y, sp.z);
     }
