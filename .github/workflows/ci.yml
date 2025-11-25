@@ -59,13 +59,30 @@ jobs:
             - name: Install dependencies
               run: |
                 sudo apt-get update
-                sudo apt install autoconf autoconf-archive automake libtool
-                sudo apt install libltdl-dev
-                sudo apt-get install -y cmake build-essential ninja-build curl zip unzip tar
+                sudo apt-get install -y --no-install-recommends \
+                  autoconf autoconf-archive automake libtool libltdl-dev \
+                  cmake build-essential ninja-build curl zip unzip tar pkg-config
+            - name: Cache vcpkg artifacts
+              uses: actions/cache@v4
+              with:
+                path: |
+                  vcpkg/downloads
+                  vcpkg/packages
+                  vcpkg/buildtrees
+                  vcpkg/installed
+                  build/vcpkg_installed
+                  vcpkg/vcpkg
+                key: ${{ runner.os }}-vcpkg-${{ hashFiles('vcpkg.json') }}
+                restore-keys: |
+                  ${{ runner.os }}-vcpkg-
             - name: Setup vcpkg
               run: |
-                git clone https://github.com/microsoft/vcpkg.git
-                ./vcpkg/bootstrap-vcpkg.sh
+                if [ -x "./vcpkg/vcpkg" ]; then
+                  echo "vcpkg binary found in cache, skipping clone/bootstrap"
+                else
+                  git clone https://github.com/microsoft/vcpkg.git
+                  ./vcpkg/bootstrap-vcpkg.sh -disableMetrics
+                fi
             - name: Configure CMake
               run: |
                 cmake -B build -S . -DCMAKE_BUILD_TYPE=Release -G Ninja -DCMAKE_TOOLCHAIN_FILE=${{github.workspace}}/vcpkg/scripts/buildsystems/vcpkg.cmake
