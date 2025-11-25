@@ -1,0 +1,47 @@
+/*
+** EPITECH PROJECT, 2025
+** rtype
+** File description:
+** AServer
+*/
+
+#ifndef ASERVER_HPP_
+#define ASERVER_HPP_
+
+#include <iostream>
+#include <bits/stdc++.h>
+#include <arpa/inet.h>
+#include <netinet/in.h>
+#include <sys/socket.h>
+#include <poll.h>
+#include <sys/ioctl.h>
+#include "../Data/packet.hpp"
+#include "../Data/Queue.hpp"
+
+class AServer {
+    public:
+        enum protocol {
+            TCP = SOCK_STREAM,
+            UDP = SOCK_DGRAM
+        };
+        AServer(Queue& queue);
+        int init(AServer::protocol protocol, int port);
+        int run();
+        void stop();
+        void reset();
+        void handleDisconnections(const std::vector<int>& toDisconnect);
+    protected:
+        Queue& _queue;
+        bool _running = true;
+        int _max = 0;
+        int _port = 0;
+        int _serverFd = -1;
+        protocol _protocol;
+        std::vector<struct pollfd> _fds;
+        std::vector<int> _clientFds;
+        struct sockaddr_in _addr;
+        socklen_t _addrLen = 0;
+        int _error = 0;
+};
+
+#endif /* !ASERVER_HPP_ */
