@@ -102,7 +102,7 @@ template std::shared_ptr<ComponentArray<Sprite>> Registry::componentArray<Sprite
 template void Registry::addComponent<Position, float, float>(Entity, float, float);
 template void Registry::addComponent<Velocity, float, float>(Entity, float, float);
 template void Registry::addComponent<Stats, int>(Entity, int);
-template void Registry::addComponent<Sprite, std::string, uint32_t, int, bool>(Entity, std::string, uint32_t, int, bool);
+template void Registry::addComponent<Sprite, std::string, std::string, int, bool>(Entity, std::string, std::string, int, bool);
 
 template bool Registry::hasComponent<Position>(Entity) const;
 template bool Registry::hasComponent<Velocity>(Entity) const;
