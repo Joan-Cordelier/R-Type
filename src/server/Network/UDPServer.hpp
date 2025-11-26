@@ -9,12 +9,15 @@
 #define UDPSERVER_HPP_
 
 #include "AServer.hpp"
+#include "../../common/Data/MessageFactory.hpp"
 
 class UDPServer : public AServer {
     public:
-        UDPServer(Queue& queue);
+        UDPServer(ThreadedQueue& queue);
         ~UDPServer();
         int run();
+        int send(const MessageData& data, const sockaddr_in& clientAddr);
+        int send(const MessageData& data);
 };
 
 #endif /* !UDPSERVER_HPP_ */

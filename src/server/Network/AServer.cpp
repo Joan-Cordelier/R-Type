@@ -7,7 +7,7 @@
 
 #include "AServer.hpp"
 
-AServer::AServer(Queue& queue) : _queue(queue)
+AServer::AServer(ThreadedQueue& queue) : _queue(queue)
 {
 }
 
@@ -67,8 +67,11 @@ void AServer::handleDisconnections(const std::vector<int>& toDisconnect)
     for (int fd : toDisconnect) {
         close(fd);
         
-        auto it = std::find(_clientFds.begin(), _clientFds.end(), fd);
-        if (it != _clientFds.end()) _clientFds.erase(it);
+        {
+            std::lock_guard<std::mutex> lock(_clientsMutex);
+            auto it = std::find(_clientFds.begin(), _clientFds.end(), fd);
+            if (it != _clientFds.end()) _clientFds.erase(it);
+        }
 
         for (auto it2 = _fds.begin(); it2 != _fds.end(); ++it2) {
             if (it2->fd == fd) {
