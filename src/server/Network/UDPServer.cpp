@@ -20,6 +20,7 @@ UDPServer::~UDPServer()
 int UDPServer::run()
 {
     _fds.push_back({_serverFd, POLLIN, 0});
+    MessageFactory& factory = MessageFactory::getInstance();
 
     while (_running) {
         if (poll(_fds.data(), _fds.size(), 100) < 0)
@@ -42,7 +43,7 @@ int UDPServer::run()
                             _clients.push_back(clientAddr);
                     }
                     std::vector<uint8_t> rawData(buffer, buffer + n);
-                    DecodedMessage msg = MessageFactory::decode(rawData);
+                    DecodedMessage msg = factory.decode(rawData);
                     if (msg.opCode != PARSING_ERROR)
                         _queue.push(msg.priority, msg.data);
                 }
