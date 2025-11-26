@@ -15,8 +15,8 @@ int main(void)
     bool running = true;
 
     while (running) {
-        PollStatus status = renderer.window.pollEvent();
-        if (status == QUIT)
+        PollEvent status = renderer.window.pollEvent();
+        if (status.type == PollStatus::QUIT)
             break;
 
         renderer.clear();
