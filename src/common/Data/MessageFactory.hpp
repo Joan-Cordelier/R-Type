@@ -46,71 +46,41 @@ class MessageFactory {
             Priority priority;
         };
         
-        static DecodedMessage decode(const std::vector<uint8_t>& rawData);
-        
-        static const Message& getMessageInfo(uint8_t opCode) {
-            return MessageTable[opCode];
+        static MessageFactory& getInstance() {
+            static MessageFactory instance;
+            return instance;
         }
         
-        static int getMessageLength(uint8_t opCode) {
-            return MessageTable[opCode].len;
+        MessageFactory(const MessageFactory&) = delete;
+        MessageFactory& operator=(const MessageFactory&) = delete;
+        
+        DecodedMessage decode(const std::vector<uint8_t>& rawData);
+        
+        const Message& getMessageInfo(uint8_t opCode) const {
+            return _messageTable[opCode];
         }
         
-        static Priority getMessagePriority(uint8_t opCode) {
-            return MessageTable[opCode].priority;
+        int getMessageLength(uint8_t opCode) const {
+            return _messageTable[opCode].len;
         }
+        
+        Priority getMessagePriority(uint8_t opCode) const {
+            return _messageTable[opCode].priority;
+        }
+        
+        bool decodeHeader(uint8_t op, size_t bufferSize, 
+                         uint8_t secondByte, size_t& headerSize, 
+                         uint8_t& payloadLen, Priority& priority) const;
         
         template<typename LinearBufferT>
-        static DecodedMessage decodeFromBuffer(LinearBufferT& buffer) {
-            DecodedMessage message;
-            message.opCode = INCOMPLETE;
-            
-            if (buffer.size() == 0)
-                return message;
-            
-            uint8_t op = buffer.peek(0);
-            int expectedLen = MessageTable[op].len;
-            message.priority = MessageTable[op].priority;
-            
-            size_t headerSize = 1;
-            uint8_t payloadLen = 0;
-            
-            if (expectedLen == VARIABLE_LEN) {
-                if (buffer.size() < 2) return message;
-                payloadLen = buffer.peek(1);
-                headerSize = 2;
-            } else
-                payloadLen = static_cast<uint8_t>(expectedLen);
-            
-            if (buffer.size() < headerSize + payloadLen)
-                return message;
-            
-            message.opCode = static_cast<OpCode>(op);
-            message.len = payloadLen;
-            
-            buffer.consume(headerSize);
-            
-            if (payloadLen > 0)
-                buffer.read(message.data, payloadLen);
-            
-            return message;
-        }
-    protected:
+        DecodedMessage decodeFromBuffer(LinearBufferT& buffer);
+        
     private:
-        static constexpr std::array<Message, 256> MessageTable = [] {
-            std::array<Message, 256> table{};
-
-            for (size_t i = 0; i < 256; ++i)
-                table[i] = {0, Priority::MEDIUM};
-
-            table[INCOMPLETE] = {0, Priority::ERROR}; // Should not happen in queue
-            table[PARSING_ERROR] = {0, Priority::ERROR};
-            table[DEATH] = {0, Priority::CRITICAL};
-            table[SHOOT] = {0, Priority::HIGH};
-            table[MOVE] = {8, Priority::LOW};
-
-            return table;
-        }();
+        MessageFactory();
+        ~MessageFactory() = default;
+        
+        std::array<Message, 256> _messageTable;
+        std::array<Message, 256> initMessageTable();
 };
 
 #endif /* !MESSAGEFACTORY_HPP_ */
