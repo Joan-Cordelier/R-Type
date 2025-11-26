@@ -9,14 +9,17 @@
 #define TCPSERVER_HPP_
 
 #include "AServer.hpp"
-#include "../Data/LinearBuffer.hpp"
+#include "../../common/Data/LinearBuffer.hpp"
+#include "../../common/Data/MessageFactory.hpp"
 #include <map>
 
 class TCPServer : public AServer {
     public:
-        TCPServer(Queue& queue);
+        TCPServer(ThreadedQueue& queue);
         ~TCPServer();
         int run();
+        int send(const MessageData& data, const sockaddr_in& clientAddr);
+        int send(const MessageData& data);
     private:
         std::map<int, LinearBuffer> _buffers;
 };

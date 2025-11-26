@@ -1,7 +1,8 @@
 set(SERVER_SOURCES
     main.cpp
-    Data/packet.cpp
-    Data/Queue.cpp
+    ../common/Data/Queue.cpp
+    ../common/Data/ThreadedQueue.cpp
+    ../common/Data/MessageFactory.cpp
     Network/AServer.cpp
     Network/TCPServer.cpp
     Network/UDPServer.cpp
@@ -11,8 +12,8 @@ add_executable(r-type_server ${SERVER_SOURCES})
 
 target_include_directories(r-type_server PRIVATE 
     ${CMAKE_CURRENT_SOURCE_DIR}
-    ${CMAKE_CURRENT_SOURCE_DIR}/Data
     ${CMAKE_CURRENT_SOURCE_DIR}/Network
+    ${CMAKE_CURRENT_SOURCE_DIR}/../common/Data
 )
 
 target_compile_options(r-type_server PRIVATE -Wall -Wextra)

@@ -1,0 +1,130 @@
+/*
+** EPITECH PROJECT, 2025
+** R-Type
+** File description:
+** MessageFactory
+*/
+
+#include "MessageFactory.hpp"
+#include "LinearBuffer.hpp"
+
+MessageFactory::MessageFactory() : _messageTable(initMessageTable())
+{
+}
+
+std::array<MessageFactory::Message, 256> MessageFactory::initMessageTable()
+{
+    std::array<Message, 256> table{};
+
+    for (size_t i = 0; i < 256; ++i)
+        table[i] = {0, Priority::MEDIUM};
+
+    table[INCOMPLETE] = {0, Priority::ERROR};
+    table[PARSING_ERROR] = {0, Priority::ERROR};
+    table[DEATH] = {0, Priority::CRITICAL};
+    table[SHOOT] = {0, Priority::HIGH};
+    table[MOVE] = {8, Priority::LOW};
+
+    return table;
+}
+
+DecodedMessage MessageFactory::decode(const std::vector<uint8_t>& rawData)
+{
+    DecodedMessage message;
+    
+    if (rawData.empty()) {
+        message.opCode = PARSING_ERROR;
+        message.len = 0;
+        message.priority = Priority::ERROR;
+        return message;
+    }
+
+    message.opCode = static_cast<OpCode>(rawData[0]);
+    
+    int expectedLen = _messageTable[message.opCode].len;
+    message.priority = _messageTable[message.opCode].priority;
+    
+    size_t headerSize = 1;
+
+    if (expectedLen == MessageFactory::VARIABLE_LEN) {
+        if (rawData.size() < 2) {
+            message.opCode = PARSING_ERROR;
+            message.len = 0;
+            message.priority = Priority::ERROR;
+            return message;
+        }
+        message.len = rawData[1];
+        headerSize = 2;
+    } else {
+        message.len = static_cast<uint8_t>(expectedLen);
+    }
+    
+    if (rawData.size() < headerSize + message.len) {
+        message.opCode = PARSING_ERROR;
+        message.len = 0;
+        message.priority = Priority::ERROR;
+        return message;
+    }
+
+    if (message.len > 0) {
+        message.data.assign(rawData.begin() + headerSize, 
+                           rawData.begin() + headerSize + message.len);
+    }
+    
+    return message;
+}
+
+bool MessageFactory::decodeHeader(uint8_t op, size_t bufferSize, 
+                                  uint8_t secondByte, size_t& headerSize, 
+                                  uint8_t& payloadLen, Priority& priority) const
+{
+    int expectedLen = _messageTable[op].len;
+    priority = _messageTable[op].priority;
+    
+    headerSize = 1;
+    
+    if (expectedLen == VARIABLE_LEN) {
+        if (bufferSize < 2) 
+            return false;
+        payloadLen = secondByte;
+        headerSize = 2;
+    } else {
+        payloadLen = static_cast<uint8_t>(expectedLen);
+    }
+    
+    if (bufferSize < headerSize + payloadLen)
+        return false;
+    
+    return true;
+}
+
+template<typename LinearBufferT>
+DecodedMessage MessageFactory::decodeFromBuffer(LinearBufferT& buffer)
+{
+    DecodedMessage message;
+    message.opCode = INCOMPLETE;
+    
+    if (buffer.size() == 0)
+        return message;
+    
+    uint8_t op = buffer.peek(0);
+    uint8_t secondByte = buffer.size() >= 2 ? buffer.peek(1) : 0;
+    size_t headerSize = 0;
+    uint8_t payloadLen = 0;
+    
+    if (!decodeHeader(op, buffer.size(), secondByte, headerSize, 
+                    payloadLen, message.priority))
+        return message;
+    
+    message.opCode = static_cast<OpCode>(op);
+    message.len = payloadLen;
+    
+    buffer.consume(headerSize);
+    
+    if (payloadLen > 0)
+        buffer.read(message.data, payloadLen);
+    
+    return message;
+}
+
+template DecodedMessage MessageFactory::decodeFromBuffer<LinearBuffer>(LinearBuffer& buffer);
