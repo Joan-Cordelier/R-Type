@@ -1,4 +1,5 @@
 #include "sprite_system.hpp"
+#include <iostream>
 
 void SpriteSystem::render(Registry& reg, std::function<void(const TextureId&, int, int, int, int, int)> drawCallback) {
     if (!drawCallback) return;

@@ -83,4 +83,4 @@ class MessageFactory {
         std::array<Message, 256> initMessageTable();
 };
 
-#endif /* !MESSAGEFACTORY_HPP_ */
+#endif

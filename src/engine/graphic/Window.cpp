@@ -20,6 +20,7 @@ Window::Window()
     if (result != 0)
         std::cerr << "Failed to create a window and renderer: " << SDL_GetError() << std::endl;
     SDL_SetRenderDrawBlendMode(renderer, SDL_BLENDMODE_ADD);
+    SDL_StartTextInput();
 }
 
 Window::~Window()
@@ -28,6 +29,7 @@ Window::~Window()
         SDL_DestroyRenderer(renderer);
     if (win)
         SDL_DestroyWindow(win);
+    SDL_StopTextInput();
     SDL_Quit();
 }
 
