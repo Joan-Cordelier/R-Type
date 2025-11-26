@@ -24,6 +24,7 @@ cd vcpkg
 .\bootstrap-vcpkg.bat # On Windows
 
 sudo dnf install -y ninja-build
+sudo apt install autoconf autoconf-archive automake libtool
 
 Linux:
 cmake -B build -S . -DCMAKE_BUILD_TYPE=Release -DCMAKE_TOOLCHAIN_FILE=./vcpkg/scripts/buildsystems/vcpkg.cmake

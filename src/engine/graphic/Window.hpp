@@ -8,13 +8,10 @@
 #pragma once
 
 #include <SDL2/SDL.h>
+#include <SDL2/SDL_keycode.h>
 #include <iostream>
 #include "Color.hpp"
-
-enum PollStatus {
-    QUIT,
-    NONE
-};
+#include "Event.hpp"
 
 class Window
 {
@@ -26,7 +23,9 @@ public:
     ~Window();
     SDL_Renderer *renderer;
     int draw();
-    PollStatus pollEvent();
+    PollEvent pollEvent();
     void clear();
     void clear(Color);
+    KeyCode sdlKeyToKeyCode(SDL_Keycode sdlKey);
+    MouseButton sdlButtonToMouseButton(Uint8 sdlButton);
 };
