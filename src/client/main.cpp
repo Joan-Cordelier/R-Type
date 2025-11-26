@@ -25,34 +25,7 @@
 int main()
 {
     Renderer renderer;
-    Registry reg;
-    MovementSystem movement;
-    SpriteSystem spritesys;
-    ButtonSystem buttonsys;
-    LabelSystem labelsys;
-    ArrowInputSystem arrowInput(200.f);
-
-    renderer.loadTexture("textures/vaisseau.png", "test");
-
-    Entity player = reg.createEntity();
-    reg.addComponent<Position>(player, 100.f, 100.f);
-    reg.addComponent<Velocity>(player, 0.f, 0.f);
-    reg.addComponent<Sprite>(player, (std::string)"textures/vaisseau.png", (std::string)"test", 64, 64, 0, false);
-
-    renderer.loadTexture("textures/play_button/default.png", "play_button");
-
-    Entity start_button = reg.createEntity();
-    reg.addComponent<Position>(start_button, 400.f, 300.f);
-    reg.addComponent<Sprite>(start_button, (std::string)"textures/play_button/default.png", (std::string)"play_button", 300, 150, 0, true);
-    reg.addComponent<Button>(start_button, (std::string)"start_game", 1, true);
-
-    renderer.loadFont("font/josefin-sans/JosefinSans-Regular.ttf", 24, "default_font");
-
-    Entity label_input = reg.createEntity();
-    reg.addComponent<Position>(label_input, 300.f, 300.f);
-    reg.addComponent<Label>(label_input, (std::string)"", (std::string)"font/josefin-sans/JosefinSans-Regular.ttf", (std::string)"default_font", Color(255, 255, 255), 0, true);
-
-    arrowInput.setControlled(player);
+    std::string id = renderer.loadTexture("a.png", "test");
 
     Uint64 last = SDL_GetPerformanceCounter();
     bool running = true;
@@ -65,9 +38,17 @@ int main()
     });
 
     while (running) {
-        PollEvent status = renderer.window.pollEvent();
-        if (status.type == PollStatus::QUIT)
-            break;
+        SDL_Event evt = renderer.window.pollEvent();
+        while (evt.type != 0) {
+            switch(evt.type) {
+                case SDL_QUIT:
+                    running = false;
+                    break;
+                default:
+                    break;
+            }
+            evt = renderer.window.pollEvent();
+        }
 
         Uint64 now = SDL_GetPerformanceCounter();
         double dt = (double)(now - last) / SDL_GetPerformanceFrequency();
@@ -80,17 +61,7 @@ int main()
         buttonsys.update(reg);
 
         renderer.clear();
-
-        spritesys.render(reg, [&](const SpriteSystem::TextureId& tid, int width, int height, int x, int y, int z) {
-            renderer.queueDraw(RenderLayer::GAME, z, [&]() {
-                renderer.drawTexture(tid, Rect{x, y, width, height});
-            });
-        });
-
-        labelsys.render(reg, [&](const LabelSystem::TextId& tid, std::string& text, int x, int y, Color color) {
-            renderer.drawFont(tid, text, x, y, color);
-        });
-
+        renderer.drawTexture("test", {100, 100, 100, 100}, {.rotation = 45.0f, .alpha = 100, .tint = Color(255, 255, 255)});
         renderer.render();
     }
 
