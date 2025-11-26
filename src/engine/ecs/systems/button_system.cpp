@@ -8,6 +8,7 @@
 #include "button_system.hpp"
 #include "../components/button.hpp"
 #include "../components/position.hpp"
+#include "../components/sprite.hpp"
 #include <SDL2/SDL.h>
 #include <algorithm>
 
@@ -37,6 +38,7 @@ void ButtonSystem::update(Registry& reg) {
 
         for (auto e : candidates) {
             const auto& btn = reg.getComponent<Button>(e);
+            const auto& sprite = reg.getComponent<Sprite>(e);
             if (!btn.enabled || !btn.visible) continue;
 
             if (!reg.hasComponent<Position>(e)) continue;
@@ -44,8 +46,8 @@ void ButtonSystem::update(Registry& reg) {
 
             float left = pos.x;
             float top = pos.y;
-            float right = left + btn.w;
-            float bottom = top + btn.h;
+            float right = left + sprite.width;
+            float bottom = top + sprite.height;
 
             if (mx >= left && mx < right && my >= top && my < bottom) {
                 auto it = handlers.find(btn.handler);

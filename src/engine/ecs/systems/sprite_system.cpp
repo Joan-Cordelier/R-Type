@@ -1,14 +1,6 @@
 #include "sprite_system.hpp"
 
-void SpriteSystem::registerTexture(const std::string& name, TextureId id) {
-    textures[name] = id;
-}
-
-void SpriteSystem::unregisterTexture(const std::string& name) {
-    textures.erase(name);
-}
-
-void SpriteSystem::render(Registry& reg, std::function<void(const TextureId&, float, float, int)> drawCallback) {
+void SpriteSystem::render(Registry& reg, std::function<void(const TextureId&, int, int, int, int, int)> drawCallback) {
     if (!drawCallback) return;
     auto spArr = reg.componentArray<Sprite>();
     if (!spArr) return;
@@ -25,35 +17,6 @@ void SpriteSystem::render(Registry& reg, std::function<void(const TextureId&, fl
             x = p.x; y = p.y;
         }
 
-        TextureId tid{};
-        auto it = textures.find(sp.textureName);
-        if (it != textures.end()) tid = it->second;
-
-        sp.textureIndex = tid;
-
-        drawCallback(tid, x, y, sp.z);
+        drawCallback(sp.textureIndex, sp.width, sp.height, x, y, sp.z);
     }
-}
-
-std::vector<SpriteSystem::DrawCmd> SpriteSystem::collectDrawCommands(Registry& reg) const {
-    std::vector<DrawCmd> out;
-    auto spArr = reg.componentArray<Sprite>();
-    if (!spArr) return out;
-    auto posArr = reg.componentArray<Position>();
-
-    for (auto e : spArr->entities()) {
-        if (!spArr->has(e)) continue;
-        const auto &sp = spArr->get(e);
-        if (!sp.visible) continue;
-        float x = 0.f, y = 0.f;
-        if (posArr && posArr->has(e)) {
-            const auto &p = posArr->get(e);
-            x = p.x; y = p.y;
-        }
-        std::string tid = "0";
-        auto it = textures.find(sp.textureName);
-        if (it != textures.end()) tid = it->second;
-        out.push_back({sp.textureName, tid, x, y, sp.z});
-    }
-    return out;
 }

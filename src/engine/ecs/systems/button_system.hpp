@@ -14,19 +14,19 @@
 #include "../registry.hpp"
 
 class ButtonSystem {
-public:
-    using Handler = std::function<void(Registry&, Entity)>;
+    public:
+        using Handler = std::function<void(Registry&, Entity)>;
 
-    ButtonSystem();
+        ButtonSystem();
 
-    void registerHandler(const std::string& name, Handler h);
-    void unregisterHandler(const std::string& name);
+        void registerHandler(const std::string& name, Handler h);
+        void unregisterHandler(const std::string& name);
 
-    void update(Registry& reg);
+        void update(Registry& reg);
 
-private:
-    std::unordered_map<std::string, Handler> handlers;
-    bool prevMouseDown;
+    private:
+        std::unordered_map<std::string, Handler> handlers;
+        bool prevMouseDown;
 };
 
 #endif

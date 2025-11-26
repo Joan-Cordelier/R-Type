@@ -5,6 +5,7 @@
 #include "components/stats.hpp"
 #include "components/sprite.hpp"
 #include "components/button.hpp"
+#include "components/label.hpp"
 
 #include <algorithm>
 #include <type_traits>
@@ -95,39 +96,47 @@ template std::shared_ptr<ComponentArray<Velocity>> Registry::ensure<Velocity>();
 template std::shared_ptr<ComponentArray<Stats>> Registry::ensure<Stats>();
 template std::shared_ptr<ComponentArray<Sprite>> Registry::ensure<Sprite>();
 template std::shared_ptr<ComponentArray<Button>> Registry::ensure<Button>();
+template std::shared_ptr<ComponentArray<Label>> Registry::ensure<Label>();
 
 template std::shared_ptr<ComponentArray<Position>> Registry::componentArray<Position>() const;
 template std::shared_ptr<ComponentArray<Velocity>> Registry::componentArray<Velocity>() const;
 template std::shared_ptr<ComponentArray<Stats>> Registry::componentArray<Stats>() const;
 template std::shared_ptr<ComponentArray<Sprite>> Registry::componentArray<Sprite>() const;
 template std::shared_ptr<ComponentArray<Button>> Registry::componentArray<Button>() const;
+template std::shared_ptr<ComponentArray<Label>> Registry::componentArray<Label>() const;
 
 template void Registry::addComponent<Position, float, float>(Entity, float, float);
 template void Registry::addComponent<Velocity, float, float>(Entity, float, float);
 template void Registry::addComponent<Stats, int>(Entity, int);
-template void Registry::addComponent<Sprite, std::string, std::string, int, bool>(Entity, std::string, std::string, int, bool);
-template void Registry::addComponent<Button, float, float, std::string, int, bool>(Entity, float, float, std::string, int, bool);
+template void Registry::addComponent<Sprite, std::string, std::string, int, int, int, bool>(Entity, std::string, std::string, int, int, int, bool);
+template void Registry::addComponent<Button, std::string, int, bool>(Entity, std::string, int, bool);
+template void Registry::addComponent<Label, std::string, std::string, std::string, Color, int, bool>(Entity, std::string, std::string, std::string, Color, int, bool);
 
 template bool Registry::hasComponent<Position>(Entity) const;
 template bool Registry::hasComponent<Velocity>(Entity) const;
 template bool Registry::hasComponent<Stats>(Entity) const;
 template bool Registry::hasComponent<Sprite>(Entity) const;
 template bool Registry::hasComponent<Button>(Entity) const;
+template bool Registry::hasComponent<Label>(Entity) const;
 
 template Position& Registry::getComponent<Position>(Entity);
 template Velocity& Registry::getComponent<Velocity>(Entity);
 template Stats& Registry::getComponent<Stats>(Entity);
 template Sprite& Registry::getComponent<Sprite>(Entity);
 template Button& Registry::getComponent<Button>(Entity);
+template Label& Registry::getComponent<Label>(Entity);
 
 template void Registry::collectEntities<Position>(std::vector<std::vector<Entity>>& lists) const;
 template void Registry::collectEntities<Velocity>(std::vector<std::vector<Entity>>& lists) const;
 template void Registry::collectEntities<Stats>(std::vector<std::vector<Entity>>& lists) const;
 template void Registry::collectEntities<Sprite>(std::vector<std::vector<Entity>>& lists) const;
 template void Registry::collectEntities<Button>(std::vector<std::vector<Entity>>& lists) const;
+template void Registry::collectEntities<Label>(std::vector<std::vector<Entity>>& lists) const;
 
 template std::vector<Entity> Registry::viewEntitiesWith<Position, Velocity>() const;
 template std::vector<Entity> Registry::viewEntitiesWith<Sprite>() const;
 template std::vector<Entity> Registry::viewEntitiesWith<Position>() const;
 template std::vector<Entity> Registry::viewEntitiesWith<Button>() const;
 template std::vector<Entity> Registry::viewEntitiesWith<Button, Position>() const;
+template std::vector<Entity> Registry::viewEntitiesWith<Label>() const;
+template std::vector<Entity> Registry::viewEntitiesWith<Label, Position>() const;
