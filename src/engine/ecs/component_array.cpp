@@ -44,8 +44,10 @@ std::vector<Entity> ComponentArray<T>::entities() const {
 #include "components/velocity.hpp"
 #include "components/stats.hpp"
 #include "components/sprite.hpp"
+#include "components/button.hpp"
 
 template class ComponentArray<Position>;
 template class ComponentArray<Velocity>;
 template class ComponentArray<Stats>;
 template class ComponentArray<Sprite>;
+template class ComponentArray<Button>;
