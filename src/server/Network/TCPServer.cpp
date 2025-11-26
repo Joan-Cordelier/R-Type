@@ -6,6 +6,7 @@
 */
 
 #include "TCPServer.hpp"
+#include "../Logs/Logger.hpp"
 
 TCPServer::TCPServer(ThreadedQueue& queue) : AServer(queue)
 {
@@ -26,7 +27,7 @@ int TCPServer::run()
         if (poll(_fds.data(), _fds.size(), 100) < 0) {
             if (errno == EINTR)
                 continue;
-            perror("poll failed");
+            LOG_ERROR("TCP poll failed");
             return 84;
         }
         std::vector<int> toDisconnect;
@@ -39,6 +40,7 @@ int TCPServer::run()
                 if (_fds[i].fd == _serverFd) {
                     int newFd = accept(_serverFd, nullptr, nullptr);
                     if (newFd >= 0) {
+                        LOG_INFO("TCP client connected (fd: " + std::to_string(newFd) + ")");
                         _fds.push_back({newFd, POLLIN, 0});
                         {
                             std::lock_guard<std::mutex> lock(_clientsMutex);
@@ -46,16 +48,17 @@ int TCPServer::run()
                         }
                         _buffers.emplace(newFd, LinearBuffer());
                     } else
-                        perror("accept failed");
+                        LOG_ERROR("TCP accept failed");
                 } else {
                     char buffer[4096];
                     int n = recv(_fds[i].fd, buffer, sizeof(buffer), 0);
                     
                     if (n <= 0) {
                         if (n < 0)
-                            perror("recv failed");
+                            LOG_WARN("TCP recv failed (fd: " + std::to_string(_fds[i].fd) + ")");
                         toDisconnect.push_back(_fds[i].fd);
                     } else {
+                        LOG_DEBUG("TCP received " + std::to_string(n) + " bytes (fd: " + std::to_string(_fds[i].fd) + ")");
                         if (!_buffers[_fds[i].fd].write(buffer, n)) {
                             toDisconnect.push_back(_fds[i].fd);
                             continue;
@@ -65,9 +68,11 @@ int TCPServer::run()
                             if (msg.opCode == INCOMPLETE)
                                 break;
                             if (msg.opCode == PARSING_ERROR) {
+                                LOG_WARN("TCP parsing error (fd: " + std::to_string(_fds[i].fd) + ")");
                                 toDisconnect.push_back(_fds[i].fd);
                                 break;
                             }
+                            LOG_INFO("TCP message received: OpCode=" + std::to_string(msg.opCode) + " Len=" + std::to_string(msg.len));
                             _queue.push(msg.priority, msg.data);
                         }
                     }
@@ -101,10 +106,11 @@ int TCPServer::send(const MessageData& data)
     
     int result = 0;
     std::lock_guard<std::mutex> lock(_clientsMutex);
+    LOG_DEBUG("TCP sending " + std::to_string(data.size()) + " bytes to " + std::to_string(_clientFds.size()) + " clients");
     for (int fd : _clientFds) {
         ssize_t sent = ::send(fd, data.data(), data.size(), MSG_NOSIGNAL);
         if (sent < 0) {
-            perror("send to client failed");
+            LOG_ERROR("TCP send failed (fd: " + std::to_string(fd) + ")");
             result = -1;
         }
     }

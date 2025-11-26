@@ -6,6 +6,7 @@
 */
 
 #include "AServer.hpp"
+#include "../Logs/Logger.hpp"
 
 AServer::AServer(ThreadedQueue& queue) : _queue(queue)
 {
@@ -23,27 +24,30 @@ int AServer::init(AServer::protocol protocol, int port)
     _protocol = protocol;
     _serverFd = socket(AF_INET, protocol, 0);
     if (_serverFd < 0) {
-        perror("socket failed");
+        LOG_ERROR("Socket creation failed");
         return 84;
     }
     if (setsockopt(_serverFd, SOL_SOCKET, SO_REUSEADDR, &opt, sizeof(opt))) {
-        perror("setsockopt SO_REUSEADDR failed");
+        LOG_ERROR("setsockopt SO_REUSEADDR failed");
         return 84;
     }
     if (setsockopt(_serverFd, SOL_SOCKET, SO_REUSEPORT, &opt, sizeof(opt))) {
-        perror("setsockopt SO_REUSEPORT failed");
+        LOG_ERROR("setsockopt SO_REUSEPORT failed");
         return 84;
     }
     if (bind(_serverFd, (struct sockaddr*)&_addr, sizeof(_addr)) < 0) {
-        perror("bind failed");
+        LOG_ERROR("Bind failed on port " + std::to_string(port));
         return 84;
     }
 
     if (protocol == TCP) {
         if (listen(_serverFd, 10) < 0) {
-            perror("listen failed");
+            LOG_ERROR("Listen failed");
             return 84;
         }
+        LOG_INFO("TCP server listening on port " + std::to_string(port));
+    } else {
+        LOG_INFO("UDP server listening on port " + std::to_string(port));
     }
 
     return 0;
@@ -65,6 +69,7 @@ void AServer::reset()
 void AServer::handleDisconnections(const std::vector<int>& toDisconnect)
 {
     for (int fd : toDisconnect) {
+        LOG_INFO("Client disconnected (fd: " + std::to_string(fd) + ")");
         close(fd);
         
         {
