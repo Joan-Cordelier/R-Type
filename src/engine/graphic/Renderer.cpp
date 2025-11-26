@@ -228,8 +228,9 @@ void Renderer::drawFrame(const std::string &id, int frameIndex, Rect rect, DrawO
         std::cerr << "Error on spritesheet loading for drawing: " << id << " not found." << std::endl;
         return;
     }
+    SpriteSheet &sheet = spritesheetCache[id];
 
-    SDL_Texture *texture = spritesheetCache[id].texture;
+    SDL_Texture *texture = sheet.texture;
     if (texture == nullptr) {
         std::cerr << "Error on spritesheet loading for drawing: " << id << " not initialized." << std::endl;
         return;
@@ -240,10 +241,10 @@ void Renderer::drawFrame(const std::string &id, int frameIndex, Rect rect, DrawO
 
     SDL_Rect destRect = rect.toSDLRect();
     SDL_Rect texRect = {
-        (frameIndex % spritesheetCache[id].columns) * spritesheetCache[id].frameWidth,
-        (frameIndex / spritesheetCache[id].columns) * spritesheetCache[id].frameHeight,
-        spritesheetCache[id].frameWidth,
-        spritesheetCache[id].frameHeight
+        (frameIndex % sheet.columns) * sheet.frameWidth,
+        (frameIndex / sheet.columns) * sheet.frameHeight,
+        sheet.frameWidth,
+        sheet.frameHeight
     };
 
     SDL_RenderCopyEx(window.renderer, texture, &texRect, &destRect,
@@ -408,9 +409,15 @@ int Renderer::getFrameCount(const std::string &id) const
 }
 
 std::string Renderer::makeTextKey(const std::string& fontId, const std::string& text, Color color) {
-    return fontId + "|" + text + "|" + 
-           std::to_string(color.r) + "," + 
-           std::to_string(color.g) + "," + 
-           std::to_string(color.b) + "," + 
-           std::to_string(color.a);
+    std::string key;
+    key.reserve(fontId.size() + text.size() + 20);
+    key += fontId;
+    key += '|';
+    key += text;
+    key += '|';
+    key += std::to_string(color.r);
+    key += std::to_string(color.g);
+    key += std::to_string(color.b);
+    key += std::to_string(color.a);
+    return key;
 }
