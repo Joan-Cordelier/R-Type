@@ -10,24 +10,13 @@
 #include "../components/position.hpp"
 
 class SpriteSystem {
-public:
-    using TextureId = std::string;
-    struct DrawCmd {
-        std::string textureName;
-        TextureId textureId;
-        float x, y;
-        int z;
-    };
+    public:
+        using TextureId = std::string;
+        using DrawCallback = std::function<void(const TextureId&, int, int, int, int, int)>;
 
-    SpriteSystem() = default;
+        SpriteSystem() = default;
 
-    void registerTexture(const std::string& name, TextureId id);
-    void unregisterTexture(const std::string& name);
-    void render(Registry& reg, std::function<void(TextureId, const std::string&, float, float, int)> drawCallback);
-    std::vector<DrawCmd> collectDrawCommands(Registry& reg) const;
-
-private:
-    std::unordered_map<std::string, TextureId> textures;
+        void render(Registry& reg, DrawCallback drawCallback);
 };
 
 #endif

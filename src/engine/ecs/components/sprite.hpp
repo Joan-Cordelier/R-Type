@@ -6,7 +6,9 @@
 
 struct Sprite {
     std::string textureName;
-    std::string textureIndex = "0";
+    std::string textureIndex;
+    int width = 64;
+    int height = 64;
     int z = 0;
     bool visible = true;
 };

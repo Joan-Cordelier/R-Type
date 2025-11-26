@@ -1,8 +1,9 @@
 file(GLOB_RECURSE ENGINE_SOURCES ../engine/*.cpp)
 file(GLOB_RECURSE COMMON_SOURCES ../common/*.cpp)
+file(GLOB_RECURSE CLIENT_SOURCES *.cpp)
 
 set(CLIENT_SOURCES
-    main.cpp
+    ${CLIENT_SOURCES}
     ${ENGINE_SOURCES}
     ${COMMON_SOURCES}
 )
