@@ -33,6 +33,9 @@ Renderer::~Renderer()
             TTF_CloseFont(pair.second.font);
         }
     }
+    for (auto& pair : textCache) {
+        SDL_DestroyTexture(pair.second.texture);
+    }
     TTF_Quit();
 }
 
@@ -81,12 +84,57 @@ void Renderer::drawFont(const std::string &id, const std::string &text, int x, i
     if (surface == nullptr) return;
     
     SDL_Texture* texture = SDL_CreateTextureFromSurface(window.renderer, surface);
-    
+    if (texture == nullptr) {
+        SDL_FreeSurface(surface);
+        return;
+    }
+
     SDL_Rect destRect = {x, y, surface->w, surface->h};
     SDL_FreeSurface(surface);
     
     SDL_RenderCopy(window.renderer, texture, NULL, &destRect);
     SDL_DestroyTexture(texture);
+}
+
+/// @brief draw a font and cache the rendered text
+/// @param id the id of the font
+/// @param text the text to render
+/// @param x the x position
+/// @param y the y position
+/// @param color the color of the text
+void Renderer::drawFontAndCache(const std::string &id, const std::string &text, 
+                        int x, int y, Color color)
+{
+    std::string cacheKey = makeTextKey(id, text, color);
+    
+    // Check cache first
+    auto it = textCache.find(cacheKey);
+    if (it != textCache.end()) {
+        SDL_Rect destRect = {x, y, it->second.width, it->second.height};
+        SDL_RenderCopy(window.renderer, it->second.texture, NULL, &destRect);
+        return;
+    }
+    
+    // Cache miss - create texture
+    TTF_Font* font = fontCache[id].font;
+    SDL_Color sdlColor = {color.r, color.g, color.b, color.a};
+    
+    SDL_Surface* surface = TTF_RenderText_Blended(font, text.c_str(), sdlColor);
+    if (!surface) return;
+    
+    SDL_Texture* texture = SDL_CreateTextureFromSurface(window.renderer, surface);
+    if (!texture) {
+        SDL_FreeSurface(surface);
+        return;
+    }
+    
+    // Store in cache
+    textCache[cacheKey] = {texture, surface->w, surface->h};
+    
+    SDL_Rect destRect = {x, y, surface->w, surface->h};
+    SDL_FreeSurface(surface);
+    
+    SDL_RenderCopy(window.renderer, texture, NULL, &destRect);
 }
 
 /// @brief draw a texture to the screen
@@ -229,6 +277,7 @@ std::string Renderer::loadSpriteSheet(const std::string &filePath, const std::st
     SDL_Texture *texture = SDL_CreateTextureFromSurface(window.renderer, surface);
     if (texture == nullptr) {
         std::cerr << "Failed to create texture from image: " << SDL_GetError() << " !" << std::endl;
+        SDL_FreeSurface(surface);
         return "";
     }
 
@@ -290,7 +339,7 @@ std::string Renderer::loadFont(const std::string &filePath, int fontSize, const 
         return "";
     }
 
-    fontCache[fontId] = {font, 16};
+    fontCache[fontId] = {font, fontSize};
     return fontId;
 }
 
@@ -356,4 +405,12 @@ int Renderer::getFrameCount(const std::string &id) const
     }
     std::cerr << "Spritesheet not found: " << id << std::endl;
     return 0;
+}
+
+std::string Renderer::makeTextKey(const std::string& fontId, const std::string& text, Color color) {
+    return fontId + "|" + text + "|" + 
+           std::to_string(color.r) + "," + 
+           std::to_string(color.g) + "," + 
+           std::to_string(color.b) + "," + 
+           std::to_string(color.a);
 }

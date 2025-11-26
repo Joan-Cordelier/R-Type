@@ -36,6 +36,12 @@ struct CachedFont {
     int size;
 };
 
+struct CachedText {
+    SDL_Texture* texture;
+    int width;
+    int height;
+};
+
 enum class RenderLayer {
     BACKGROUND = 0,
     GAME = 1,
@@ -54,9 +60,14 @@ public:
 private:
     std::unordered_map<std::string, SDL_Texture*> textureCache;
     std::unordered_map<std::string, SpriteSheet> spritesheetCache;
+    std::unordered_map<std::string, CachedText> textCache;
     std::unordered_map<std::string, CachedFont> fontCache;
 
     std::map<RenderLayer, std::vector<DrawCommand>> drawLayers;
+
+    void clearTextCache();
+    void invalidateText(const std::string& fontId, const std::string& text);
+    std::string makeTextKey(const std::string& fontId, const std::string& text, Color color);
 
 public:
     Renderer();
@@ -65,6 +76,7 @@ public:
     void render();
     void queueDraw(RenderLayer layer, int zIndex, std::function<void()> drawCall);
     void drawFont(const std::string &id, const std::string &text, int x, int y, Color color);
+    void drawFontAndCache(const std::string &id, const std::string &text, int x, int y, Color color);
     void drawTexture(const std::string &id, Rect rect);
     void drawTexture(const std::string &id, Rect rect, DrawOptions options);
     void drawTextureRegion(const std::string &id, Rect srcRect, Rect rect);
