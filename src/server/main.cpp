@@ -8,6 +8,7 @@
 #include "Network/TCPServer.hpp"
 #include "Network/UDPServer.hpp"
 #include "../common/Data/ThreadedQueue.hpp"
+#include "Logs/Logger.hpp"
 #include <thread>
 #include <iostream>
 #include <csignal>
@@ -18,6 +19,7 @@ std::atomic<bool> running(true);
 void signalHandler(int sig)
 {
     (void)sig;
+    LOG_INFO("Received shutdown signal");
     running = false;
 }
 
@@ -67,6 +69,8 @@ int main()
     signal(SIGINT, signalHandler);
     signal(SIGTERM, signalHandler);
 
+    LOG_INFO("Starting R-Type server...");
+
     ThreadedQueue queue;
     TCPServer tcpServer(queue);
     UDPServer udpServer(queue);
@@ -75,9 +79,13 @@ int main()
     std::thread udpThread(&UDPServer::run, &udpServer);
     std::thread queueThread(processQueue, std::ref(queue));
 
+    LOG_INFO("Server started - all threads running");
+
     while (running) {
         std::this_thread::sleep_for(std::chrono::milliseconds(100));
     }
+
+    LOG_INFO("Shutting down server...");
 
     tcpServer.stop();
     udpServer.stop();
@@ -85,6 +93,8 @@ int main()
     tcpThread.join();
     udpThread.join();
     queueThread.join();
+
+    LOG_INFO("Server stopped");
 
     return 0;
 }
