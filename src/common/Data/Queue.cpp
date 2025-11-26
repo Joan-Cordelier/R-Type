@@ -9,10 +9,10 @@
 
 Queue::~Queue()
 {
-    std::queue<PacketData> empty;
-    std::queue<PacketData> emptyHigh;
-    std::queue<PacketData> emptyMedium;
-    std::queue<PacketData> emptyLow;
+    std::queue<MessageData> empty;
+    std::queue<MessageData> emptyHigh;
+    std::queue<MessageData> emptyMedium;
+    std::queue<MessageData> emptyLow;
 
     std::swap(_critical, empty);
     std::swap(_high, emptyHigh);
@@ -20,10 +20,9 @@ Queue::~Queue()
     std::swap(_low, emptyLow);
 }
 
-Queue::PacketData Queue::pop(Priority level)
+MessageData Queue::pop(Priority level)
 {
-    std::lock_guard<std::mutex> lock(_mutex);
-    std::queue<PacketData>* q = nullptr;
+    std::queue<MessageData>* q = nullptr;
 
     switch (level) {
         case CRITICAL:
@@ -43,16 +42,15 @@ Queue::PacketData Queue::pop(Priority level)
     }
 
     if (q && !q->empty()) {
-        PacketData data = q->front();
+        MessageData data = q->front();
         q->pop();
         return data;
     }
     return {PARSING_ERROR};
 }
 
-void Queue::push(Priority level, const PacketData& data)
+void Queue::push(Priority level, const MessageData& data)
 {
-    std::lock_guard<std::mutex> lock(_mutex);
     switch (level) {
         case CRITICAL:
             _critical.push(data);
@@ -66,5 +64,29 @@ void Queue::push(Priority level, const PacketData& data)
         case LOW:
             _low.push(data);
             break;
+        case ERROR:
+            // ERROR priority messages are not queued
+            break;
     }
+}
+
+bool Queue::isEmpty(Priority level) const
+{
+    switch (level) {
+        case CRITICAL:
+            return _critical.empty();
+        case HIGH:
+            return _high.empty();
+        case MEDIUM:
+            return _medium.empty();
+        case LOW:
+            return _low.empty();
+        default:
+            return true;
+    }
+}
+
+bool Queue::isEmpty() const
+{
+    return _critical.empty() && _high.empty() && _medium.empty() && _low.empty();
 }
