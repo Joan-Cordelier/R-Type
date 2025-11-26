@@ -8,7 +8,7 @@ void SpriteSystem::unregisterTexture(const std::string& name) {
     textures.erase(name);
 }
 
-void SpriteSystem::render(Registry& reg, std::function<void(TextureId, const std::string&, float, float, int)> drawCallback) {
+void SpriteSystem::render(Registry& reg, std::function<void(const TextureId&, float, float, int)> drawCallback) {
     if (!drawCallback) return;
     auto spArr = reg.componentArray<Sprite>();
     if (!spArr) return;
@@ -25,11 +25,13 @@ void SpriteSystem::render(Registry& reg, std::function<void(TextureId, const std
             x = p.x; y = p.y;
         }
 
-        TextureId tid = "0";
+        TextureId tid{};
         auto it = textures.find(sp.textureName);
         if (it != textures.end()) tid = it->second;
 
-        drawCallback(tid, sp.textureName, x, y, sp.z);
+        sp.textureIndex = tid;
+
+        drawCallback(tid, x, y, sp.z);
     }
 }
 

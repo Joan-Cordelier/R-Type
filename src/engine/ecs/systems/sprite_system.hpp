@@ -23,7 +23,7 @@ public:
 
     void registerTexture(const std::string& name, TextureId id);
     void unregisterTexture(const std::string& name);
-    void render(Registry& reg, std::function<void(TextureId, const std::string&, float, float, int)> drawCallback);
+    void render(Registry& reg, std::function<void(const TextureId&, float, float, int)> drawCallback);
     std::vector<DrawCmd> collectDrawCommands(Registry& reg) const;
 
 private:
