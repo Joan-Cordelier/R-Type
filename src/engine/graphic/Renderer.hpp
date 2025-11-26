@@ -12,6 +12,8 @@
 #include "SDL2/SDL_image.h"
 #include <SDL2/SDL_ttf.h>
 #include <unordered_map>
+#include <map>
+#include <functional>
 
 struct SpriteSheet {
     SDL_Texture* texture;
@@ -34,6 +36,17 @@ struct CachedFont {
     int size;
 };
 
+enum class RenderLayer {
+    BACKGROUND = 0,
+    GAME = 1,
+    OVERLAY = 2
+};
+
+struct DrawCommand {
+    int zIndex;
+    std::function<void()> command;
+};
+
 class Renderer
 {
 public:
@@ -43,11 +56,14 @@ private:
     std::unordered_map<std::string, SpriteSheet> spritesheetCache;
     std::unordered_map<std::string, CachedFont> fontCache;
 
+    std::map<RenderLayer, std::vector<DrawCommand>> drawLayers;
+
 public:
     Renderer();
     ~Renderer();
     void clear();
     void render();
+    void queueDraw(RenderLayer layer, int zIndex, std::function<void()> drawCall);
     void drawFont(const std::string &id, const std::string &text, int x, int y, Color color);
     void drawTexture(const std::string &id, Rect rect);
     void drawTexture(const std::string &id, Rect rect, DrawOptions options);

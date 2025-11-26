@@ -45,7 +45,26 @@ void Renderer::clear()
 /// @brief present the rendered content to the window
 void Renderer::render()
 {
+    for (auto& [layer, commands] : drawLayers) {
+        std::stable_sort(commands.begin(), commands.end(),
+            [](const DrawCommand& a, const DrawCommand& b) {
+                return a.zIndex < b.zIndex;
+            });
+        for (auto& cmd : commands) {
+            cmd.command();
+        }
+    }
+    drawLayers.clear();
     window.draw();
+}
+
+/// @brief add a draw call to the queue
+/// @param layer layer to draw on
+/// @param zIndex index for draw order
+/// @param drawCall the draw function to call
+void Renderer::queueDraw(RenderLayer layer, int zIndex, std::function<void()> drawCall)
+{
+    drawLayers[layer].push_back({zIndex, drawCall});
 }
 
 void Renderer::drawFont(const std::string &id, const std::string &text, int x, int y, Color color)
