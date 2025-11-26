@@ -7,7 +7,7 @@
 
 #include "Network/TCPServer.hpp"
 #include "Network/UDPServer.hpp"
-#include "Data/Queue.hpp"
+#include "../common/Data/ThreadedQueue.hpp"
 #include <thread>
 #include <iostream>
 #include <csignal>
@@ -21,7 +21,7 @@ void signalHandler(int sig)
     running = false;
 }
 
-void processQueue(Queue& queue)
+void processQueue(ThreadedQueue& queue)
 {
     while (running) {
         bool foundPacket = false;
@@ -67,7 +67,7 @@ int main()
     signal(SIGINT, signalHandler);
     signal(SIGTERM, signalHandler);
 
-    Queue queue;
+    ThreadedQueue queue;
     TCPServer tcpServer(queue);
     UDPServer udpServer(queue);
 
