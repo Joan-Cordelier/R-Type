@@ -20,6 +20,7 @@ TCPServer::~TCPServer()
 int TCPServer::run()
 {
     _fds.push_back({_serverFd, POLLIN, 0});
+    MessageFactory& factory = MessageFactory::getInstance();
 
     while (_running) {
         if (poll(_fds.data(), _fds.size(), 100) < 0) {
@@ -60,7 +61,7 @@ int TCPServer::run()
                             continue;
                         }
                         while (true) {
-                            DecodedMessage msg = MessageFactory::decodeFromBuffer(_buffers[_fds[i].fd]);
+                            DecodedMessage msg = factory.decodeFromBuffer(_buffers[_fds[i].fd]);
                             if (msg.opCode == INCOMPLETE)
                                 break;
                             if (msg.opCode == PARSING_ERROR) {
