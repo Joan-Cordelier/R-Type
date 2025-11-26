@@ -11,6 +11,7 @@ int main(void)
 {
     Renderer renderer;
     std::string id = renderer.loadTexture("a.png", "test");
+    std::string idFont = renderer.loadFont("font.ttf", 16, "mainFont");
 
     bool running = true;
 
@@ -20,7 +21,8 @@ int main(void)
             break;
 
         renderer.clear();
-        renderer.drawTexture("test", {100, 100, 100, 100});
+        renderer.drawTexture("test", {100, 100, 100, 100}, {.rotation = 45.0f, .alpha = 100, .tint = Color(255, 255, 255)});
+        renderer.drawFont("mainFont", "Anto gay !", 50, 50, Color(255, 255, 255));
         renderer.render();
     }
 

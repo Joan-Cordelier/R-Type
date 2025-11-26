@@ -7,6 +7,15 @@
 
 #include "Renderer.hpp"
 
+Renderer::Renderer()
+{
+    // Constructor can initialize SDL_ttf if needed
+    if (TTF_Init() == -1) {
+        std::cerr << "TTF_Init failed: " << TTF_GetError() << std::endl;
+        exit(84);
+    }
+}
+
 Renderer::~Renderer()
 {
     for (auto &pair : textureCache) {
@@ -19,6 +28,12 @@ Renderer::~Renderer()
             SDL_DestroyTexture(pair.second.texture);
         }
     }
+    for (auto &pair : fontCache) {
+        if (pair.second.font) {
+            TTF_CloseFont(pair.second.font);
+        }
+    }
+    TTF_Quit();
 }
 
 /// @brief clear the window
@@ -33,10 +48,41 @@ void Renderer::render()
     window.draw();
 }
 
+void Renderer::drawFont(const std::string &id, const std::string &text, int x, int y, Color color)
+{
+    if (fontCache.find(id) == fontCache.end()) {
+        std::cerr << "Font not found: " << id << std::endl;
+        return;
+    }
+    
+    TTF_Font* font = fontCache[id].font;
+    SDL_Color sdlColor = {color.r, color.g, color.b, color.a};
+    
+    SDL_Surface* surface = TTF_RenderText_Blended(font, text.c_str(), sdlColor);
+    if (surface == nullptr) return;
+    
+    SDL_Texture* texture = SDL_CreateTextureFromSurface(window.renderer, surface);
+    
+    SDL_Rect destRect = {x, y, surface->w, surface->h};
+    SDL_FreeSurface(surface);
+    
+    SDL_RenderCopy(window.renderer, texture, NULL, &destRect);
+    SDL_DestroyTexture(texture);
+}
+
 /// @brief draw a texture to the screen
 /// @param id the id of the texture
 /// @param rect the destination rectangle
 void Renderer::drawTexture(const std::string &id, Rect rect)
+{
+    drawTexture(id, rect, DrawOptions{});
+}
+
+/// @brief draw a texture to the screen
+/// @param id the id of the texture
+/// @param rect the destination rectangle
+/// @param options drawing options like rotation and scale
+void Renderer::drawTexture(const std::string &id, Rect rect, DrawOptions options)
 {
     if (textureCache.find(id) == textureCache.end()) {
         std::cerr << "Error on texture loading for drawing: " << id << " not found." << std::endl;;
@@ -49,10 +95,13 @@ void Renderer::drawTexture(const std::string &id, Rect rect)
         return;
     }
 
+    SDL_SetTextureColorMod(texture, options.tint.r, options.tint.g, options.tint.b);
+    SDL_SetTextureAlphaMod(texture, options.alpha);
+
     SDL_Rect destRect = rect.toSDLRect();
 
-    SDL_SetRenderDrawColor(window.renderer, 255, 255, 255, 255);
-    SDL_RenderCopy(window.renderer, texture, NULL, &destRect);
+    SDL_RenderCopyEx(window.renderer, texture, NULL, &destRect, 
+                     options.rotation, options.center, options.flip);
 }
 
 /// @brief draw a region of a texture
@@ -61,6 +110,16 @@ void Renderer::drawTexture(const std::string &id, Rect rect)
 /// @param rect the destination rectangle
 void Renderer::drawTextureRegion(const std::string &id, Rect srcRect, Rect rect)
 {
+    drawTextureRegion(id, srcRect, rect, DrawOptions{});
+}
+
+/// @brief draw a region of a texture
+/// @param id the id of the texture
+/// @param srcRect the source rectangle
+/// @param rect the destination rectangle
+/// @param options drawing options like rotation and scale
+void Renderer::drawTextureRegion(const std::string &id, Rect srcRect, Rect rect, DrawOptions options)
+{
     if (textureCache.find(id) == textureCache.end()) {
         std::cerr << "Error on texture loading for drawing: " << id << " not found." << std::endl;;
         return;
@@ -73,10 +132,13 @@ void Renderer::drawTextureRegion(const std::string &id, Rect srcRect, Rect rect)
     }
 
     SDL_Rect destRect = rect.toSDLRect();
-    SDL_Rect texRect = {srcRect.x, srcRect.y, srcRect.w, srcRect.h};
+    SDL_Rect texRect = srcRect.toSDLRect();
 
-    SDL_SetRenderDrawColor(window.renderer, 255, 255, 255, 255);
-    SDL_RenderCopy(window.renderer, texture, &texRect, &destRect);
+    SDL_SetTextureColorMod(texture, options.tint.r, options.tint.g, options.tint.b);
+    SDL_SetTextureAlphaMod(texture, options.alpha);
+
+    SDL_RenderCopyEx(window.renderer, texture, &texRect, &destRect,
+                     options.rotation, options.center, options.flip);
 }
 
 /// @brief draw a specific frame from a spritesheet
@@ -84,6 +146,16 @@ void Renderer::drawTextureRegion(const std::string &id, Rect srcRect, Rect rect)
 /// @param frameIndex the index of the frame to draw
 /// @param rect the destination rectangle
 void Renderer::drawFrame(const std::string &id, int frameIndex, Rect rect)
+{
+    drawFrame(id, frameIndex, rect, DrawOptions{});
+}
+
+/// @brief draw a specific frame from a spritesheet
+/// @param id the id of the spritesheet
+/// @param frameIndex the index of the frame to draw
+/// @param rect the destination rectangle
+/// @param options drawing options like rotation and scale
+void Renderer::drawFrame(const std::string &id, int frameIndex, Rect rect, DrawOptions options)
 {
     if (spritesheetCache.find(id) == spritesheetCache.end()) {
         std::cerr << "Error on spritesheet loading for drawing: " << id << " not found." << std::endl;
@@ -96,6 +168,9 @@ void Renderer::drawFrame(const std::string &id, int frameIndex, Rect rect)
         return;
     }
 
+    SDL_SetTextureColorMod(texture, options.tint.r, options.tint.g, options.tint.b);
+    SDL_SetTextureAlphaMod(texture, options.alpha);
+
     SDL_Rect destRect = rect.toSDLRect();
     SDL_Rect texRect = {
         (frameIndex % spritesheetCache[id].columns) * spritesheetCache[id].frameWidth,
@@ -104,8 +179,8 @@ void Renderer::drawFrame(const std::string &id, int frameIndex, Rect rect)
         spritesheetCache[id].frameHeight
     };
 
-    SDL_SetRenderDrawColor(window.renderer, 255, 255, 255, 255);
-    SDL_RenderCopy(window.renderer, texture, &texRect, &destRect);
+    SDL_RenderCopyEx(window.renderer, texture, &texRect, &destRect,
+                     options.rotation, options.center, options.flip);
 }
 
 /// @brief load a spritesheet from file
@@ -179,6 +254,25 @@ std::string Renderer::loadSpriteSheet(const std::string &filePath, const std::st
     SDL_FreeSurface(surface);
     spritesheetCache[textureId] = {texture, frameWidth, frameHeight, columns, rows};
     return textureId;
+}
+
+std::string Renderer::loadFont(const std::string &filePath, int fontSize, const std::string &id)
+{
+    std::string fontId = (id.empty()) ? filePath : id;
+    if (fontId.empty())
+        return "";
+
+    if (fontCache.find(fontId) != fontCache.end())
+        return fontId;
+
+    TTF_Font* font = TTF_OpenFont(filePath.c_str(), fontSize);
+    if (font == nullptr) {
+        std::cerr << "Failed to load font: " << TTF_GetError() << std::endl;
+        return "";
+    }
+
+    fontCache[fontId] = {font, 16};
+    return fontId;
 }
 
 /// @brief load a texture from file
