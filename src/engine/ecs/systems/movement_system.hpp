@@ -4,8 +4,8 @@
 #include "../registry.hpp"
 
 class MovementSystem {
-public:
-    void update(Registry& reg, float dt);
+    public:
+        void update(Registry& reg, float dt);
 };
 
 #endif

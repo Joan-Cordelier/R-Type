@@ -11,7 +11,8 @@
 #include <SDL2/SDL_keycode.h>
 #include <iostream>
 #include "Color.hpp"
-#include "Event.hpp"
+#include <queue>
+#include <mutex>
 
 class Window
 {
@@ -19,13 +20,15 @@ private:
     SDL_Window *win;
     SDL_Event ev;
 public:
+    std::queue<SDL_Event> eventQueue;
+    std::mutex eventMutex;
+
     Window();
     ~Window();
     SDL_Renderer *renderer;
     int draw();
-    PollEvent pollEvent();
+    SDL_Event pollEvent();
+    void processSDLEvents();
     void clear();
     void clear(Color);
-    KeyCode sdlKeyToKeyCode(SDL_Keycode sdlKey);
-    MouseButton sdlButtonToMouseButton(Uint8 sdlButton);
 };
