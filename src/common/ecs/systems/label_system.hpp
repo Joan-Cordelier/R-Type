@@ -13,7 +13,7 @@
 #include <functional>
 #include "../registry.hpp"
 #include "../components/label.hpp"
-#include "../../graphic/Color.hpp"
+#include "../../../engine/graphic/Color.hpp"
 
 class LabelSystem {
 public:

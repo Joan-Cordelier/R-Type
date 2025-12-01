@@ -6,8 +6,8 @@
 */
 
 #include "input_system.hpp"
-#include "../engine/ecs/components/velocity.hpp"
-#include "../engine/ecs/components/label.hpp"
+#include "../common/ecs/components/velocity.hpp"
+#include "../common/ecs/components/label.hpp"
 #include <SDL2/SDL.h>
 #include <cmath>
 

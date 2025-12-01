@@ -8,7 +8,7 @@
 #ifndef INPUT_SYSTEM_HPP
 #define INPUT_SYSTEM_HPP
 
-#include "../engine/ecs/registry.hpp"
+#include "../common/ecs/registry.hpp"
 #include <SDL2/SDL.h>
 
 class InputSystem {

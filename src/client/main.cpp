@@ -6,18 +6,18 @@
 */
 
 #include "graphic/Renderer.hpp"
-#include "../engine/ecs/registry.hpp"
-#include "../engine/ecs/systems/movement_system.hpp"
-#include "../engine/ecs/systems/sprite_system.hpp"
-#include "../engine/ecs/systems/button_system.hpp"
-#include "../engine/ecs/systems/label_system.hpp"
+#include "../common/ecs/registry.hpp"
+#include "../common/ecs/systems/movement_system.hpp"
+#include "../common/ecs/systems/sprite_system.hpp"
+#include "../common/ecs/systems/button_system.hpp"
+#include "../common/ecs/systems/label_system.hpp"
 #include "input_system.hpp"
 
-#include "../engine/ecs/components/position.hpp"
-#include "../engine/ecs/components/velocity.hpp"
-#include "../engine/ecs/components/sprite.hpp"
-#include "../engine/ecs/components/button.hpp"
-#include "../engine/ecs/components/label.hpp"
+#include "../common/ecs/components/position.hpp"
+#include "../common/ecs/components/velocity.hpp"
+#include "../common/ecs/components/sprite.hpp"
+#include "../common/ecs/components/button.hpp"
+#include "../common/ecs/components/label.hpp"
 
 #include "Network/UDPClient.hpp"
 #include "Network/TCPClient.hpp"
