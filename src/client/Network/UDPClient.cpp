@@ -7,7 +7,10 @@
 
 #include "UDPClient.hpp"
 
-UDPClient::UDPClient(ThreadedQueue& queue) : AClient(queue) {}
+UDPClient::UDPClient(ThreadedQueue<DecodedMessage>& queue) : AClient(queue)
+{
+    init(AClient::protocol::UDP, "127.0.0.1", 4789);
+}
 
 UDPClient::~UDPClient()
 {
@@ -63,7 +66,7 @@ int UDPClient::run()
                 DecodedMessage msg = factory.decode(rawData);
                 
                 if (msg.opCode != PARSING_ERROR) {
-                    _queue.push(msg.priority, msg.data);
+                    _queue.push(msg.priority, msg);
                 } else {
                     std::cerr << "Parsing error received from server" << std::endl;
                 }

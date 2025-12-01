@@ -12,22 +12,24 @@
 #include <vector>
 #include <cstdint>
 #include <mutex>
+#include <optional>
 #include "MessageFactory.hpp"
 
+template<typename T>
 class ThreadedQueue {
     public:
         ~ThreadedQueue();
-        MessageData pop(Priority level);
-        void push(Priority level, const MessageData& data);
+        std::optional<T> pop(Priority level);
+        void push(Priority level, const T& data);
         bool isEmpty(Priority level) const;
         bool isEmpty() const;
+        
     protected:
         mutable std::mutex _mutex;
-        std::queue<MessageData> _critical;
-        std::queue<MessageData> _high;
-        std::queue<MessageData> _medium;
-        std::queue<MessageData> _low;
-        
+        std::queue<T> _critical;
+        std::queue<T> _high;
+        std::queue<T> _medium;
+        std::queue<T> _low;
 };
 
 #endif /* !THREADEDQUEUE_HPP_ */

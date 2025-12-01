@@ -15,7 +15,7 @@
 
 class TCPServer : public AServer {
     public:
-        TCPServer(ThreadedQueue& queue);
+        TCPServer(ThreadedQueue<DecodedMessage>& queue);
         ~TCPServer();
         int run();
         int send(const MessageData& data, const sockaddr_in& clientAddr);

@@ -13,7 +13,7 @@
 
 class UDPServer : public AServer {
     public:
-        UDPServer(ThreadedQueue& queue);
+        UDPServer(ThreadedQueue<DecodedMessage>& queue);
         ~UDPServer();
         int run();
         int send(const MessageData& data, const sockaddr_in& clientAddr);

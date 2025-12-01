@@ -7,7 +7,7 @@
 
 #include "AClient.hpp"
 
-AClient::AClient(ThreadedQueue& queue) : _queue(queue)
+AClient::AClient(ThreadedQueue<DecodedMessage>& queue) : _queue(queue)
 {
 }
 

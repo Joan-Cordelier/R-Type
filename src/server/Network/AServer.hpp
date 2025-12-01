@@ -25,7 +25,7 @@ class AServer {
             TCP = SOCK_STREAM,
             UDP = SOCK_DGRAM
         };
-        AServer(ThreadedQueue& queue);
+        AServer(ThreadedQueue<DecodedMessage>& queue);
         int init(AServer::protocol protocol, int port);
         int run();
         int send(const MessageData& data, const sockaddr_in& clientAddr);
@@ -34,7 +34,7 @@ class AServer {
         void reset();
         void handleDisconnections(const std::vector<int>& toDisconnect);
     protected:
-        ThreadedQueue& _queue;
+        ThreadedQueue<DecodedMessage>& _queue;
         bool _running = true;
         int _max = 0;
         int _port = 0;

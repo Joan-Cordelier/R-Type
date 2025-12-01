@@ -6,13 +6,15 @@
 */
 
 #include "ThreadedQueue.hpp"
+#include "MessageFactory.hpp"
 
-ThreadedQueue::~ThreadedQueue()
+template<typename T>
+ThreadedQueue<T>::~ThreadedQueue()
 {
-    std::queue<MessageData> empty;
-    std::queue<MessageData> emptyHigh;
-    std::queue<MessageData> emptyMedium;
-    std::queue<MessageData> emptyLow;
+    std::queue<T> empty;
+    std::queue<T> emptyHigh;
+    std::queue<T> emptyMedium;
+    std::queue<T> emptyLow;
 
     std::swap(_critical, empty);
     std::swap(_high, emptyHigh);
@@ -20,10 +22,11 @@ ThreadedQueue::~ThreadedQueue()
     std::swap(_low, emptyLow);
 }
 
-MessageData ThreadedQueue::pop(Priority level)
+template<typename T>
+std::optional<T> ThreadedQueue<T>::pop(Priority level)
 {
     std::lock_guard<std::mutex> lock(_mutex);
-    std::queue<MessageData>* q = nullptr;
+    std::queue<T>* q = nullptr;
 
     switch (level) {
         case CRITICAL:
@@ -39,18 +42,19 @@ MessageData ThreadedQueue::pop(Priority level)
             q = &_low;
             break;
         default:
-            return {PARSING_ERROR};
+            return std::nullopt;
     }
 
     if (q && !q->empty()) {
-        MessageData data = q->front();
+        T data = q->front();
         q->pop();
         return data;
     }
-    return {PARSING_ERROR};
+    return std::nullopt;
 }
 
-void ThreadedQueue::push(Priority level, const MessageData& data)
+template<typename T>
+void ThreadedQueue<T>::push(Priority level, const T& data)
 {
     std::lock_guard<std::mutex> lock(_mutex);
     switch (level) {
@@ -72,7 +76,8 @@ void ThreadedQueue::push(Priority level, const MessageData& data)
     }
 }
 
-bool ThreadedQueue::isEmpty(Priority level) const
+template<typename T>
+bool ThreadedQueue<T>::isEmpty(Priority level) const
 {
     std::lock_guard<std::mutex> lock(_mutex);
     switch (level) {
@@ -89,8 +94,13 @@ bool ThreadedQueue::isEmpty(Priority level) const
     }
 }
 
-bool ThreadedQueue::isEmpty() const
+template<typename T>
+bool ThreadedQueue<T>::isEmpty() const
 {
     std::lock_guard<std::mutex> lock(_mutex);
     return _critical.empty() && _high.empty() && _medium.empty() && _low.empty();
 }
+
+// Explicit instantiations
+template class ThreadedQueue<MessageData>;
+template class ThreadedQueue<DecodedMessage>;

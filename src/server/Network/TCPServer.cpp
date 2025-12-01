@@ -8,7 +8,7 @@
 #include "TCPServer.hpp"
 #include "../Logs/Logger.hpp"
 
-TCPServer::TCPServer(ThreadedQueue& queue) : AServer(queue)
+TCPServer::TCPServer(ThreadedQueue<DecodedMessage>& queue) : AServer(queue)
 {
     init(AServer::protocol::TCP, 4789);
 }
@@ -73,7 +73,7 @@ int TCPServer::run()
                                 break;
                             }
                             LOG_INFO("TCP message received: OpCode=" + std::to_string(msg.opCode) + " Len=" + std::to_string(msg.len));
-                            _queue.push(msg.priority, msg.data);
+                            _queue.push(msg.priority, msg);
                         }
                     }
                 }

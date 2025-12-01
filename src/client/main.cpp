@@ -37,7 +37,7 @@ int main()
     LabelSystem labelsys;
     InputSystem Input(200.f);
 
-    ThreadedQueue queue;
+    ThreadedQueue<DecodedMessage> queue;
     std::string ip_adress = "127.0.0.1";
     UDPClient clientUDP(queue);
     TCPClient clientTCP(queue);

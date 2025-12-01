@@ -7,7 +7,10 @@
 
 #include "TCPClient.hpp"
 
-TCPClient::TCPClient(ThreadedQueue& queue) : AClient(queue) {}
+TCPClient::TCPClient(ThreadedQueue<DecodedMessage>& queue) : AClient(queue)
+{
+    init(AClient::protocol::TCP, "127.0.0.1", 4789);
+}
 
 TCPClient::~TCPClient()
 {
@@ -92,7 +95,7 @@ int TCPClient::run()
                     _connected = false;
                     return 84;
                 }
-                _queue.push(msg.priority, msg.data);
+                _queue.push(msg.priority, msg);
             }
         }
     }
