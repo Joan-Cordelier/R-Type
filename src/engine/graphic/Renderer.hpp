@@ -31,6 +31,14 @@ struct DrawOptions {
     SDL_RendererFlip flip = SDL_FLIP_NONE;
 };
 
+struct DrawCommand {
+    DrawOptions option = {};
+    SDL_Texture *texture;
+    Rect srcRect;
+    Rect destRect;
+    int zIndex;
+};
+
 struct CachedFont {
     TTF_Font* font;
     int size;
@@ -48,11 +56,6 @@ enum class RenderLayer {
     OVERLAY = 2
 };
 
-struct DrawCommand {
-    int zIndex;
-    std::function<void()> command;
-};
-
 class Renderer
 {
 public:
@@ -63,7 +66,7 @@ private:
     std::unordered_map<std::string, CachedText> textCache;
     std::unordered_map<std::string, CachedFont> fontCache;
 
-    std::map<RenderLayer, std::vector<DrawCommand>> drawLayers;
+    std::map<RenderLayer, std::vector<DrawCommand>> drawCommands;
 
     void clearTextCache();
     void invalidateText(const std::string& fontId, const std::string& text);
@@ -75,14 +78,14 @@ public:
     void clear();
     void render();
     void queueDraw(RenderLayer layer, int zIndex, std::function<void()> drawCall);
-    void drawFont(const std::string &id, const std::string &text, int x, int y, Color color);
-    void drawFontAndCache(const std::string &id, const std::string &text, int x, int y, Color color);
-    void drawTexture(const std::string &id, Rect rect);
-    void drawTexture(const std::string &id, Rect rect, DrawOptions options);
-    void drawTextureRegion(const std::string &id, Rect srcRect, Rect rect);
-    void drawTextureRegion(const std::string &id, Rect srcRect, Rect rect, DrawOptions options);
-    void drawFrame(const std::string &id, int frameIndex, Rect rect);
-    void drawFrame(const std::string &id, int frameIndex, Rect rect, DrawOptions options);
+    void drawFont(const std::string &id, const std::string &text, int x, int y, Color color, RenderLayer layer, int z);
+    void drawFontAndCache(const std::string &id, const std::string &text, int x, int y, Color color, RenderLayer layer, int z);
+    void drawTexture(const std::string &id, RenderLayer layer, int z, Rect rect);
+    void drawTexture(const std::string &id, RenderLayer layer, int z, Rect rect, DrawOptions options);
+    void drawTextureRegion(const std::string &id, RenderLayer layer, int z, Rect srcRect, Rect rect);
+    void drawTextureRegion(const std::string &id, RenderLayer layer, int z, Rect srcRect, Rect rect, DrawOptions options);
+    void drawFrame(const std::string &id, int frameIndex, RenderLayer layer, int z, Rect rect);
+    void drawFrame(const std::string &id, int frameIndex, RenderLayer layer, int z, Rect rect, DrawOptions options);
     std::string loadFont(const std::string &filePath, int fontSize, const std::string &id = "");
     std::string loadTexture(const std::string &filePath, const std::string &id = "");
     std::string loadSpriteSheet(const std::string &filePath, const std::string &id,
