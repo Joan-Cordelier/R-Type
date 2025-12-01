@@ -7,26 +7,23 @@
 
 #include "UDPClient.hpp"
 
-UDPClient::UDPClient(ThreadedQueue& queue) : AClient(queue)
-{
-    init(AClient::protocol::UDP, "127.0.0.1", 4789);
-}
+UDPClient::UDPClient(ThreadedQueue& queue) : AClient(queue) {}
 
 UDPClient::~UDPClient()
 {
     reset();
 }
 
-int UDPClient::connect()
+int UDPClient::connect(std::string ip_adress)
 {
+    _serverIp = ip_adress;
+    init(AClient::protocol::UDP, ip_adress, 4789);
     if (_socketFd < 0) {
         std::cerr << "Socket not initialized" << std::endl;
         return 84;
     }
     
     _connected = true;
-    std::cout << "UDP Client ready to communicate with " << _serverIp 
-              << ":" << _port << std::endl;
     return 0;
 }
 

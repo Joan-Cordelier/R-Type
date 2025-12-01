@@ -20,6 +20,7 @@
 #include "../engine/ecs/components/label.hpp"
 
 #include "Network/UDPClient.hpp"
+#include "Network/TCPClient.hpp"
 #include "../common/Data/MessageFactory.hpp"
 #include "../common/Data/ThreadedQueue.hpp"
 
@@ -37,10 +38,9 @@ int main()
     InputSystem Input(200.f);
 
     ThreadedQueue queue;
-    UDPClient client(queue);
-
-    client.connect();
-    // client.run();
+    std::string ip_adress = "127.0.0.1";
+    UDPClient clientUDP(queue);
+    TCPClient clientTCP(queue);
 
     renderer.loadTexture("textures/vaisseau.png", "test");
 
@@ -68,6 +68,12 @@ int main()
     Input.setControlled(label_input);
 
     buttonsys.registerHandler("start_game", [&](Registry& r, Entity e) {
+        ip_adress = reg.getComponent<Label>(label_input).text;
+        if (ip_adress == "") {
+            ip_adress = "127.0.0.1";
+        }
+        clientUDP.connect(ip_adress);
+        clientTCP.connect(ip_adress);
         r.getComponent<Label>(label_input).visible = false;
         r.getComponent<Sprite>(e).visible = false;
         r.getComponent<Position>(player).x = 100.f;
@@ -77,7 +83,8 @@ int main()
         msg.push_back(static_cast<unsigned char>(0x01));
         const std::string payload = "La game a commencé !";
         msg.insert(msg.end(), payload.begin(), payload.end());
-        client.send(std::move(msg));
+        clientTCP.send(std::move(msg));
+        clientUDP.send(std::move(msg));
     });
 
     while (running) {
