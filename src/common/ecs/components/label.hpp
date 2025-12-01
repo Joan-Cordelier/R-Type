@@ -2,7 +2,7 @@
 #define ECS_COMPONENTS_LABEL_HPP
 
 #include <string>
-#include "../../graphic/Color.hpp"
+#include "../../../engine/graphic/Color.hpp"
 
 struct Label {
     std::string text;

@@ -7,18 +7,17 @@
 
 #include "TCPClient.hpp"
 
-TCPClient::TCPClient(ThreadedQueue& queue) : AClient(queue)
-{
-    init(AClient::protocol::TCP, "127.0.0.1", 4789);
-}
+TCPClient::TCPClient(ThreadedQueue& queue) : AClient(queue) {}
 
 TCPClient::~TCPClient()
 {
     reset();
 }
 
-int TCPClient::connect()
+int TCPClient::connect(std::string ip_adress)
 {
+    _serverIp = ip_adress;
+    init(AClient::protocol::TCP, ip_adress, 4789);
     if (_socketFd < 0) {
         std::cerr << "Socket not initialized" << std::endl;
         return 84;
@@ -31,8 +30,6 @@ int TCPClient::connect()
     }
     
     _connected = true;
-    std::cout << "TCP Client connected to " << _serverIp 
-              << ":" << _port << std::endl;
     return 0;
 }
 

@@ -33,7 +33,7 @@ class AClient {
         virtual ~AClient() = default;
         
         int init(AClient::protocol protocol, const std::string& serverIp, int port);
-        virtual int connect() = 0;
+        virtual int connect(std::string ip_adress) = 0;
         virtual int run() = 0;
         virtual int send(const MessageData& data) = 0;
         
