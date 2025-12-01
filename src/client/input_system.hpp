@@ -13,7 +13,7 @@
 
 class InputSystem {
 public:
-    explicit InputSystem(float speed);
+    InputSystem();
     ~InputSystem();
 
     void setControlled(Entity e);
@@ -21,7 +21,6 @@ public:
 
 private:
     Entity controlled;
-    float speed = 200.f;
 };
 
 #endif

@@ -11,6 +11,8 @@
 #include "../common/ecs/systems/sprite_system.hpp"
 #include "../common/ecs/systems/button_system.hpp"
 #include "../common/ecs/systems/label_system.hpp"
+#include "../common/ecs/systems/spritesheet_system.hpp"
+#include "../common/ecs/systems/stat_system.hpp"
 #include "input_system.hpp"
 
 #include "../common/ecs/components/position.hpp"
@@ -18,6 +20,8 @@
 #include "../common/ecs/components/sprite.hpp"
 #include "../common/ecs/components/button.hpp"
 #include "../common/ecs/components/label.hpp"
+#include "../common/ecs/components/stats.hpp"
+#include "../common/ecs/components/spritesheet.hpp"
 
 #include "Network/UDPClient.hpp"
 #include "Network/TCPClient.hpp"
@@ -35,7 +39,9 @@ int main()
     SpriteSystem spritesys;
     ButtonSystem buttonsys;
     LabelSystem labelsys;
-    InputSystem Input(200.f);
+    SpriteSheetSystem spritesheetsys;
+    StatSystem statsys;
+    InputSystem Input;
 
     ThreadedQueue queue;
     std::string ip_adress = "127.0.0.1";
@@ -48,6 +54,7 @@ int main()
     reg.addComponent<Position>(player, 100.f, 100.f);
     reg.addComponent<Velocity>(player, 0.f, 0.f);
     reg.addComponent<Sprite>(player, (std::string)"textures/vaisseau.png", (std::string)"test", 64, 64, 0, false);
+    reg.addComponent<Stats>(player, 100, 100, 1, 0.f, 10, 1, 200);
 
     renderer.loadTexture("textures/play_button/default.png", "play_button");
 
@@ -55,6 +62,8 @@ int main()
     reg.addComponent<Position>(start_button, 400.f, 300.f);
     reg.addComponent<Sprite>(start_button, (std::string)"textures/play_button/default.png", (std::string)"play_button", 300, 150, 0, true);
     reg.addComponent<Button>(start_button, (std::string)"start_game", 1, true);
+
+    renderer.loadSpriteSheet("textures/projectiles/projectile_player.png", "projectile_player", 16, 16);
 
     renderer.loadFont("font/josefin-sans/JosefinSans-Regular.ttf", 40, "default_font");
 
@@ -77,7 +86,9 @@ int main()
         r.getComponent<Label>(label_input).visible = false;
         r.getComponent<Sprite>(e).visible = false;
         r.getComponent<Position>(player).x = 100.f;
+        r.getComponent<Position>(player).y = 100.f;
         r.getComponent<Sprite>(player).visible = true;
+        r.getComponent<Button>(e).enabled = false;
         Input.setControlled(player);
         MessageData msg;
         msg.push_back(static_cast<unsigned char>(0x01));
@@ -105,9 +116,17 @@ int main()
 
         renderer.clear();
 
+        statsys.update(reg, static_cast<float>(dt));
+
         spritesys.render(reg, [&](const SpriteSystem::TextureId& tid, int width, int height, int x, int y, int z) {
             renderer.queueDraw(RenderLayer::GAME, z, [=, &renderer, &tid]() {
                 renderer.drawTexture(tid, Rect{x, y, width, height});
+            });
+        });
+
+        spritesheetsys.render(reg, [&](const SpriteSheetSystem::TextureId& tid, int frameIndex, int width, int height, int x, int y, int z) {
+            renderer.queueDraw(RenderLayer::GAME, z, [=, &renderer, &tid]() {
+                renderer.drawFrame(tid, frameIndex, Rect{x, y, width, height});
             });
         });
 
