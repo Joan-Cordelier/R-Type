@@ -21,7 +21,6 @@ class TCPServer : public AServer {
         ~TCPServer();
         int run();
         
-        // Queue message for sending (thread-safe)
         void send(const MessageData& data, Priority priority = Priority::MEDIUM);
         void send(int fd, const MessageData& data, Priority priority = Priority::MEDIUM);
         
