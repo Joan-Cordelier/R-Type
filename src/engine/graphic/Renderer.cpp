@@ -59,8 +59,12 @@ void Renderer::render()
                 SDL_SetTextureAlphaMod(cmd.texture, cmd.option.alpha);
             
                 SDL_Rect destRect = cmd.destRect.toSDLRect();
-                SDL_Rect* srcRect = (cmd.srcRect.isNull()) ? nullptr : &cmd.srcRect.toSDLRect();
-
+                SDL_Rect* srcRect = nullptr;
+                SDL_Rect srcRectObj;
+                if (!cmd.srcRect.isNull()) {
+                    srcRectObj = cmd.srcRect.toSDLRect();
+                    srcRect = &srcRectObj;
+                }
                 SDL_RenderCopyEx(window.renderer, cmd.texture, srcRect, &destRect, 
                     cmd.option.rotation, cmd.option.center, cmd.option.flip);
             }

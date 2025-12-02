@@ -119,19 +119,15 @@ int main()
         statsys.update(reg, static_cast<float>(dt));
 
         spritesys.render(reg, [&](const SpriteSystem::TextureId& tid, int width, int height, int x, int y, int z) {
-            renderer.queueDraw(RenderLayer::GAME, z, [=, &renderer, &tid]() {
-                renderer.drawTexture(tid, Rect{x, y, width, height});
-            });
+            renderer.drawTexture(tid, RenderLayer::GAME, z, Rect{x, y, width, height});
         });
 
         spritesheetsys.render(reg, [&](const SpriteSheetSystem::TextureId& tid, int frameIndex, int width, int height, int x, int y, int z) {
-            renderer.queueDraw(RenderLayer::GAME, z, [=, &renderer, &tid]() {
-                renderer.drawFrame(tid, frameIndex, Rect{x, y, width, height});
-            });
+            renderer.drawFrame(tid, frameIndex, RenderLayer::GAME, z, Rect{x, y, width, height});
         });
 
         labelsys.render(reg, [&](const LabelSystem::TextId& tid, std::string& text, int x, int y, Color color) {
-            renderer.drawFont(tid, text, x, y, color);
+            renderer.drawFont(tid, text, x, y, color, RenderLayer::OVERLAY, 0);
         });
 
         renderer.render();
