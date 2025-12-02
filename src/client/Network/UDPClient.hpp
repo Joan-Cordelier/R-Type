@@ -13,10 +13,10 @@
 
 class UDPClient : public AClient {
     public:
-        UDPClient(ThreadedQueue& queue);
+        UDPClient(ThreadedQueue<DecodedMessage>& queue);
         ~UDPClient();
         
-        int connect(std::string ip_adress) override;
+        int connect() override;
         int run() override;
         int send(const MessageData& data) override;
 };

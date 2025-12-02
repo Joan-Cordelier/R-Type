@@ -43,7 +43,7 @@ int main()
     StatSystem statsys;
     InputSystem Input;
 
-    ThreadedQueue queue;
+    ThreadedQueue<DecodedMessage> queue;
     std::string ip_adress = "127.0.0.1";
     UDPClient clientUDP(queue);
     TCPClient clientTCP(queue);
@@ -82,8 +82,10 @@ int main()
         if (ip_adress == "") {
             ip_adress = "127.0.0.1";
         }
-        clientUDP.connect(ip_adress);
-        clientTCP.connect(ip_adress);
+        clientUDP.init(AClient::UDP, ip_adress, 4789);
+        clientUDP.connect();
+        clientTCP.init(AClient::TCP, ip_adress, 4789);
+        clientTCP.connect();
         r.getComponent<Label>(label_input).visible = false;
         r.getComponent<Sprite>(e).visible = false;
         r.getComponent<Position>(player).x = 100.f;

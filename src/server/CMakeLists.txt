@@ -6,6 +6,8 @@ set(SERVER_SOURCES
     Network/AServer.cpp
     Network/TCPServer.cpp
     Network/UDPServer.cpp
+    Session/SessionManager.cpp
+    Handler/MessageHandler.cpp
 )
 
 add_executable(r-type_server ${SERVER_SOURCES})
@@ -13,6 +15,8 @@ add_executable(r-type_server ${SERVER_SOURCES})
 target_include_directories(r-type_server PRIVATE 
     ${CMAKE_CURRENT_SOURCE_DIR}
     ${CMAKE_CURRENT_SOURCE_DIR}/Network
+    ${CMAKE_CURRENT_SOURCE_DIR}/Session
+    ${CMAKE_CURRENT_SOURCE_DIR}/Handler
     ${CMAKE_CURRENT_SOURCE_DIR}/../common/Data
 )
 

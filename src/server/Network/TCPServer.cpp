@@ -8,7 +8,7 @@
 #include "TCPServer.hpp"
 #include "../Logs/Logger.hpp"
 
-TCPServer::TCPServer(ThreadedQueue& queue) : AServer(queue)
+TCPServer::TCPServer(ThreadedQueue<DecodedMessage>& queue) : AServer(queue)
 {
     init(AServer::protocol::TCP, 4789);
 }
@@ -30,6 +30,9 @@ int TCPServer::run()
             LOG_ERROR("TCP poll failed");
             return 84;
         }
+        
+        processOutgoingQueue();
+        
         std::vector<int> toDisconnect;
         for (size_t i = 0; i < _fds.size(); ++i) {
             if (_fds[i].revents & (POLLERR | POLLHUP | POLLNVAL)) {
@@ -73,7 +76,7 @@ int TCPServer::run()
                                 break;
                             }
                             LOG_INFO("TCP message received: OpCode=" + std::to_string(msg.opCode) + " Len=" + std::to_string(msg.len));
-                            _queue.push(msg.priority, msg.data);
+                            _queue.push(msg.priority, msg);
                         }
                     }
                 }
@@ -88,25 +91,68 @@ int TCPServer::run()
     return 0;
 }
 
-int TCPServer::send(const MessageData& data, const sockaddr_in& clientAddr)
+void TCPServer::send(const MessageData& data, Priority priority)
 {
-    // For TCP, we need to find the client by address
-    // This is not ideal for TCP - better to use fd directly
-    // But keeping interface consistent with UDPServer
-    (void)clientAddr; // TCP doesn't use sockaddr for sending
-    
-    // Send to all clients (TCP doesn't have per-address routing like UDP)
-    return send(data);
+    if (data.empty())
+        return;
+    _outgoingQueue.push(priority, {-1, data});
 }
 
-int TCPServer::send(const MessageData& data)
+void TCPServer::send(int fd, const MessageData& data, Priority priority)
+{
+    if (data.empty() || fd < 0)
+        return;
+    _outgoingQueue.push(priority, {fd, data});
+}
+
+void TCPServer::processOutgoingQueue()
+{
+    for (Priority p : {Priority::CRITICAL, Priority::HIGH, Priority::MEDIUM, Priority::LOW}) {
+        while (true) {
+            auto msgOpt = _outgoingQueue.pop(p);
+            if (!msgOpt.has_value())
+                break;
+            
+            OutgoingMessage& msg = msgOpt.value();
+            if (msg.targetFd == -1) {
+                sendToAll(msg.data);
+            } else {
+                sendToFd(msg.targetFd, msg.data);
+            }
+        }
+    }
+}
+
+int TCPServer::sendToFd(int fd, const MessageData& data)
+{
+    if (data.empty() || fd < 0)
+        return -1;
+    
+    std::lock_guard<std::mutex> lock(_clientsMutex);
+    
+    auto it = std::find(_clientFds.begin(), _clientFds.end(), fd);
+    if (it == _clientFds.end()) {
+        LOG_WARN("TCP sendToFd: invalid fd " + std::to_string(fd));
+        return -1;
+    }
+    
+    ssize_t sent = ::send(fd, data.data(), data.size(), MSG_NOSIGNAL);
+    if (sent < 0) {
+        LOG_ERROR("TCP send failed (fd: " + std::to_string(fd) + ")");
+        return -1;
+    }
+    LOG_DEBUG("TCP sent " + std::to_string(data.size()) + " bytes to fd " + std::to_string(fd));
+    return 0;
+}
+
+int TCPServer::sendToAll(const MessageData& data)
 {
     if (data.empty())
         return -1;
     
     int result = 0;
     std::lock_guard<std::mutex> lock(_clientsMutex);
-    LOG_DEBUG("TCP sending " + std::to_string(data.size()) + " bytes to " + std::to_string(_clientFds.size()) + " clients");
+    LOG_DEBUG("TCP broadcasting " + std::to_string(data.size()) + " bytes to " + std::to_string(_clientFds.size()) + " clients");
     for (int fd : _clientFds) {
         ssize_t sent = ::send(fd, data.data(), data.size(), MSG_NOSIGNAL);
         if (sent < 0) {
@@ -114,6 +160,5 @@ int TCPServer::send(const MessageData& data)
             result = -1;
         }
     }
-    
     return result;
 }

@@ -14,10 +14,10 @@
 
 class TCPClient : public AClient {
     public:
-        TCPClient(ThreadedQueue& queue);
+        TCPClient(ThreadedQueue<DecodedMessage>& queue);
         ~TCPClient();
         
-        int connect(std::string ip_adress) override;
+        int connect() override;
         int run() override;
         int send(const MessageData& data) override;
         

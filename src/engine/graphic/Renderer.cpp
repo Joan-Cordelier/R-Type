@@ -6,6 +6,7 @@
 */
 
 #include "Renderer.hpp"
+#include <algorithm>
 
 Renderer::Renderer()
 {
