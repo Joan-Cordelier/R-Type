@@ -52,12 +52,15 @@ void Renderer::render()
     for (auto& [order, commands] : drawCommands) {
         std::stable_sort(commands.begin(), commands.end(),
         [](const DrawCommand& a, const DrawCommand& b) {
-            return a.zIndex < b.zIndex;
+            if (a.zIndex != b.zIndex)
+                return a.zIndex < b.zIndex;
+            return a.texture < b.texture;
         });
         for (auto& cmd : commands) {
-            if (cmd.texture != nullptr) {
+            if (cmd.texture != nullptr && cmd.type == DrawType::Texture) {
                 SDL_SetTextureColorMod(cmd.texture, cmd.option.tint.r, cmd.option.tint.g, cmd.option.tint.b);
                 SDL_SetTextureAlphaMod(cmd.texture, cmd.option.alpha);
+                SDL_SetTextureBlendMode(cmd.texture, cmd.option.blendMode);
             
                 SDL_Rect destRect = cmd.destRect.toSDLRect();
                 SDL_Rect* srcRect = nullptr;
@@ -68,6 +71,21 @@ void Renderer::render()
                 }
                 SDL_RenderCopyEx(window.renderer, cmd.texture, srcRect, &destRect, 
                     cmd.option.rotation, cmd.option.center, cmd.option.flip);
+            }
+            else {
+                if (cmd.type == DrawType::Texture) {
+                    std::cerr << "Attempted to draw a null texture." << std::endl;
+                }
+                switch(cmd.type) {
+                    case DrawType::Line:
+                        renderLine(cmd);
+                        break;
+                    case DrawType::Rect:
+                        renderRect(cmd);
+                        break;
+                    default:
+                        break;
+                }
             }
         }
     }
@@ -243,6 +261,18 @@ void Renderer::drawFrame(const std::string &id, int frameIndex, RenderLayer laye
     drawCommands[layer].push_back(cmd);
 }
 
+void Renderer::drawLine(int x1, int y1, int x2, int y2, Color color, RenderLayer layer, int z)
+{
+    DrawCommand cmd = {{.tint = color}, nullptr, {}, {}, z, DrawType::Line, {x1, y1, x2, y2, false}};
+    drawCommands[layer].push_back(cmd);
+}
+
+void Renderer::drawRect(Rect rect, Color color, RenderLayer layer, int z, bool filled)
+{
+    DrawCommand cmd = {{.tint = color}, nullptr, {}, {}, z, DrawType::Rect, {rect.x, rect.y, rect.w, rect.h, filled}};
+    drawCommands[layer].push_back(cmd);
+}
+
 /// @brief load a spritesheet from file
 /// @param filePath the filepath of the spritesheet
 /// @param id the id to assign to the spritesheet
@@ -412,4 +442,21 @@ std::string Renderer::makeTextKey(const std::string& fontId, const std::string& 
     key += std::to_string(color.b);
     key += std::to_string(color.a);
     return key;
+}
+
+void Renderer::renderLine(const DrawCommand& cmd) {
+    SDL_SetRenderDrawColor(window.renderer, cmd.option.tint.r, cmd.option.tint.g, cmd.option.tint.b, 255);
+    SDL_RenderDrawLine(window.renderer, cmd.primitiveData.x1, cmd.primitiveData.y1,
+                       cmd.primitiveData.x2, cmd.primitiveData.y2);
+}
+
+void Renderer::renderRect(const DrawCommand& cmd) {
+    SDL_SetRenderDrawColor(window.renderer, cmd.option.tint.r, cmd.option.tint.g, cmd.option.tint.b, 255);
+    SDL_Rect sdlRect = {cmd.primitiveData.x1, cmd.primitiveData.y1,
+                        cmd.primitiveData.x2, cmd.primitiveData.y2};
+    if (cmd.primitiveData.filled) {
+        SDL_RenderFillRect(window.renderer, &sdlRect);
+    } else {
+        SDL_RenderDrawRect(window.renderer, &sdlRect);
+    }
 }
