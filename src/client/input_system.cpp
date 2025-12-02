@@ -5,22 +5,20 @@
 ** ArrowInputSystem
 */
 
+#include "../common/ecs/registry.hpp"
+#include "../common/ecs/components/position.hpp"
+#include "../common/ecs/components/spritesheet.hpp"
+#include "../common/ecs/components/stats.hpp"
+
 #include "input_system.hpp"
 #include "../common/ecs/components/velocity.hpp"
 #include "../common/ecs/components/label.hpp"
 #include <SDL2/SDL.h>
 #include <cmath>
 
-InputSystem::InputSystem(float speed)
-: controlled(INVALID_ENTITY), speed(speed)
-{
-    SDL_StartTextInput();
-}
+InputSystem::InputSystem() {}
 
-InputSystem::~InputSystem()
-{
-    SDL_StopTextInput();
-}
+InputSystem::~InputSystem() {}
 
 void InputSystem::setControlled(Entity e) {
     controlled = e;
@@ -38,16 +36,35 @@ void InputSystem::update(Registry& reg, SDL_Event& e) {
         if (ks[SDL_SCANCODE_LEFT] || ks[SDL_SCANCODE_A])  vx -= 1.f;
         if (ks[SDL_SCANCODE_RIGHT] || ks[SDL_SCANCODE_D]) vx += 1.f;
 
-        if (vx != 0.f || vy != 0.f) {
-            float inv = 1.0f / std::sqrt(vx*vx + vy*vy);
-            vx = vx * inv * speed;
-            vy = vy * inv * speed;
-        } else {
-            vx = 0.f; vy = 0.f;
+        if (reg.hasComponent<Stats>(controlled)) {
+            float speed = static_cast<float>(reg.getComponent<Stats>(controlled).movement_speed);
+            if (vx != 0.f || vy != 0.f) {
+                float inv = 1.0f / std::sqrt(vx*vx + vy*vy);
+                vx = vx * inv * speed;
+                vy = vy * inv * speed;
+            } else {
+                vx = 0.f; vy = 0.f;
+            }
+            auto &vel = reg.getComponent<Velocity>(controlled);
+            vel.vx = vx;
+            vel.vy = vy;
         }
-        auto &vel = reg.getComponent<Velocity>(controlled);
-        vel.vx = vx;
-        vel.vy = vy;
+
+        if (ks[SDL_SCANCODE_SPACE]) {
+            if (!reg.hasComponent<Stats>(controlled))
+                return;
+            auto &stats = reg.getComponent<Stats>(controlled);
+            if (!stats.canAttack())
+                return;
+            Entity projectile = reg.createEntity();
+            reg.addComponent<Position>(projectile, 0.f, 0.f);
+            auto &pos = reg.getComponent<Position>(controlled);
+            reg.getComponent<Position>(projectile).y = pos.y + 10.f;
+            reg.getComponent<Position>(projectile).x = pos.x + 24.f;
+            reg.addComponent<Velocity>(projectile, 0.f, -400.f);
+            reg.addComponent<SpriteSheets>(projectile, (std::string)"textures/projectiles/projectile_player.png", (std::string)"projectile_player", 16, 16, 0, 4, 0, true);
+            stats.cooldown = 1.f / static_cast<float>(stats.attack_speed);
+        }
     } else if (reg.hasComponent<Label>(controlled)) {
         if (e.type != 0) {
             if (e.type == SDL_TEXTINPUT) {

@@ -48,29 +48,39 @@ void Renderer::clear()
 /// @brief present the rendered content to the window
 void Renderer::render()
 {
-    for (auto& [layer, commands] : drawLayers) {
+    for (auto& [order, commands] : drawCommands) {
         std::stable_sort(commands.begin(), commands.end(),
-            [](const DrawCommand& a, const DrawCommand& b) {
-                return a.zIndex < b.zIndex;
-            });
+        [](const DrawCommand& a, const DrawCommand& b) {
+            return a.zIndex < b.zIndex;
+        });
         for (auto& cmd : commands) {
-            cmd.command();
+            if (cmd.texture != nullptr) {
+                SDL_SetTextureColorMod(cmd.texture, cmd.option.tint.r, cmd.option.tint.g, cmd.option.tint.b);
+                SDL_SetTextureAlphaMod(cmd.texture, cmd.option.alpha);
+            
+                SDL_Rect destRect = cmd.destRect.toSDLRect();
+                SDL_Rect* srcRect = nullptr;
+                SDL_Rect srcRectObj;
+                if (!cmd.srcRect.isNull()) {
+                    srcRectObj = cmd.srcRect.toSDLRect();
+                    srcRect = &srcRectObj;
+                }
+                SDL_RenderCopyEx(window.renderer, cmd.texture, srcRect, &destRect, 
+                    cmd.option.rotation, cmd.option.center, cmd.option.flip);
+            }
         }
     }
-    drawLayers.clear();
+    drawCommands.clear();
     window.draw();
 }
 
-/// @brief add a draw call to the queue
-/// @param layer layer to draw on
-/// @param zIndex index for draw order
-/// @param drawCall the draw function to call
+/// @brief deprecated dont use !
 void Renderer::queueDraw(RenderLayer layer, int zIndex, std::function<void()> drawCall)
 {
-    drawLayers[layer].push_back({zIndex, drawCall});
+    return;
 }
 
-void Renderer::drawFont(const std::string &id, const std::string &text, int x, int y, Color color)
+void Renderer::drawFont(const std::string &id, const std::string &text, int x, int y, Color color, RenderLayer layer, int z)
 {
     if (fontCache.find(id) == fontCache.end()) {
         std::cerr << "Font not found: " << id << std::endl;
@@ -89,11 +99,11 @@ void Renderer::drawFont(const std::string &id, const std::string &text, int x, i
         return;
     }
 
-    SDL_Rect destRect = {x, y, surface->w, surface->h};
+    Rect destRect = {x, y, surface->w, surface->h};
     SDL_FreeSurface(surface);
     
-    SDL_RenderCopy(window.renderer, texture, NULL, &destRect);
-    SDL_DestroyTexture(texture);
+    DrawCommand cmd = {{}, texture, {}, destRect, z};
+    drawCommands[layer].push_back(cmd);
 }
 
 /// @brief draw a font and cache the rendered text
@@ -103,15 +113,16 @@ void Renderer::drawFont(const std::string &id, const std::string &text, int x, i
 /// @param y the y position
 /// @param color the color of the text
 void Renderer::drawFontAndCache(const std::string &id, const std::string &text, 
-                        int x, int y, Color color)
+                        int x, int y, Color color, RenderLayer layer, int z)
 {
     std::string cacheKey = makeTextKey(id, text, color);
     
     // Check cache first
     auto it = textCache.find(cacheKey);
     if (it != textCache.end()) {
-        SDL_Rect destRect = {x, y, it->second.width, it->second.height};
-        SDL_RenderCopy(window.renderer, it->second.texture, NULL, &destRect);
+        Rect destRect = {x, y, it->second.width, it->second.height};
+        DrawCommand cmd = {{}, it->second.texture, {}, destRect, z};
+        drawCommands[layer].push_back(cmd);
         return;
     }
     
@@ -131,25 +142,26 @@ void Renderer::drawFontAndCache(const std::string &id, const std::string &text,
     // Store in cache
     textCache[cacheKey] = {texture, surface->w, surface->h};
     
-    SDL_Rect destRect = {x, y, surface->w, surface->h};
+    Rect destRect = {x, y, surface->w, surface->h};
     SDL_FreeSurface(surface);
     
-    SDL_RenderCopy(window.renderer, texture, NULL, &destRect);
+    DrawCommand cmd = {{}, texture, {}, destRect, z};
+    drawCommands[layer].push_back(cmd);
 }
 
 /// @brief draw a texture to the screen
 /// @param id the id of the texture
 /// @param rect the destination rectangle
-void Renderer::drawTexture(const std::string &id, Rect rect)
+void Renderer::drawTexture(const std::string &id, RenderLayer layer, int z, Rect rect)
 {
-    drawTexture(id, rect, DrawOptions{});
+    drawTexture(id, layer, z, rect, DrawOptions{});
 }
 
 /// @brief draw a texture to the screen
 /// @param id the id of the texture
 /// @param rect the destination rectangle
 /// @param options drawing options like rotation and scale
-void Renderer::drawTexture(const std::string &id, Rect rect, DrawOptions options)
+void Renderer::drawTexture(const std::string &id, RenderLayer layer, int z, Rect rect, DrawOptions options)
 {
     if (textureCache.find(id) == textureCache.end()) {
         std::cerr << "Error on texture loading for drawing: " << id << " not found." << std::endl;;
@@ -162,22 +174,17 @@ void Renderer::drawTexture(const std::string &id, Rect rect, DrawOptions options
         return;
     }
 
-    SDL_SetTextureColorMod(texture, options.tint.r, options.tint.g, options.tint.b);
-    SDL_SetTextureAlphaMod(texture, options.alpha);
-
-    SDL_Rect destRect = rect.toSDLRect();
-
-    SDL_RenderCopyEx(window.renderer, texture, NULL, &destRect, 
-                     options.rotation, options.center, options.flip);
+    DrawCommand cmd = {options, texture, {}, rect, z};
+    drawCommands[layer].push_back({cmd});
 }
 
 /// @brief draw a region of a texture
 /// @param id the id of the texture
 /// @param srcRect the source rectangle
 /// @param rect the destination rectangle
-void Renderer::drawTextureRegion(const std::string &id, Rect srcRect, Rect rect)
+void Renderer::drawTextureRegion(const std::string &id, RenderLayer layer, int z, Rect srcRect, Rect rect)
 {
-    drawTextureRegion(id, srcRect, rect, DrawOptions{});
+    drawTextureRegion(id, layer, z, srcRect, rect, DrawOptions{});
 }
 
 /// @brief draw a region of a texture
@@ -185,7 +192,7 @@ void Renderer::drawTextureRegion(const std::string &id, Rect srcRect, Rect rect)
 /// @param srcRect the source rectangle
 /// @param rect the destination rectangle
 /// @param options drawing options like rotation and scale
-void Renderer::drawTextureRegion(const std::string &id, Rect srcRect, Rect rect, DrawOptions options)
+void Renderer::drawTextureRegion(const std::string &id, RenderLayer layer, int z, Rect srcRect, Rect rect, DrawOptions options)
 {
     if (textureCache.find(id) == textureCache.end()) {
         std::cerr << "Error on texture loading for drawing: " << id << " not found." << std::endl;;
@@ -198,23 +205,17 @@ void Renderer::drawTextureRegion(const std::string &id, Rect srcRect, Rect rect,
         return;
     }
 
-    SDL_Rect destRect = rect.toSDLRect();
-    SDL_Rect texRect = srcRect.toSDLRect();
-
-    SDL_SetTextureColorMod(texture, options.tint.r, options.tint.g, options.tint.b);
-    SDL_SetTextureAlphaMod(texture, options.alpha);
-
-    SDL_RenderCopyEx(window.renderer, texture, &texRect, &destRect,
-                     options.rotation, options.center, options.flip);
+    DrawCommand cmd = {options, texture, srcRect, rect, z};
+    drawCommands[layer].push_back({cmd});
 }
 
 /// @brief draw a specific frame from a spritesheet
 /// @param id the id of the spritesheet
 /// @param frameIndex the index of the frame to draw
 /// @param rect the destination rectangle
-void Renderer::drawFrame(const std::string &id, int frameIndex, Rect rect)
+void Renderer::drawFrame(const std::string &id, int frameIndex, RenderLayer layer, int z, Rect rect)
 {
-    drawFrame(id, frameIndex, rect, DrawOptions{});
+    drawFrame(id, frameIndex, layer, z, rect, DrawOptions{});
 }
 
 /// @brief draw a specific frame from a spritesheet
@@ -222,7 +223,7 @@ void Renderer::drawFrame(const std::string &id, int frameIndex, Rect rect)
 /// @param frameIndex the index of the frame to draw
 /// @param rect the destination rectangle
 /// @param options drawing options like rotation and scale
-void Renderer::drawFrame(const std::string &id, int frameIndex, Rect rect, DrawOptions options)
+void Renderer::drawFrame(const std::string &id, int frameIndex, RenderLayer layer, int z, Rect rect, DrawOptions options)
 {
     if (spritesheetCache.find(id) == spritesheetCache.end()) {
         std::cerr << "Error on spritesheet loading for drawing: " << id << " not found." << std::endl;
@@ -236,19 +237,15 @@ void Renderer::drawFrame(const std::string &id, int frameIndex, Rect rect, DrawO
         return;
     }
 
-    SDL_SetTextureColorMod(texture, options.tint.r, options.tint.g, options.tint.b);
-    SDL_SetTextureAlphaMod(texture, options.alpha);
-
-    SDL_Rect destRect = rect.toSDLRect();
-    SDL_Rect texRect = {
+    Rect srcRect = {
         (frameIndex % sheet.columns) * sheet.frameWidth,
         (frameIndex / sheet.columns) * sheet.frameHeight,
         sheet.frameWidth,
         sheet.frameHeight
     };
 
-    SDL_RenderCopyEx(window.renderer, texture, &texRect, &destRect,
-                     options.rotation, options.center, options.flip);
+    DrawCommand cmd = {options, texture, srcRect, rect, z};
+    drawCommands[layer].push_back(cmd);
 }
 
 /// @brief load a spritesheet from file
