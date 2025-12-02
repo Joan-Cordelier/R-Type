@@ -114,7 +114,7 @@ template void Registry::addComponent<Stats, int, int, int, float, int, int, int>
 template void Registry::addComponent<Sprite, std::string, std::string, int, int, int, bool>(Entity, std::string, std::string, int, int, int, bool);
 template void Registry::addComponent<Button, std::string, int, bool>(Entity, std::string, int, bool);
 template void Registry::addComponent<Label, std::string, std::string, std::string, Color, int, bool>(Entity, std::string, std::string, std::string, Color, int, bool);
-template void Registry::addComponent<SpriteSheets, std::string, std::string, int, int, int, int, int, bool>(Entity, std::string, std::string, int, int, int, int, int, bool);
+template void Registry::addComponent<SpriteSheets, std::string, std::string, int, int, int, int, int, bool, bool>(Entity, std::string, std::string, int, int, int, int, int, bool, bool);
 
 template bool Registry::hasComponent<Position>(Entity) const;
 template bool Registry::hasComponent<Velocity>(Entity) const;

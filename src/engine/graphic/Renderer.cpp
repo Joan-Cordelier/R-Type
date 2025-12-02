@@ -75,12 +75,6 @@ void Renderer::render()
     window.draw();
 }
 
-/// @brief deprecated dont use !
-void Renderer::queueDraw(RenderLayer layer, int zIndex, std::function<void()> drawCall)
-{
-    return;
-}
-
 void Renderer::drawFont(const std::string &id, const std::string &text, int x, int y, Color color, RenderLayer layer, int z)
 {
     if (fontCache.find(id) == fontCache.end()) {

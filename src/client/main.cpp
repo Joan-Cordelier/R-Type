@@ -47,13 +47,14 @@ int main()
     std::string ip_adress = "127.0.0.1";
     UDPClient clientUDP(queue);
     TCPClient clientTCP(queue);
+    double animationClock = 0.0;
 
-    renderer.loadTexture("textures/vaisseau.png", "test");
+    renderer.loadSpriteSheet("textures/ships/player_ship.png", "test", 343, 383);
 
     Entity player = reg.createEntity();
     reg.addComponent<Position>(player, 100.f, 100.f);
     reg.addComponent<Velocity>(player, 0.f, 0.f);
-    reg.addComponent<Sprite>(player, (std::string)"textures/vaisseau.png", (std::string)"test", 64, 64, 0, false);
+    reg.addComponent<SpriteSheets>(player, (std::string)"textures/ships/player_ship.png", (std::string)"test", 120, 130, 1, 3, 0, false, false);
     reg.addComponent<Stats>(player, 100, 100, 1, 0.f, 10, 1, 200);
 
     renderer.loadTexture("textures/play_button/default.png", "play_button");
@@ -89,7 +90,7 @@ int main()
         r.getComponent<Sprite>(e).visible = false;
         r.getComponent<Position>(player).x = 100.f;
         r.getComponent<Position>(player).y = 100.f;
-        r.getComponent<Sprite>(player).visible = true;
+        r.getComponent<SpriteSheets>(player).visible = true;
         r.getComponent<Button>(e).enabled = false;
         Input.setControlled(player);
         MessageData msg;
@@ -108,6 +109,7 @@ int main()
 
         Uint64 now = SDL_GetPerformanceCounter();
         double dt = (double)(now - last) / SDL_GetPerformanceFrequency();
+        animationClock += dt;
         last = now;
 
         Input.update(reg, status);
@@ -126,7 +128,7 @@ int main()
 
         spritesheetsys.render(reg, [&](const SpriteSheetSystem::TextureId& tid, int frameIndex, int width, int height, int x, int y, int z) {
             renderer.drawFrame(tid, frameIndex, RenderLayer::GAME, z, Rect{x, y, width, height});
-        });
+        }, animationClock);
 
         labelsys.render(reg, [&](const LabelSystem::TextId& tid, std::string& text, int x, int y, Color color) {
             renderer.drawFont(tid, text, x, y, color, RenderLayer::OVERLAY, 0);

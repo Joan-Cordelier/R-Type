@@ -37,6 +37,13 @@ void InputSystem::update(Registry& reg, SDL_Event& e) {
         if (ks[SDL_SCANCODE_RIGHT] || ks[SDL_SCANCODE_D]) vx += 1.f;
 
         if (reg.hasComponent<Stats>(controlled)) {
+            auto &player_sprit_sheet = reg.getComponent<SpriteSheets>(controlled);
+            if (vx > 0.f)
+                player_sprit_sheet.frameIndex = 2;
+            else if (vx < 0.f)
+                player_sprit_sheet.frameIndex = 0;
+            else
+                player_sprit_sheet.frameIndex = 1;
             float speed = static_cast<float>(reg.getComponent<Stats>(controlled).movement_speed);
             if (vx != 0.f || vy != 0.f) {
                 float inv = 1.0f / std::sqrt(vx*vx + vy*vy);
@@ -59,10 +66,10 @@ void InputSystem::update(Registry& reg, SDL_Event& e) {
             Entity projectile = reg.createEntity();
             reg.addComponent<Position>(projectile, 0.f, 0.f);
             auto &pos = reg.getComponent<Position>(controlled);
-            reg.getComponent<Position>(projectile).y = pos.y + 10.f;
-            reg.getComponent<Position>(projectile).x = pos.x + 24.f;
+            reg.getComponent<Position>(projectile).y = pos.y + 30.f;
+            reg.getComponent<Position>(projectile).x = pos.x + 52.f;
             reg.addComponent<Velocity>(projectile, 0.f, -400.f);
-            reg.addComponent<SpriteSheets>(projectile, (std::string)"textures/projectiles/projectile_player.png", (std::string)"projectile_player", 16, 16, 0, 4, 0, true);
+            reg.addComponent<SpriteSheets>(projectile, (std::string)"textures/projectiles/projectile_player.png", (std::string)"projectile_player", 16, 16, 0, 4, 0, true, true);
             stats.cooldown = 1.f / static_cast<float>(stats.attack_speed);
         }
     } else if (reg.hasComponent<Label>(controlled)) {

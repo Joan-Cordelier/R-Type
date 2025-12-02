@@ -77,7 +77,6 @@ public:
     ~Renderer();
     void clear();
     void render();
-    void queueDraw(RenderLayer layer, int zIndex, std::function<void()> drawCall);
     void drawFont(const std::string &id, const std::string &text, int x, int y, Color color, RenderLayer layer, int z);
     void drawFontAndCache(const std::string &id, const std::string &text, int x, int y, Color color, RenderLayer layer, int z);
     void drawTexture(const std::string &id, RenderLayer layer, int z, Rect rect);

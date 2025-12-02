@@ -16,7 +16,7 @@ class SpriteSheetSystem {
 
         SpriteSheetSystem() = default;
 
-        void render(Registry& reg, DrawCallback drawCallback);
+        void render(Registry& reg, DrawCallback drawCallback, double &animationClock);
 };
 
 #endif
