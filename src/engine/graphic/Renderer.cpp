@@ -52,12 +52,15 @@ void Renderer::render()
     for (auto& [order, commands] : drawCommands) {
         std::stable_sort(commands.begin(), commands.end(),
         [](const DrawCommand& a, const DrawCommand& b) {
-            return a.zIndex < b.zIndex;
+            if (a.zIndex != b.zIndex)
+                return a.zIndex < b.zIndex;
+            return a.texture < b.texture;
         });
         for (auto& cmd : commands) {
             if (cmd.texture != nullptr && cmd.type == DrawType::Texture) {
                 SDL_SetTextureColorMod(cmd.texture, cmd.option.tint.r, cmd.option.tint.g, cmd.option.tint.b);
                 SDL_SetTextureAlphaMod(cmd.texture, cmd.option.alpha);
+                SDL_SetTextureBlendMode(cmd.texture, cmd.option.blendMode);
             
                 SDL_Rect destRect = cmd.destRect.toSDLRect();
                 SDL_Rect* srcRect = nullptr;
