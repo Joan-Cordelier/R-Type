@@ -23,6 +23,19 @@ public:
         this->h = h;
     }
 
+    Rect()
+    {
+        this->x = 0;
+        this->y = 0;
+        this->w = 0;
+        this->h = 0;
+    }
+
+    bool isNull() const
+    {
+        return w == 0 && h == 0;
+    }
+
     SDL_Rect toSDLRect() const
     {
         SDL_Rect rect;
