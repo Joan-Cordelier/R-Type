@@ -13,6 +13,7 @@ struct SpriteSheets {
     int maxFrames = 1;
     int z = 0;
     bool visible = true;
+    bool loop = false;
 };
 
 #endif
