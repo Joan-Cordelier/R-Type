@@ -9,7 +9,7 @@
 #include "../Logs/Logger.hpp"
 #include <arpa/inet.h>
 
-UDPServer::UDPServer(ThreadedQueue& queue) : AServer(queue)
+UDPServer::UDPServer(ThreadedQueue<DecodedMessage>& queue) : AServer(queue)
 {
     init(AServer::protocol::UDP, 4789);
 }
@@ -55,7 +55,7 @@ int UDPServer::run()
                     DecodedMessage msg = factory.decode(rawData);
                     if (msg.opCode != PARSING_ERROR) {
                         LOG_INFO("UDP message received: OpCode=" + std::to_string(msg.opCode) + " Len=" + std::to_string(msg.len));
-                        _queue.push(msg.priority, msg.data);
+                        _queue.push(msg.priority, msg);
                     } else {
                         LOG_WARN("UDP parsing error from " + clientIp + ":" + std::to_string(clientPort));
                     }

@@ -7,17 +7,18 @@
 
 #include "UDPClient.hpp"
 
-UDPClient::UDPClient(ThreadedQueue& queue) : AClient(queue) {}
+UDPClient::UDPClient(ThreadedQueue<DecodedMessage>& queue) : AClient(queue)
+{
+    init(AClient::protocol::UDP, "127.0.0.1", 4789);
+}
 
 UDPClient::~UDPClient()
 {
     reset();
 }
 
-int UDPClient::connect(std::string ip_adress)
+int UDPClient::connect()
 {
-    _serverIp = ip_adress;
-    init(AClient::protocol::UDP, ip_adress, 4789);
     if (_socketFd < 0) {
         std::cerr << "Socket not initialized" << std::endl;
         return 84;
@@ -63,7 +64,7 @@ int UDPClient::run()
                 DecodedMessage msg = factory.decode(rawData);
                 
                 if (msg.opCode != PARSING_ERROR) {
-                    _queue.push(msg.priority, msg.data);
+                    _queue.push(msg.priority, msg);
                 } else {
                     std::cerr << "Parsing error received from server" << std::endl;
                 }

@@ -8,7 +8,7 @@
 #include "AServer.hpp"
 #include "../Logs/Logger.hpp"
 
-AServer::AServer(ThreadedQueue& queue) : _queue(queue)
+AServer::AServer(ThreadedQueue<DecodedMessage>& queue) : _queue(queue)
 {
 }
 

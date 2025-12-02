@@ -29,11 +29,11 @@ class AClient {
             UDP = SOCK_DGRAM
         };
 
-        AClient(ThreadedQueue& queue);
+        AClient(ThreadedQueue<DecodedMessage>& queue);
         virtual ~AClient() = default;
         
         int init(AClient::protocol protocol, const std::string& serverIp, int port);
-        virtual int connect(std::string ip_adress) = 0;
+        virtual int connect() = 0;
         virtual int run() = 0;
         virtual int send(const MessageData& data) = 0;
         
@@ -42,7 +42,7 @@ class AClient {
         bool isConnected() const { return _connected; }
 
     protected:
-        ThreadedQueue& _queue;
+        ThreadedQueue<DecodedMessage>& _queue;
         bool _running = true;
         bool _connected = false;
         int _socketFd = -1;
