@@ -19,10 +19,13 @@ class TCPClient : public AClient {
         
         int connect() override;
         int run() override;
-        int send(const MessageData& data) override;
+        int send(const MessageData& data, Priority priority = Priority::MEDIUM);
         
     private:
         LinearBuffer _buffer;
+        
+        void processOutgoingQueue();
+        int sendData(const MessageData& data);
 };
 
 #endif /* !TCPCLIENT_HPP_ */

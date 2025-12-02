@@ -18,7 +18,7 @@ class UDPClient : public AClient {
         
         int connect() override;
         int run() override;
-        int send(const MessageData& data) override;
+        int send(const MessageData& data);
 };
 
 #endif /* !UDPCLIENT_HPP_ */

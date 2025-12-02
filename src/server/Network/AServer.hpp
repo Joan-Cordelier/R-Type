@@ -18,6 +18,7 @@
 #include "../../common/Data/MessageFactory.hpp"
 #include "../../common/Data/ThreadedQueue.hpp"
 #include <mutex>
+#include <atomic>
 
 class AServer {
     public:
@@ -28,24 +29,30 @@ class AServer {
         AServer(ThreadedQueue<DecodedMessage>& queue);
         int init(AServer::protocol protocol, int port);
         int run();
-        int send(const MessageData& data, const sockaddr_in& clientAddr);
-        int send(const MessageData& data);
         void stop();
         void reset();
         void handleDisconnections(const std::vector<int>& toDisconnect);
     protected:
+        // Queue for incoming messages
         ThreadedQueue<DecodedMessage>& _queue;
-        bool _running = true;
-        int _max = 0;
+        
+        // Server state
+        std::atomic<bool> _running{true};
+        
+        // Server configuration
         int _port = 0;
         int _serverFd = -1;
         protocol _protocol;
-        std::vector<struct pollfd> _fds;
-        std::vector<int> _clientFds;
-        std::vector<sockaddr_in> _clients;
         struct sockaddr_in _addr;
         socklen_t _addrLen = 0;
-        int _error = 0;
+        
+        // File descriptors management
+        std::vector<struct pollfd> _fds;
+        mutable std::mutex _fdsMutex;
+        
+        // Client management
+        std::vector<int> _clientFds;
+        std::vector<sockaddr_in> _clients;
         mutable std::mutex _clientsMutex;
 };
 

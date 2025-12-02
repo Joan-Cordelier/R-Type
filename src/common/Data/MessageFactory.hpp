@@ -37,6 +37,11 @@ struct DecodedMessage {
     MessageData data;
 };
 
+struct PreparedMessage {
+    MessageData data;
+    Priority priority;
+};
+
 class MessageFactory {
     public:
         static constexpr int VARIABLE_LEN = -1;
@@ -74,6 +79,8 @@ class MessageFactory {
         
         template<typename LinearBufferT>
         DecodedMessage decodeFromBuffer(LinearBufferT& buffer);
+        
+        PreparedMessage createMessage(OpCode opCode, const MessageData& payload = {}) const;
         
     private:
         MessageFactory();
