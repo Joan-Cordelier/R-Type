@@ -33,24 +33,19 @@ class AServer {
         void reset();
         void handleDisconnections(const std::vector<int>& toDisconnect);
     protected:
-        // Queue for incoming messages
         ThreadedQueue<DecodedMessage>& _queue;
         
-        // Server state
         std::atomic<bool> _running{true};
         
-        // Server configuration
         int _port = 0;
         int _serverFd = -1;
         protocol _protocol;
         struct sockaddr_in _addr;
         socklen_t _addrLen = 0;
         
-        // File descriptors management
         std::vector<struct pollfd> _fds;
         mutable std::mutex _fdsMutex;
         
-        // Client management
         std::vector<int> _clientFds;
         std::vector<sockaddr_in> _clients;
         mutable std::mutex _clientsMutex;
