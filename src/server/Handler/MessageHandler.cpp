@@ -27,7 +27,6 @@ void MessageHandler::processMessages()
 
 bool MessageHandler::processSingleCycle()
 {
-    // Process by priority order
     auto critical = _session.popMessage(Priority::CRITICAL);
     if (critical.has_value()) {
         dispatchMessage(critical.value());

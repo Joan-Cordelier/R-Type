@@ -6,20 +6,11 @@
 */
 
 #include "ThreadedQueue.hpp"
-#include "MessageFactory.hpp"
+#include "OutgoingMessage.hpp"
 
 template<typename T>
 ThreadedQueue<T>::~ThreadedQueue()
 {
-    std::queue<T> empty;
-    std::queue<T> emptyHigh;
-    std::queue<T> emptyMedium;
-    std::queue<T> emptyLow;
-
-    std::swap(_critical, empty);
-    std::swap(_high, emptyHigh);
-    std::swap(_medium, emptyMedium);
-    std::swap(_low, emptyLow);
 }
 
 template<typename T>
@@ -101,6 +92,6 @@ bool ThreadedQueue<T>::isEmpty() const
     return _critical.empty() && _high.empty() && _medium.empty() && _low.empty();
 }
 
-// Explicit instantiations
 template class ThreadedQueue<MessageData>;
 template class ThreadedQueue<DecodedMessage>;
+template class ThreadedQueue<OutgoingMessage>;

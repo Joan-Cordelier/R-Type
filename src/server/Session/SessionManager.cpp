@@ -51,8 +51,6 @@ void SessionManager::stop()
     LOG_INFO("SessionManager stopped");
 }
 
-// Player Management
-
 uint32_t SessionManager::addPlayer(int tcpFd)
 {
     std::lock_guard<std::mutex> lock(_playersMutex);
@@ -161,16 +159,13 @@ size_t SessionManager::getPlayerCount() const
     return _players.size();
 }
 
-// Network - Send to specific player
-
-void SessionManager::sendTcp(uint32_t playerId, const MessageData& data)
+void SessionManager::sendTcp(uint32_t playerId, const MessageData& data, Priority priority)
 {
     std::lock_guard<std::mutex> lock(_playersMutex);
     
     auto it = _players.find(playerId);
     if (it != _players.end() && it->second.tcpFd >= 0) {
-        sockaddr_in dummy{};
-        _tcpServer.send(data, dummy);  // TCP sends to fd internally
+        _tcpServer.send(it->second.tcpFd, data, priority);
     }
 }
 
@@ -184,18 +179,14 @@ void SessionManager::sendUdp(uint32_t playerId, const MessageData& data)
     }
 }
 
-// Network - Broadcast
-
 void SessionManager::broadcastTcp(const MessageData& data, uint32_t roomId)
 {
     if (roomId == 0) {
-        _tcpServer.send(data);  // Broadcast to all
+        _tcpServer.send(data);
     } else {
         std::lock_guard<std::mutex> lock(_playersMutex);
         for (auto& [id, player] : _players) {
             if (player.roomId == roomId && player.tcpFd >= 0) {
-                // Send to specific room - would need per-fd send
-                // For now, this is simplified
             }
         }
     }
@@ -204,7 +195,7 @@ void SessionManager::broadcastTcp(const MessageData& data, uint32_t roomId)
 void SessionManager::broadcastUdp(const MessageData& data, uint32_t roomId)
 {
     if (roomId == 0) {
-        _udpServer.send(data);  // Broadcast to all
+        _udpServer.send(data);
     } else {
         std::lock_guard<std::mutex> lock(_playersMutex);
         for (auto& [id, player] : _players) {
@@ -215,8 +206,6 @@ void SessionManager::broadcastUdp(const MessageData& data, uint32_t roomId)
     }
 }
 
-// Queue access
-
 std::optional<DecodedMessage> SessionManager::popMessage(Priority priority)
 {
     return _queue.pop(priority);
@@ -226,8 +215,6 @@ bool SessionManager::hasMessages() const
 {
     return !_queue.isEmpty();
 }
-
-// Helper
 
 bool SessionManager::compareUdpAddr(const sockaddr_in& a, const sockaddr_in& b) const
 {
