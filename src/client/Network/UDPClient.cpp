@@ -17,10 +17,8 @@ UDPClient::~UDPClient()
     reset();
 }
 
-int UDPClient::connect(std::string ip_adress)
+int UDPClient::connect()
 {
-    _serverIp = ip_adress;
-    init(AClient::protocol::UDP, ip_adress, 4789);
     if (_socketFd < 0) {
         std::cerr << "Socket not initialized" << std::endl;
         return 84;
