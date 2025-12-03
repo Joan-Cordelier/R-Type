@@ -41,8 +41,14 @@ class SessionManager {
         void sendTcp(uint32_t playerId, const MessageData& data, Priority priority = Priority::MEDIUM);
         void sendUdp(uint32_t playerId, const MessageData& data);
         
+        void sendTcp(uint32_t playerId, const PreparedMessage& msg);
+        void sendUdp(uint32_t playerId, const PreparedMessage& msg);
+        
         void broadcastTcp(const MessageData& data, uint32_t roomId = 0);
         void broadcastUdp(const MessageData& data, uint32_t roomId = 0);
+        
+        void broadcastTcp(const PreparedMessage& msg, uint32_t roomId = 0);
+        void broadcastUdp(const PreparedMessage& msg, uint32_t roomId = 0);
         
         std::optional<DecodedMessage> popMessage(Priority priority);
         bool hasMessages() const;

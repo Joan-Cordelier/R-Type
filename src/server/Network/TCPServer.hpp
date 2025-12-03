@@ -31,6 +31,7 @@ class TCPServer : public AServer {
         
         std::map<int, LinearBuffer> _buffers;
         ThreadedQueue<OutgoingMessage> _outgoingQueue;
+        mutable std::mutex _buffersMutex;
 };
 
 #endif /* !TCPSERVER_HPP_ */

@@ -128,3 +128,25 @@ DecodedMessage MessageFactory::decodeFromBuffer(LinearBufferT& buffer)
 }
 
 template DecodedMessage MessageFactory::decodeFromBuffer<LinearBuffer>(LinearBuffer& buffer);
+
+PreparedMessage MessageFactory::createMessage(OpCode opCode, const MessageData& payload) const
+{
+    PreparedMessage prepared;
+    
+    int expectedLen = _messageTable[opCode].len;
+    
+    prepared.data.push_back(static_cast<uint8_t>(opCode));
+    
+    if (expectedLen == VARIABLE_LEN) {
+        prepared.data.push_back(static_cast<uint8_t>(payload.size()));
+    }
+    
+    if (!payload.empty()) {
+        prepared.data.insert(prepared.data.end(), payload.begin(), payload.end());
+    }
+    
+    prepared.priority = _messageTable[opCode].priority;
+    
+    return prepared;
+}
+

@@ -21,16 +21,26 @@ UDPServer::~UDPServer()
 
 int UDPServer::run()
 {
-    _fds.push_back({_serverFd, POLLIN, 0});
+    {
+        std::lock_guard<std::mutex> lock(_fdsMutex);
+        _fds.push_back({_serverFd, POLLIN, 0});
+    }
     MessageFactory& factory = MessageFactory::getInstance();
 
     while (_running) {
-        if (poll(_fds.data(), _fds.size(), 100) < 0) {
+        std::vector<struct pollfd> fdsSnapshot;
+        {
+            std::lock_guard<std::mutex> lock(_fdsMutex);
+            fdsSnapshot = _fds;
+        }
+        
+        if (poll(fdsSnapshot.data(), fdsSnapshot.size(), 100) < 0) {
             LOG_ERROR("UDP poll failed");
             return 84;
         }
-        for (size_t i = 0; i < _fds.size(); ++i) {
-            if (_fds[i].revents & POLLIN) {
+        
+        for (size_t i = 0; i < fdsSnapshot.size(); ++i) {
+            if (fdsSnapshot[i].revents & POLLIN) {
                 char buffer[4096];
                 struct sockaddr_in clientAddr;
                 socklen_t len = sizeof(clientAddr);
@@ -42,7 +52,7 @@ int UDPServer::run()
                     {
                         std::lock_guard<std::mutex> lock(_clientsMutex);
                         isNewClient = std::find_if(_clients.begin(), _clients.end(), [&clientAddr](const sockaddr_in& addr) {
-                                return addr.sin_addr.s_addr == clientAddr.sin_addr.s_addr &&addr.sin_port == clientAddr.sin_port;
+                                return addr.sin_addr.s_addr == clientAddr.sin_addr.s_addr && addr.sin_port == clientAddr.sin_port;
                             }) == _clients.end();
                         
                         if (isNewClient) {
@@ -68,6 +78,9 @@ int UDPServer::run()
 
 int UDPServer::send(const MessageData& data, const sockaddr_in& clientAddr)
 {
+    if (data.empty())
+        return -1;
+        
     std::string clientIp = inet_ntoa(clientAddr.sin_addr);
     int clientPort = ntohs(clientAddr.sin_port);
     ssize_t sent = sendto(_serverFd, data.data(), data.size(), 0, (struct sockaddr*)&clientAddr, sizeof(clientAddr));
@@ -76,19 +89,36 @@ int UDPServer::send(const MessageData& data, const sockaddr_in& clientAddr)
         LOG_ERROR("UDP send failed to " + clientIp + ":" + std::to_string(clientPort));
         return -1;
     }
+    
+    if (sent != static_cast<ssize_t>(data.size())) {
+        LOG_ERROR("UDP partial send to " + clientIp + ":" + std::to_string(clientPort) + ": sent " + std::to_string(sent) + "/" + std::to_string(data.size()) + " bytes");
+        return -1;
+    }
+    
     LOG_DEBUG("UDP sent " + std::to_string(data.size()) + " bytes to " + clientIp + ":" + std::to_string(clientPort));
     return 0;
 }
 
 int UDPServer::send(const MessageData& data)
 {
+    if (data.empty())
+        return -1;
+        
     std::lock_guard<std::mutex> lock(_clientsMutex);
     LOG_DEBUG("UDP broadcasting " + std::to_string(data.size()) + " bytes to " + std::to_string(_clients.size()) + " clients");
+    
+    int result = 0;
     for (const auto& clientAddr : _clients) {
-        sendto(_serverFd, data.data(), data.size(), 0,
-               (struct sockaddr*)&clientAddr, sizeof(clientAddr));
+        ssize_t sent = sendto(_serverFd, data.data(), data.size(), 0,
+                             (struct sockaddr*)&clientAddr, sizeof(clientAddr));
+        if (sent < 0 || sent != static_cast<ssize_t>(data.size())) {
+            std::string clientIp = inet_ntoa(clientAddr.sin_addr);
+            int clientPort = ntohs(clientAddr.sin_port);
+            LOG_ERROR("UDP broadcast send failed to " + clientIp + ":" + std::to_string(clientPort));
+            result = -1;
+        }
     }
     
-    return 0;
+    return result;
 }
 

@@ -169,6 +169,11 @@ void SessionManager::sendTcp(uint32_t playerId, const MessageData& data, Priorit
     }
 }
 
+void SessionManager::sendTcp(uint32_t playerId, const PreparedMessage& msg)
+{
+    sendTcp(playerId, msg.data, msg.priority);
+}
+
 void SessionManager::sendUdp(uint32_t playerId, const MessageData& data)
 {
     std::lock_guard<std::mutex> lock(_playersMutex);
@@ -179,6 +184,11 @@ void SessionManager::sendUdp(uint32_t playerId, const MessageData& data)
     }
 }
 
+void SessionManager::sendUdp(uint32_t playerId, const PreparedMessage& msg)
+{
+    sendUdp(playerId, msg.data);
+}
+
 void SessionManager::broadcastTcp(const MessageData& data, uint32_t roomId)
 {
     if (roomId == 0) {
@@ -187,9 +197,15 @@ void SessionManager::broadcastTcp(const MessageData& data, uint32_t roomId)
         std::lock_guard<std::mutex> lock(_playersMutex);
         for (auto& [id, player] : _players) {
             if (player.roomId == roomId && player.tcpFd >= 0) {
+                _tcpServer.send(player.tcpFd, data);
             }
         }
     }
+}
+
+void SessionManager::broadcastTcp(const PreparedMessage& msg, uint32_t roomId)
+{
+    broadcastTcp(msg.data, roomId);
 }
 
 void SessionManager::broadcastUdp(const MessageData& data, uint32_t roomId)
@@ -204,6 +220,11 @@ void SessionManager::broadcastUdp(const MessageData& data, uint32_t roomId)
             }
         }
     }
+}
+
+void SessionManager::broadcastUdp(const PreparedMessage& msg, uint32_t roomId)
+{
+    broadcastUdp(msg.data, roomId);
 }
 
 std::optional<DecodedMessage> SessionManager::popMessage(Priority priority)
