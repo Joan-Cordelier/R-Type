@@ -150,3 +150,37 @@ PreparedMessage MessageFactory::createMessage(OpCode opCode, const MessageData& 
     return prepared;
 }
 
+MessageData MessageFactory::encodeMessagePlayer(Entity entity) const
+{
+    if (!entity) return MessageData{};
+    MessageData data;
+    data.push_back(static_cast<uint8_t>((entity >> 24) & 0xFF));
+    data.push_back(static_cast<uint8_t>((entity >> 16) & 0xFF));
+    data.push_back(static_cast<uint8_t>((entity >> 8) & 0xFF));
+    data.push_back(static_cast<uint8_t>(entity & 0xFF));
+    return data;
+}
+
+MessageData MessageFactory::encodeMessageMovementPlayer(Entity entity, float x, float y) const
+{
+    MessageData data;
+    data.push_back(static_cast<uint8_t>((entity >> 24) & 0xFF));
+    data.push_back(static_cast<uint8_t>((entity >> 16) & 0xFF));
+    data.push_back(static_cast<uint8_t>((entity >> 8) & 0xFF));
+    data.push_back(static_cast<uint8_t>(entity & 0xFF));
+    
+    const uint8_t* px = reinterpret_cast<const uint8_t*>(&x);
+    const uint8_t* py = reinterpret_cast<const uint8_t*>(&y);
+    
+    data.insert(data.end(), px, px + sizeof(float));
+    data.insert(data.end(), py, py + sizeof(float));
+    
+    return data;
+}
+
+MessageData MessageFactory::encodeMessageServer(std::string type, Entity entity, Entity entity_changes) const
+{
+    MessageData data;
+    (void)type; (void)entity; (void)entity_changes;
+    return data;
+}

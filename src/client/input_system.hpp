@@ -9,6 +9,7 @@
 #define INPUT_SYSTEM_HPP
 
 #include "../common/ecs/registry.hpp"
+#include "Network/NetworkManager.hpp"
 #include <SDL2/SDL.h>
 
 class InputSystem {
@@ -17,7 +18,7 @@ public:
     ~InputSystem();
 
     void setControlled(Entity e);
-    void update(Registry& reg, SDL_Event& e);
+    void update(Registry& reg, SDL_Event& e, NetworkManager& networkManager);
 
 private:
     Entity controlled;

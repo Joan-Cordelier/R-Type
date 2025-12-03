@@ -24,7 +24,7 @@ void InputSystem::setControlled(Entity e) {
     controlled = e;
 }
 
-void InputSystem::update(Registry& reg, SDL_Event& e) {
+void InputSystem::update(Registry& reg, SDL_Event& e, NetworkManager& networkManager) {
     if (controlled == INVALID_ENTITY) return;
 
     const Uint8* ks = SDL_GetKeyboardState(NULL);
@@ -55,6 +55,10 @@ void InputSystem::update(Registry& reg, SDL_Event& e) {
             auto &vel = reg.getComponent<Velocity>(controlled);
             vel.vx = vx;
             vel.vy = vy;
+            if (vx != 0.f || vy != 0.f) {
+                MessageFactory& factory = MessageFactory::getInstance();
+                networkManager.sendUdp(factory.createMessage(OpCode::MOVE, factory.encodeMessageMovementPlayer(controlled, vx, vy)));
+            }
         }
 
         if (ks[SDL_SCANCODE_SPACE]) {
@@ -63,6 +67,8 @@ void InputSystem::update(Registry& reg, SDL_Event& e) {
             auto &stats = reg.getComponent<Stats>(controlled);
             if (!stats.canAttack())
                 return;
+            MessageFactory& factory = MessageFactory::getInstance();
+            networkManager.sendUdp(factory.createMessage(OpCode::SHOOT, factory.encodeMessagePlayer(controlled)));
             Entity projectile = reg.createEntity();
             reg.addComponent<Position>(projectile, 0.f, 0.f);
             auto &pos = reg.getComponent<Position>(controlled);
