@@ -90,7 +90,7 @@ int main()
         r.getComponent<SpriteSheets>(player).visible = true;
         r.getComponent<Button>(e).enabled = false;
         Input.setControlled(player);
-        
+
         MessageFactory& factory = MessageFactory::getInstance();
         PreparedMessage msg = factory.createMessage(OpCode::PARSING_ERROR, {'L', 'a', ' ', 'g', 'a', 'm', 'e', ' ', 'a', ' ', 'c', 'o', 'm', 'm', 'e', 'n', 'c', 'e'});
         network.sendTcp(msg);
@@ -108,7 +108,7 @@ int main()
         animationClock += dt;
         last = now;
 
-        Input.update(reg, status);
+        Input.update(reg, status, network);
 
         movement.update(reg, static_cast<float>(dt));
 

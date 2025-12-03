@@ -11,6 +11,9 @@
 #include <vector>
 #include <cstdint>
 #include <array>
+#include <string>
+
+#include "../ecs/entity_manager.hpp"
 
 enum Priority {
     CRITICAL,
@@ -81,7 +84,11 @@ class MessageFactory {
         DecodedMessage decodeFromBuffer(LinearBufferT& buffer);
         
         PreparedMessage createMessage(OpCode opCode, const MessageData& payload = {}) const;
-        
+
+        MessageData encodeMessagePlayer(Entity entity) const;
+        MessageData encodeMessageMovementPlayer(Entity entity, float x, float y) const;
+        MessageData encodeMessageServer(std::string type, Entity entity, Entity entity_changes) const;
+
     private:
         MessageFactory();
         ~MessageFactory() = default;
