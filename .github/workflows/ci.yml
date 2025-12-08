@@ -58,8 +58,6 @@ jobs:
         steps:
             - name: checkout
               uses: actions/checkout@v4
-              with:
-                submodules: true
 
             - name: Create vcpkg binary cache directory
               run: mkdir -p ${{ github.workspace }}/vcpkg_cache
@@ -81,6 +79,9 @@ jobs:
                   vcpkg/packages
                   vcpkg/downloads
                 key: vcpkg-installed-${{ runner.os }}-${{ hashFiles('vcpkg.json') }}
+                restore-keys: |
+                  vcpkg-installed-${{ runner.os }}-
+
             - name: Install dependencies
               run: |
                 sudo apt-get update
@@ -89,9 +90,11 @@ jobs:
                   libgl1-mesa-dev libx11-dev libxrandr-dev libxinerama-dev libxcursor-dev \
                   libxi-dev libxext-dev libwayland-dev libxkbcommon-dev
 
-            - name: Bootstrap vcpkg
+            - name: Setup and bootstrap vcpkg
               run: |
-                git clone https://github.com/microsoft/vcpkg.git
+                if [ ! -d "vcpkg" ]; then
+                  git clone https://github.com/microsoft/vcpkg.git
+                fi
                 if [ ! -f vcpkg/vcpkg ]; then
                   ./vcpkg/bootstrap-vcpkg.sh
                 fi
