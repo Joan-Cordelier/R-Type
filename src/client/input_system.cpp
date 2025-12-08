@@ -42,10 +42,8 @@ void InputSystem::update(Registry& reg, SDL_Event& e, NetworkManager& networkMan
         if (last_x != vx || last_y != vy) {
             last_x = vx;
             last_y = vy;
-            if (vx != 0.f || vy != 0.f) {
-                MessageFactory& factory = MessageFactory::getInstance();
-                networkManager.sendUdp(factory.createMessage(OpCode::MOVE, factory.encodeMessageMovementPlayer(controlled, vx, vy)));
-            }
+            MessageFactory& factory = MessageFactory::getInstance();
+            networkManager.sendUdp(factory.createMessage(OpCode::MOVE, factory.encodeMessageMovementPlayer(controlled, vx, vy)));
         }
 
         if (ks[SDL_SCANCODE_SPACE]) {
