@@ -70,18 +70,6 @@ jobs:
                 restore-keys: |
                   vcpkg-binary-${{ runner.os }}-
 
-            - name: Cache vcpkg installed packages
-              id: cache-vcpkg-installed
-              uses: actions/cache@v4
-              with:
-                path: |
-                  vcpkg/buildtrees
-                  vcpkg/packages
-                  vcpkg/downloads
-                key: vcpkg-installed-${{ runner.os }}-${{ hashFiles('vcpkg.json') }}
-                restore-keys: |
-                  vcpkg-installed-${{ runner.os }}-
-
             - name: Install dependencies
               run: |
                 sudo apt-get update
@@ -92,7 +80,8 @@ jobs:
 
             - name: Setup and bootstrap vcpkg
               run: |
-                if [ ! -d "vcpkg" ]; then
+                if [ ! -d "vcpkg/.git" ]; then
+                  rm -rf vcpkg
                   git clone https://github.com/microsoft/vcpkg.git
                 fi
                 if [ ! -f vcpkg/vcpkg ]; then
