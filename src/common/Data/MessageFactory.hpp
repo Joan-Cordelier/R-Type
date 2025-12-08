@@ -12,6 +12,7 @@
 #include <cstdint>
 #include <array>
 #include <string>
+#include <netinet/in.h>
 
 #include "../ecs/entity_manager.hpp"
 
@@ -33,7 +34,8 @@ enum OpCode : uint8_t {
     START = 0x06,
     JOIN = 0x07,
     CRASH = 0x08,
-    PLAYER = 0x09
+    PLAYER = 0x09,
+    LINK = 0x0A  // UDP link: client sends playerId to associate UDP address
 };
 
 using MessageData = std::vector<uint8_t>;
@@ -45,6 +47,7 @@ struct DecodedMessage {
     MessageData data;
     uint32_t playerId = 0;  // Set by server when receiving
     int tcpFd = -1;         // TCP file descriptor (for player lookup)
+    sockaddr_in udpAddr{};  // UDP address (for player lookup)
 };
 
 struct PreparedMessage {

@@ -58,17 +58,30 @@ void MessageHandler::dispatchMessage(DecodedMessage msg)
 {
     LOG_DEBUG("Dispatching message: OpCode=" + std::to_string(msg.opCode));
     
-    // Resolve playerId from tcpFd if not already set
-    if (msg.playerId == 0 && msg.tcpFd >= 0) {
-        auto* player = _session.getPlayerByTcpFd(msg.tcpFd);
-        if (player) {
-            msg.playerId = player->id;
+    if (msg.playerId == 0) {
+        if (msg.tcpFd >= 0) {
+            auto* player = _session.getPlayerByTcpFd(msg.tcpFd);
+            if (player) {
+                msg.playerId = player->id;
+                LOG_DEBUG("Resolved playerId=" + std::to_string(msg.playerId) + " from tcpFd=" + std::to_string(msg.tcpFd));
+            }
+        } else if (msg.udpAddr.sin_port != 0) {
+            auto* player = _session.getPlayerByUdpAddr(msg.udpAddr);
+            if (player) {
+                msg.playerId = player->id;
+                LOG_DEBUG("Resolved playerId=" + std::to_string(msg.playerId) + " from UDP address");
+            } else {
+                LOG_WARN("Could not resolve player from UDP address");
+            }
         }
     }
     
     switch (msg.opCode) {
         case CONNECT:
             handleConnect(msg);
+            break;
+        case LINK:
+            handleLink(msg);
             break;
         case DEATH:
             handleDeath(msg);
@@ -92,6 +105,39 @@ void MessageHandler::handleDeath(const DecodedMessage& msg)
     // - Notify ECS to mark entity as dead
     // - Broadcast death to other players
     (void)msg;
+}
+
+void MessageHandler::handleLink(const DecodedMessage& msg)
+{
+    // LINK message: client sends playerId via UDP to link UDP address
+    if (msg.data.size() < 4) {
+        LOG_WARN("LINK message with invalid payload size: " + std::to_string(msg.data.size()));
+        return;
+    }
+    
+    // Extract playerId from payload (4 bytes, big-endian)
+    uint32_t playerId = 
+        (static_cast<uint32_t>(msg.data[0]) << 24) |
+        (static_cast<uint32_t>(msg.data[1]) << 16) |
+        (static_cast<uint32_t>(msg.data[2]) << 8) |
+        static_cast<uint32_t>(msg.data[3]);
+    
+    LOG_INFO("Handling LINK message: playerId=" + std::to_string(playerId));
+    
+    // Verify player exists
+    auto* player = _session.getPlayer(playerId);
+    if (!player) {
+        LOG_WARN("LINK message for unknown playerId: " + std::to_string(playerId));
+        return;
+    }
+    
+    // Link UDP address to player
+    if (msg.udpAddr.sin_port != 0) {
+        _session.linkPlayerUdp(playerId, msg.udpAddr);
+        LOG_INFO("Player " + std::to_string(playerId) + " UDP linked successfully");
+    } else {
+        LOG_WARN("LINK message without valid UDP address");
+    }
 }
 
 void MessageHandler::handleConnect(const DecodedMessage& msg)

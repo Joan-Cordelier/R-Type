@@ -37,6 +37,7 @@ class MessageHandler {
         void dispatchMessage(DecodedMessage msg);
         
         void handleConnect(const DecodedMessage& msg);
+        void handleLink(const DecodedMessage& msg);
         void handleDeath(const DecodedMessage& msg);
         void handleMove(const DecodedMessage& msg);
         void handleShoot(const DecodedMessage& msg);

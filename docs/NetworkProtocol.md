@@ -212,13 +212,17 @@ Client                              Server
   |-------- TCP Connect -------------->|
   |                                    | --> addPlayer(fd) assigns playerId
   |                                    |
-  |-------- CONNECT (empty) --------->|
+  |-------- CONNECT (empty) --------->|  (TCP)
   |                                    | --> handleConnect() marks connected=true
   |                                    |
-  |<------- CONNECT (playerId) -------|
-  |<------- JOIN (roomId) ------------|
+  |<------- CONNECT (playerId) -------|  (TCP)
+  |<------- JOIN (roomId) ------------|  (TCP)
+  |                                    |
+  |-------- LINK (playerId) --------->|  (UDP)
+  |                                    | --> linkPlayerUdp() associates UDP address
   |                                    |
   |  [Player is now fully connected]   |
+  |  [Can now send/receive UDP msgs]   |
   |                                    |
 ```
 
@@ -231,13 +235,14 @@ Client                              Server
 | INCOMPLETE | 0x00 | Internal: incomplete message | - | - |
 | PARSING_ERROR | 0x01 | Internal: parse error | - | ERROR |
 | DEATH | 0x02 | Entity death notification | TBD | HIGH |
-| MOVE | 0x03 | Movement update | TBD | MEDIUM |
-| SHOOT | 0x04 | Shoot action | TBD | HIGH |
-| CONNECT | 0x05 | Connection handshake | Request: empty, Response: playerId (4 bytes) | CRITICAL |
+| MOVE | 0x03 | Movement update | x, y floats (8 bytes) | LOW |
+| SHOOT | 0x04 | Shoot action | empty | HIGH |
+| CONNECT | 0x05 | Connection handshake (TCP) | Request: empty, Response: playerId (4 bytes) | CRITICAL |
 | START | 0x06 | Game start | TBD | CRITICAL |
-| JOIN | 0x07 | Room join notification | roomId (1 byte) | HIGH |
+| JOIN | 0x07 | Room join notification | roomId (1 byte) | CRITICAL |
 | CRASH | 0x08 | Crash/error notification | TBD | CRITICAL |
-| PLAYER | 0x09 | Player info | TBD | MEDIUM |
+| PLAYER | 0x09 | Player info | TBD | CRITICAL |
+| LINK | 0x0A | UDP address linking (UDP) | playerId (4 bytes, big-endian) | CRITICAL |
 
 ---
 

@@ -28,7 +28,8 @@ std::array<MessageFactory::Message, 256> MessageFactory::initMessageTable()
     table[START] = {0, Priority::CRITICAL}; 
     table[JOIN] = {1, Priority::CRITICAL}; 
     table[CRASH] = {1, Priority::CRITICAL}; 
-    table[PLAYER] = {1, Priority::CRITICAL}; 
+    table[PLAYER] = {1, Priority::CRITICAL};
+    table[LINK] = {4, Priority::CRITICAL};
 
     return table;
 }

@@ -112,7 +112,7 @@ int main()
         if (ip_adress == "") {
             ip_adress = "127.0.0.1";
         }
-        if (network.connect(ip_adress, 4789, 4789) != 0) {
+        if (network.connect(ip_adress, 4789, 4790) != 0) {
             std::cerr << "Failed to connect to server" << std::endl;
             return;
         }
