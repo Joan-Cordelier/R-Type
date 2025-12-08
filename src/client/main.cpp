@@ -29,7 +29,7 @@
 #include <functional>
 #include <SDL2/SDL.h>
 
-void handleMessages(NetworkManager& network, Registry& reg, Entity player)
+void handleMessages(NetworkManager& network, Registry& reg, Entity player, uint32_t& myPlayerId)
 {
     std::optional<DecodedMessage> msg;
     while (network.hasMessages()) {
@@ -51,6 +51,28 @@ void handleMessages(NetworkManager& network, Registry& reg, Entity player)
         }
 
         switch (msg->opCode) {
+            case OpCode::CONNECT: {
+                if (msg->data.size() >= 4) {
+                    myPlayerId = 
+                        (static_cast<uint32_t>(msg->data[0]) << 24) |
+                        (static_cast<uint32_t>(msg->data[1]) << 16) |
+                        (static_cast<uint32_t>(msg->data[2]) << 8) |
+                        static_cast<uint32_t>(msg->data[3]);
+                    std::cout << "Received playerId: " << myPlayerId << std::endl;
+
+                    // Send LINK message via UDP to associate our UDP address with our playerId
+                    MessageFactory& factory = MessageFactory::getInstance();
+                    std::vector<uint8_t> linkPayload;
+                    linkPayload.push_back(static_cast<uint8_t>((myPlayerId >> 24) & 0xFF));
+                    linkPayload.push_back(static_cast<uint8_t>((myPlayerId >> 16) & 0xFF));
+                    linkPayload.push_back(static_cast<uint8_t>((myPlayerId >> 8) & 0xFF));
+                    linkPayload.push_back(static_cast<uint8_t>(myPlayerId & 0xFF));
+                    PreparedMessage linkMsg = factory.createMessage(OpCode::LINK, linkPayload);
+                    network.sendUdp(linkMsg);
+                    std::cout << "Sent LINK message via UDP" << std::endl;
+                }
+                break;
+            }
             case OpCode::MOVE: {
                 reg.getComponent<Position>(player).x = *reinterpret_cast<const float*>(&msg->data[4]);
                 reg.getComponent<Position>(player).y = *reinterpret_cast<const float*>(&msg->data[8]);
@@ -78,6 +100,7 @@ int main()
     NetworkManager network;
     std::string ip_adress = "127.0.0.1";
     double animationClock = 0.0;
+    uint32_t myPlayerId = 0;
 
     renderer.loadSpriteSheet("textures/ships/player_ship.png", "test", 343, 383);
 
@@ -141,7 +164,7 @@ int main()
         animationClock += dt;
         last = now;
 
-        handleMessages(network, reg, player);
+        handleMessages(network, reg, player, myPlayerId);
 
         Input.update(reg, status, network);
 
