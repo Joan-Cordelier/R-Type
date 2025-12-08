@@ -42,6 +42,9 @@ void GameHandler::run()
         // Update game state
         updateGame(deltaTime);
 
+        // Send game packet to players
+        sendUpdatedPositionToAllPlayers();
+
         // Frame rate limiting
         auto frameEnd = std::chrono::steady_clock::now();
         float frameTime = std::chrono::duration<float>(frameEnd - currentTime).count();
