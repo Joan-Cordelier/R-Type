@@ -42,6 +42,9 @@ private:
 public:
     GameHandler(SessionManager& session, std::atomic<bool>& running);
     void run();
+
+    void sendUpdatedPositionToAllPlayers();
+    void sendUpdatedPositionToPlayer(uint32_t playerId);
     
 private:
     void processMessages();
