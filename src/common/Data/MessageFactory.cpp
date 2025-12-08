@@ -24,7 +24,8 @@ std::array<MessageFactory::Message, 256> MessageFactory::initMessageTable()
     table[DEATH] = {0, Priority::CRITICAL};
     table[SHOOT] = {0, Priority::HIGH};
     table[MOVE] = {8, Priority::LOW};
-    table[CONNECT] = {0, Priority::CRITICAL};
+    table[CONNECT] = {0, Priority::CRITICAL};      // Client request (no payload)
+    table[CONNECT_ACK] = {4, Priority::CRITICAL};  // Server response with playerId (4 bytes)
     table[START] = {0, Priority::CRITICAL}; 
     table[JOIN] = {1, Priority::CRITICAL}; 
     table[CRASH] = {1, Priority::CRITICAL}; 

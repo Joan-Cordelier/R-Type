@@ -31,11 +31,12 @@ enum OpCode : uint8_t {
     MOVE = 0x03,
     SHOOT = 0x04,
     CONNECT = 0x05,
-    START = 0x06,
-    JOIN = 0x07,
-    CRASH = 0x08,
-    PLAYER = 0x09,
-    LINK = 0x0A  // UDP link: client sends playerId to associate UDP address
+    CONNECT_ACK = 0x06,  // Server response with playerId (4 bytes)
+    START = 0x07,
+    JOIN = 0x08,
+    CRASH = 0x09,
+    PLAYER = 0x0A,
+    LINK = 0x0B  // UDP link: client sends playerId to associate UDP address
 };
 
 using MessageData = std::vector<uint8_t>;

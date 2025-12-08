@@ -51,7 +51,8 @@ void handleMessages(NetworkManager& network, Registry& reg, Entity player, uint3
         }
 
         switch (msg->opCode) {
-            case OpCode::CONNECT: {
+            case OpCode::CONNECT_ACK: {
+                // Server responds to CONNECT with CONNECT_ACK containing playerId
                 if (msg->data.size() >= 4) {
                     myPlayerId = 
                         (static_cast<uint32_t>(msg->data[0]) << 24) |

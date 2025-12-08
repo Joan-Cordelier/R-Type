@@ -169,7 +169,7 @@ void MessageHandler::handleConnect(const DecodedMessage& msg)
     payload.push_back(static_cast<uint8_t>((playerId >> 8) & 0xFF));
     payload.push_back(static_cast<uint8_t>(playerId & 0xFF));
     
-    auto response = factory.createMessage(CONNECT, payload);
+    auto response = factory.createMessage(CONNECT_ACK, payload);
     _session.sendTcp(playerId, response);
     
     // Send JOIN message with the room ID
