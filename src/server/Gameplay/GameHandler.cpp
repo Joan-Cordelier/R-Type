@@ -14,6 +14,10 @@ GameHandler::GameHandler(SessionManager& session, std::atomic<bool>& running)
         onPlayerConnect(player);
     });
     
+    _messageHandler.setOnPlayerMove([this](const MoveData& moveData) {
+        onPlayerMove(moveData);
+    });
+    
     // Set up session manager callback for disconnections
     _session.setOnPlayerDisconnect([this](const Player& player) {
         onPlayerDisconnect(player);
@@ -29,7 +33,7 @@ void GameHandler::run()
     LOG_INFO("Game loop started");
     
     auto lastTime = std::chrono::steady_clock::now();
-    constexpr float targetFrameTime = 1.0f / 60.0f; // 60 ticks per second
+    constexpr float targetFrameTime = 1.0f / 30.0f; // 30 ticks per second
 
     while (_running) {
         auto currentTime = std::chrono::steady_clock::now();
@@ -73,6 +77,8 @@ void GameHandler::sendUpdatedPositionToPlayer(uint32_t playerId)
         Position& pos = reg.getComponent<Position>(entity);
         if (!reg.hasComponent<Velocity>(entity))
             continue;
+        if (reg.getComponent<Velocity>(entity).vx == 0.f && reg.getComponent<Velocity>(entity).vy == 0.f)
+            continue;
         MessageData msg = MessageFactory::getInstance().encodeMessageMovementPlayer(entity, pos.x, pos.y);
         _session.sendUdp(playerId, msg);
     }
@@ -113,5 +119,27 @@ void GameHandler::onPlayerDisconnect(const Player& player)
         reg.destroyEntity(it->second);
         playerEntities.erase(it);
         LOG_INFO("Player " + std::to_string(player.id) + " entity destroyed");
+    }
+}
+
+void GameHandler::onPlayerMove(const MoveData& moveData)
+{
+    auto it = playerEntities.find(moveData.playerId);
+    if (it == playerEntities.end()) {
+        LOG_WARN("Move received for unknown player: " + std::to_string(moveData.playerId));
+        return;
+    }
+    
+    Entity entity = it->second;
+    if (reg.hasComponent<Velocity>(entity)) {
+        auto& velocity = reg.getComponent<Velocity>(entity);
+        velocity.vx = moveData.vx;
+        velocity.vy = moveData.vy;
+        LOG_DEBUG("Player " + std::to_string(moveData.playerId) + " velocity updated to (" + 
+                  std::to_string(moveData.vx) + ", " + std::to_string(moveData.vy) + ")");
+
+        auto & position = reg.getComponent<Position>(entity);
+        LOG_DEBUG("Player " + std::to_string(moveData.playerId) + " position is (" + 
+                  std::to_string(position.x) + ", " + std::to_string(position.y) + ")");
     }
 }

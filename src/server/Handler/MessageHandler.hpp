@@ -13,9 +13,16 @@
 #include <atomic>
 #include <functional>
 
+struct MoveData {
+    uint32_t playerId;
+    float vx;
+    float vy;
+};
+
 class MessageHandler {
     public:
         using PlayerCallback = std::function<void(const Player&)>;
+        using MoveCallback = std::function<void(const MoveData&)>;
         
         MessageHandler(SessionManager& session, std::atomic<bool>& running);
         ~MessageHandler() = default;
@@ -26,6 +33,7 @@ class MessageHandler {
         
         void setOnPlayerConnect(PlayerCallback callback) { _onPlayerConnect = callback; }
         void setOnPlayerDisconnect(PlayerCallback callback) { _onPlayerDisconnect = callback; }
+        void setOnPlayerMove(MoveCallback callback) { _onPlayerMove = callback; }
 
     private:
         SessionManager& _session;
@@ -33,6 +41,7 @@ class MessageHandler {
         
         PlayerCallback _onPlayerConnect;
         PlayerCallback _onPlayerDisconnect;
+        MoveCallback _onPlayerMove;
         
         void dispatchMessage(DecodedMessage msg);
         

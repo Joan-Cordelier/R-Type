@@ -9,6 +9,7 @@
 #include "../Logs/Logger.hpp"
 #include <thread>
 #include <chrono>
+#include <cstring>
 
 MessageHandler::MessageHandler(SessionManager& session, std::atomic<bool>& running)
     : _session(session)
@@ -186,11 +187,26 @@ void MessageHandler::handleConnect(const DecodedMessage& msg)
 void MessageHandler::handleMove(const DecodedMessage& msg)
 {
     LOG_DEBUG("Handling MOVE message");
-    // TODO: Implement move logic
-    // - Parse movement data from msg.data
-    // - Update ECS entity position
-    // - Broadcast position to other players
-    (void)msg;
+    
+    if (msg.data.size() < 12) {
+        LOG_WARN("MOVE message with invalid payload size: " + std::to_string(msg.data.size()));
+        return;
+    }
+    
+    // Extract velocity x (4 bytes, float)
+    float vx;
+    std::memcpy(&vx, &msg.data[4], sizeof(float));
+    
+    // Extract velocity y (4 bytes, float)
+    float vy;
+    std::memcpy(&vy, &msg.data[8], sizeof(float));
+    
+    LOG_DEBUG("MOVE: playerId=" + std::to_string(msg.playerId) + " vx=" + std::to_string(vx) + " vy=" + std::to_string(vy));
+    
+    if (_onPlayerMove) {
+        MoveData moveData{msg.playerId, vx, vy};
+        _onPlayerMove(moveData);
+    }
 }
 
 void MessageHandler::handleShoot(const DecodedMessage& msg)

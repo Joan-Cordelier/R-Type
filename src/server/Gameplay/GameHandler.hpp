@@ -51,4 +51,5 @@ private:
     void updateGame(float deltaTime);
     void onPlayerConnect(const Player& player);
     void onPlayerDisconnect(const Player& player);
+    void onPlayerMove(const MoveData& moveData);
 };
