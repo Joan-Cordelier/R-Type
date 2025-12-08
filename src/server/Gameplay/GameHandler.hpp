@@ -1,6 +1,7 @@
 #pragma once
 
 #include "Session/Player.hpp"
+#include "Session/SessionManager.hpp"
 #include "Handler/MessageHandler.hpp"
 
 #include "ecs/registry.hpp"
@@ -20,12 +21,16 @@
 #include "../common/ecs/components/spritesheet.hpp"
 
 #include <map>
+#include <atomic>
 
 class GameHandler {
 
 private:
     bool _gameStarted = false;
-    bool _running = true;
+    std::atomic<bool>& _running;
+    SessionManager& _session;
+    MessageHandler _messageHandler;
+    
     Registry reg;
     MovementSystem movement;
     StatSystem statsys;
@@ -34,11 +39,13 @@ private:
     Entity ScoreEntity;
     int score = 0;
 
-    MessageHandler messageHandler;
-
 public:
-    GameHandler(MessageHandler msgHandler);
-    void gameLoop();
-    void onPlayerConnect(Player player);
-    void onPlayerDisconnect(Player player);
+    GameHandler(SessionManager& session, std::atomic<bool>& running);
+    void run();
+    
+private:
+    void processMessages();
+    void updateGame(float deltaTime);
+    void onPlayerConnect(const Player& player);
+    void onPlayerDisconnect(const Player& player);
 };

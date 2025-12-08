@@ -6,7 +6,7 @@
 */
 
 #include "Session/SessionManager.hpp"
-#include "Handler/MessageHandler.hpp"
+#include "Gameplay/GameHandler.hpp"
 #include "Logs/Logger.hpp"
 #include <csignal>
 #include <atomic>
@@ -28,13 +28,14 @@ int main()
     LOG_INFO("Starting R-Type server...");
 
     SessionManager session;
-    MessageHandler handler(session, running);
+    GameHandler game(session, running);
     
     session.start();
 
     LOG_INFO("Server started - all systems running");
 
-    handler.processMessages();
+    // Run the main game loop
+    game.run();
 
     LOG_INFO("Shutting down server...");
     session.stop();
