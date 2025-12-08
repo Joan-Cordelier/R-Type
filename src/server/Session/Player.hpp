@@ -16,7 +16,8 @@ struct Player {
     int tcpFd = -1;
     sockaddr_in udpAddr{};
     bool udpLinked = false;
-    uint32_t roomId = 0;
+    bool connected = false;
+    uint8_t roomId = 0;
     
     Player() = default;
     Player(uint32_t playerId, int fd) : id(playerId), tcpFd(fd) {}

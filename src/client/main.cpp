@@ -23,10 +23,8 @@
 #include "../common/ecs/components/stats.hpp"
 #include "../common/ecs/components/spritesheet.hpp"
 
-#include "Network/UDPClient.hpp"
-#include "Network/TCPClient.hpp"
+#include "Network/NetworkManager.hpp"
 #include "../common/Data/MessageFactory.hpp"
-#include "../common/Data/ThreadedQueue.hpp"
 
 #include <functional>
 #include <SDL2/SDL.h>
@@ -43,10 +41,8 @@ int main()
     StatSystem statsys;
     InputSystem Input;
 
-    ThreadedQueue<DecodedMessage> queue;
+    NetworkManager network;
     std::string ip_adress = "127.0.0.1";
-    UDPClient clientUDP(queue);
-    TCPClient clientTCP(queue);
     double animationClock = 0.0;
 
     renderer.loadSpriteSheet("textures/ships/player_ship.png", "test", 343, 383);
@@ -82,10 +78,11 @@ int main()
         if (ip_adress == "") {
             ip_adress = "127.0.0.1";
         }
-        clientUDP.init(AClient::UDP, ip_adress, 4789);
-        clientUDP.connect();
-        clientTCP.init(AClient::TCP, ip_adress, 4789);
-        clientTCP.connect();
+        if (network.connect(ip_adress, 4789, 4789) != 0) {
+            std::cerr << "Failed to connect to server" << std::endl;
+            return;
+        }
+        network.start();
         r.getComponent<Label>(label_input).visible = false;
         r.getComponent<Sprite>(e).visible = false;
         r.getComponent<Position>(player).x = 100.f;
@@ -93,12 +90,11 @@ int main()
         r.getComponent<SpriteSheets>(player).visible = true;
         r.getComponent<Button>(e).enabled = false;
         Input.setControlled(player);
-        MessageData msg;
-        msg.push_back(static_cast<unsigned char>(0x01));
-        const std::string payload = "La game a commencé !";
-        msg.insert(msg.end(), payload.begin(), payload.end());
-        clientTCP.send(std::move(msg));
-        clientUDP.send(std::move(msg));
+
+        MessageFactory& factory = MessageFactory::getInstance();
+        PreparedMessage msg = factory.createMessage(OpCode::PARSING_ERROR, {'L', 'a', ' ', 'g', 'a', 'm', 'e', ' ', 'a', ' ', 'c', 'o', 'm', 'm', 'e', 'n', 'c', 'e'});
+        network.sendTcp(msg);
+        network.sendUdp(msg);
     });
 
     while (running) {
@@ -112,7 +108,7 @@ int main()
         animationClock += dt;
         last = now;
 
-        Input.update(reg, status);
+        Input.update(reg, status, network);
 
         movement.update(reg, static_cast<float>(dt));
 

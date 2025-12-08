@@ -9,7 +9,6 @@
 
 TCPClient::TCPClient(ThreadedQueue<DecodedMessage>& queue) : AClient(queue)
 {
-    init(AClient::protocol::TCP, "127.0.0.1", 4789);
 }
 
 TCPClient::~TCPClient()
@@ -30,13 +29,13 @@ int TCPClient::connect()
         return 84;
     }
     
-    _connected = true;
+    _connected.store(true);
     return 0;
 }
 
 int TCPClient::run()
 {
-    if (!_connected) {
+    if (!_connected.load()) {
         std::cerr << "Client not connected" << std::endl;
         return 84;
     }
@@ -44,7 +43,7 @@ int TCPClient::run()
     MessageFactory& factory = MessageFactory::getInstance();
     struct pollfd pfd = {_socketFd, POLLIN, 0};
     
-    while (_running) {
+    while (_running.load()) {
         int pollResult = poll(&pfd, 1, 100);
         
         if (pollResult < 0) {
@@ -54,12 +53,14 @@ int TCPClient::run()
             return 84;
         }
         
+        processOutgoingQueue();
+        
         if (pollResult == 0)
             continue;
         
         if (pfd.revents & (POLLERR | POLLHUP | POLLNVAL)) {
             std::cerr << "Connection closed or error detected" << std::endl;
-            _connected = false;
+            _connected.store(false);
             return 84;
         }
         
@@ -72,13 +73,13 @@ int TCPClient::run()
                     perror("recv failed");
                 else
                     std::cerr << "Server closed connection" << std::endl;
-                _connected = false;
+                _connected.store(false);
                 return 84;
             }
 
             if (!_buffer.write(buffer, n)) {
                 std::cerr << "Buffer write failed (overflow)" << std::endl;
-                _connected = false;
+                _connected.store(false);
                 return 84;
             }
 
@@ -90,7 +91,7 @@ int TCPClient::run()
                 } 
                 if (msg.opCode == PARSING_ERROR) {
                     std::cerr << "Parsing error, disconnecting" << std::endl;
-                    _connected = false;
+                    _connected.store(false);
                     return 84;
                 }
                 _queue.push(msg.priority, msg);
@@ -100,19 +101,47 @@ int TCPClient::run()
     return 0;
 }
 
-int TCPClient::send(const MessageData& data)
+int TCPClient::send(const MessageData& data, Priority priority)
 {
-    if (!_connected || data.empty()) {
+    if (data.empty())
         return -1;
-    }
+    _outgoingQueue.push(priority, {-1, data});
+    return 0;
+}
 
-    std::lock_guard<std::mutex> lock(_socketMutex);
-    ssize_t sent = ::send(_socketFd, data.data(), data.size(), MSG_NOSIGNAL);
+void TCPClient::processOutgoingQueue()
+{
+    for (Priority p : {Priority::CRITICAL, Priority::HIGH, Priority::MEDIUM, Priority::LOW}) {
+        while (true) {
+            auto msgOpt = _outgoingQueue.pop(p);
+            if (!msgOpt.has_value())
+                break;
+            
+            OutgoingMessage& msg = msgOpt.value();
+            sendData(msg.data);
+        }
+    }
+}
+
+int TCPClient::sendData(const MessageData& data)
+{
+    if (data.empty() || !_connected.load())
+        return -1;
     
+    std::lock_guard<std::mutex> lock(_socketMutex);
+    
+    ssize_t sent = ::send(_socketFd, data.data(), data.size(), MSG_NOSIGNAL);
     if (sent < 0) {
-        perror("send failed");
-        _connected = false;
+        perror("TCP send failed");
+        _connected.store(false);
         return -1;
     }
+    
+    if (sent != static_cast<ssize_t>(data.size())) {
+        std::cerr << "TCP partial send: sent " << sent << "/" << data.size() << " bytes" << std::endl;
+        _connected.store(false);
+        return -1;
+    }
+    
     return 0;
 }

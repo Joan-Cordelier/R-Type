@@ -55,10 +55,8 @@ int AServer::init(AServer::protocol protocol, int port)
 
 void AServer::reset()
 {
-    _max = 0;
     _port = 0;
     _addrLen = 0;
-    _error = 0;
     memset(&_addr, 0, sizeof(_addr));
     if (_serverFd >= 0) {
         close(_serverFd);
@@ -78,10 +76,13 @@ void AServer::handleDisconnections(const std::vector<int>& toDisconnect)
             if (it != _clientFds.end()) _clientFds.erase(it);
         }
 
-        for (auto it2 = _fds.begin(); it2 != _fds.end(); ++it2) {
-            if (it2->fd == fd) {
-                _fds.erase(it2);
-                break;
+        {
+            std::lock_guard<std::mutex> lock(_fdsMutex);
+            for (auto it2 = _fds.begin(); it2 != _fds.end(); ++it2) {
+                if (it2->fd == fd) {
+                    _fds.erase(it2);
+                    break;
+                }
             }
         }
     }
@@ -89,5 +90,5 @@ void AServer::handleDisconnections(const std::vector<int>& toDisconnect)
 
 void AServer::stop()
 {
-    _running = false;
+    _running.store(false);
 }

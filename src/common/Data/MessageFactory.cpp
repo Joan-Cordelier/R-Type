@@ -24,6 +24,11 @@ std::array<MessageFactory::Message, 256> MessageFactory::initMessageTable()
     table[DEATH] = {0, Priority::CRITICAL};
     table[SHOOT] = {0, Priority::HIGH};
     table[MOVE] = {8, Priority::LOW};
+    table[CONNECT] = {0, Priority::CRITICAL};
+    table[START] = {0, Priority::CRITICAL}; 
+    table[JOIN] = {1, Priority::CRITICAL}; 
+    table[CRASH] = {1, Priority::CRITICAL}; 
+    table[PLAYER] = {1, Priority::CRITICAL}; 
 
     return table;
 }
@@ -128,3 +133,59 @@ DecodedMessage MessageFactory::decodeFromBuffer(LinearBufferT& buffer)
 }
 
 template DecodedMessage MessageFactory::decodeFromBuffer<LinearBuffer>(LinearBuffer& buffer);
+
+PreparedMessage MessageFactory::createMessage(OpCode opCode, const MessageData& payload) const
+{
+    PreparedMessage prepared;
+    
+    int expectedLen = _messageTable[opCode].len;
+    
+    prepared.data.push_back(static_cast<uint8_t>(opCode));
+    
+    if (expectedLen == VARIABLE_LEN) {
+        prepared.data.push_back(static_cast<uint8_t>(payload.size()));
+    }
+    
+    if (!payload.empty()) {
+        prepared.data.insert(prepared.data.end(), payload.begin(), payload.end());
+    }
+    
+    prepared.priority = _messageTable[opCode].priority;
+    
+    return prepared;
+}
+
+MessageData MessageFactory::encodeMessagePlayer(Entity entity) const
+{
+    if (!entity) return MessageData{};
+    MessageData data;
+    data.push_back(static_cast<uint8_t>((entity >> 24) & 0xFF));
+    data.push_back(static_cast<uint8_t>((entity >> 16) & 0xFF));
+    data.push_back(static_cast<uint8_t>((entity >> 8) & 0xFF));
+    data.push_back(static_cast<uint8_t>(entity & 0xFF));
+    return data;
+}
+
+MessageData MessageFactory::encodeMessageMovementPlayer(Entity entity, float x, float y) const
+{
+    MessageData data;
+    data.push_back(static_cast<uint8_t>((entity >> 24) & 0xFF));
+    data.push_back(static_cast<uint8_t>((entity >> 16) & 0xFF));
+    data.push_back(static_cast<uint8_t>((entity >> 8) & 0xFF));
+    data.push_back(static_cast<uint8_t>(entity & 0xFF));
+    
+    const uint8_t* px = reinterpret_cast<const uint8_t*>(&x);
+    const uint8_t* py = reinterpret_cast<const uint8_t*>(&y);
+    
+    data.insert(data.end(), px, px + sizeof(float));
+    data.insert(data.end(), py, py + sizeof(float));
+    
+    return data;
+}
+
+MessageData MessageFactory::encodeMessageServer(std::string type, Entity entity, Entity entity_changes) const
+{
+    MessageData data;
+    (void)type; (void)entity; (void)entity_changes;
+    return data;
+}

@@ -11,6 +11,9 @@
 #include <vector>
 #include <cstdint>
 #include <array>
+#include <string>
+
+#include "../ecs/entity_manager.hpp"
 
 enum Priority {
     CRITICAL,
@@ -25,7 +28,12 @@ enum OpCode : uint8_t {
     PARSING_ERROR = 0x01,
     DEATH = 0x02,
     MOVE = 0x03,
-    SHOOT = 0x04
+    SHOOT = 0x04,
+    CONNECT = 0x05,
+    START = 0x06,
+    JOIN = 0x07,
+    CRASH = 0x08,
+    PLAYER = 0x09
 };
 
 using MessageData = std::vector<uint8_t>;
@@ -35,6 +43,13 @@ struct DecodedMessage {
     uint8_t len;
     Priority priority;
     MessageData data;
+    uint32_t playerId = 0;  // Set by server when receiving
+    int tcpFd = -1;         // TCP file descriptor (for player lookup)
+};
+
+struct PreparedMessage {
+    MessageData data;
+    Priority priority;
 };
 
 class MessageFactory {
@@ -75,6 +90,12 @@ class MessageFactory {
         template<typename LinearBufferT>
         DecodedMessage decodeFromBuffer(LinearBufferT& buffer);
         
+        PreparedMessage createMessage(OpCode opCode, const MessageData& payload = {}) const;
+
+        MessageData encodeMessagePlayer(Entity entity) const;
+        MessageData encodeMessageMovementPlayer(Entity entity, float x, float y) const;
+        MessageData encodeMessageServer(std::string type, Entity entity, Entity entity_changes) const;
+
     private:
         MessageFactory();
         ~MessageFactory() = default;
