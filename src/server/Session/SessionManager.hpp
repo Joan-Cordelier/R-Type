@@ -34,7 +34,7 @@ class SessionManager {
         Player* getPlayer(uint32_t playerId);
         Player* getPlayerByTcpFd(int tcpFd);
         Player* getPlayerByUdpAddr(const sockaddr_in& addr);
-        std::vector<Player*> getPlayersInRoom(uint32_t roomId);
+        std::vector<Player*> getPlayersInRoom(uint8_t roomId);
         std::vector<Player*> getAllPlayers();
         size_t getPlayerCount() const;
         
@@ -44,11 +44,11 @@ class SessionManager {
         void sendTcp(uint32_t playerId, const PreparedMessage& msg);
         void sendUdp(uint32_t playerId, const PreparedMessage& msg);
         
-        void broadcastTcp(const MessageData& data, uint32_t roomId = 0);
-        void broadcastUdp(const MessageData& data, uint32_t roomId = 0);
+        void broadcastTcp(const MessageData& data, uint8_t roomId = 0);
+        void broadcastUdp(const MessageData& data, uint8_t roomId = 0);
         
-        void broadcastTcp(const PreparedMessage& msg, uint32_t roomId = 0);
-        void broadcastUdp(const PreparedMessage& msg, uint32_t roomId = 0);
+        void broadcastTcp(const PreparedMessage& msg, uint8_t roomId = 0);
+        void broadcastUdp(const PreparedMessage& msg, uint8_t roomId = 0);
         
         std::optional<DecodedMessage> popMessage(Priority priority);
         bool hasMessages() const;

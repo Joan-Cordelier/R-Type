@@ -54,11 +54,22 @@ bool MessageHandler::processSingleCycle()
     return false;
 }
 
-void MessageHandler::dispatchMessage(const DecodedMessage& msg)
+void MessageHandler::dispatchMessage(DecodedMessage msg)
 {
     LOG_DEBUG("Dispatching message: OpCode=" + std::to_string(msg.opCode));
     
+    // Resolve playerId from tcpFd if not already set
+    if (msg.playerId == 0 && msg.tcpFd >= 0) {
+        auto* player = _session.getPlayerByTcpFd(msg.tcpFd);
+        if (player) {
+            msg.playerId = player->id;
+        }
+    }
+    
     switch (msg.opCode) {
+        case CONNECT:
+            handleConnect(msg);
+            break;
         case DEATH:
             handleDeath(msg);
             break;
@@ -81,6 +92,44 @@ void MessageHandler::handleDeath(const DecodedMessage& msg)
     // - Notify ECS to mark entity as dead
     // - Broadcast death to other players
     (void)msg;
+}
+
+void MessageHandler::handleConnect(const DecodedMessage& msg)
+{
+    LOG_INFO("Handling CONNECT message (fd: " + std::to_string(msg.tcpFd) + ", playerId: " + std::to_string(msg.playerId) + ")");
+    
+    // Player should already be registered when TCP connection was established
+    auto* player = _session.getPlayerByTcpFd(msg.tcpFd);
+    if (!player) {
+        LOG_ERROR("CONNECT message from unknown fd: " + std::to_string(msg.tcpFd));
+        return;
+    }
+    
+    uint32_t playerId = player->id;
+    
+    // Mark player as connected/ready
+    player->connected = true;
+    
+    // Send confirmation back to the player with their assigned player ID
+    auto& factory = MessageFactory::getInstance();
+    std::vector<uint8_t> payload;
+    payload.push_back(static_cast<uint8_t>((playerId >> 24) & 0xFF));
+    payload.push_back(static_cast<uint8_t>((playerId >> 16) & 0xFF));
+    payload.push_back(static_cast<uint8_t>((playerId >> 8) & 0xFF));
+    payload.push_back(static_cast<uint8_t>(playerId & 0xFF));
+    
+    auto response = factory.createMessage(CONNECT, payload);
+    _session.sendTcp(playerId, response);
+    
+    // Send JOIN message with the room ID
+    uint8_t roomId = player->roomId;
+    std::vector<uint8_t> joinPayload;
+    joinPayload.push_back(roomId);
+    
+    auto joinMsg = factory.createMessage(JOIN, joinPayload);
+    _session.sendTcp(playerId, joinMsg);
+    
+    LOG_INFO("Player " + std::to_string(playerId) + " connected successfully, joined room " + std::to_string(roomId));
 }
 
 void MessageHandler::handleMove(const DecodedMessage& msg)

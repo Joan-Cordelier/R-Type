@@ -65,6 +65,9 @@ int TCPServer::run()
                             std::lock_guard<std::mutex> lock(_buffersMutex);
                             _buffers.emplace(newFd, LinearBuffer());
                         }
+                        if (_onConnect) {
+                            _onConnect(newFd);
+                        }
                     } else
                         LOG_ERROR("TCP accept failed");
                 } else {
@@ -106,6 +109,7 @@ int TCPServer::run()
                                 toDisconnect.push_back(fdsSnapshot[i].fd);
                                 break;
                             }
+                            msg.tcpFd = fdsSnapshot[i].fd;
                             LOG_INFO("TCP message received: OpCode=" + std::to_string(msg.opCode) + " Len=" + std::to_string(msg.len));
                             _queue.push(msg.priority, msg);
                         }
@@ -114,6 +118,12 @@ int TCPServer::run()
             }
         }
 
+        // Call disconnect callback before handling disconnections
+        if (_onDisconnect) {
+            for (int fd : toDisconnect) {
+                _onDisconnect(fd);
+            }
+        }
         handleDisconnections(toDisconnect);        
         {
             std::lock_guard<std::mutex> lock(_buffersMutex);
