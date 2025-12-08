@@ -11,6 +11,14 @@
 SessionManager::SessionManager() 
     : _tcpServer(_queue), _udpServer(_queue)
 {
+    // Set up callbacks for TCP connection/disconnection
+    _tcpServer.setOnConnect([this](int fd) {
+        addPlayer(fd);
+    });
+    
+    _tcpServer.setOnDisconnect([this](int fd) {
+        removePlayerByTcpFd(fd);
+    });
 }
 
 SessionManager::~SessionManager()
@@ -131,7 +139,7 @@ Player* SessionManager::getPlayerByUdpAddr(const sockaddr_in& addr)
     return nullptr;
 }
 
-std::vector<Player*> SessionManager::getPlayersInRoom(uint32_t roomId)
+std::vector<Player*> SessionManager::getPlayersInRoom(uint8_t roomId)
 {
     std::lock_guard<std::mutex> lock(_playersMutex);
     
@@ -189,7 +197,7 @@ void SessionManager::sendUdp(uint32_t playerId, const PreparedMessage& msg)
     sendUdp(playerId, msg.data);
 }
 
-void SessionManager::broadcastTcp(const MessageData& data, uint32_t roomId)
+void SessionManager::broadcastTcp(const MessageData& data, uint8_t roomId)
 {
     if (roomId == 0) {
         _tcpServer.send(data);
@@ -203,12 +211,12 @@ void SessionManager::broadcastTcp(const MessageData& data, uint32_t roomId)
     }
 }
 
-void SessionManager::broadcastTcp(const PreparedMessage& msg, uint32_t roomId)
+void SessionManager::broadcastTcp(const PreparedMessage& msg, uint8_t roomId)
 {
     broadcastTcp(msg.data, roomId);
 }
 
-void SessionManager::broadcastUdp(const MessageData& data, uint32_t roomId)
+void SessionManager::broadcastUdp(const MessageData& data, uint8_t roomId)
 {
     if (roomId == 0) {
         _udpServer.send(data);
@@ -222,7 +230,7 @@ void SessionManager::broadcastUdp(const MessageData& data, uint32_t roomId)
     }
 }
 
-void SessionManager::broadcastUdp(const PreparedMessage& msg, uint32_t roomId)
+void SessionManager::broadcastUdp(const PreparedMessage& msg, uint8_t roomId)
 {
     broadcastUdp(msg.data, roomId);
 }

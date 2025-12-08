@@ -14,15 +14,22 @@
 #include "../../common/Data/ThreadedQueue.hpp"
 #include "../../common/Data/OutgoingMessage.hpp"
 #include <map>
+#include <functional>
 
 class TCPServer : public AServer {
     public:
+        using ConnectionCallback = std::function<void(int fd)>;
+        using DisconnectionCallback = std::function<void(int fd)>;
+        
         TCPServer(ThreadedQueue<DecodedMessage>& queue);
         ~TCPServer();
         int run();
         
         void send(const MessageData& data, Priority priority = Priority::MEDIUM);
         void send(int fd, const MessageData& data, Priority priority = Priority::MEDIUM);
+        
+        void setOnConnect(ConnectionCallback callback) { _onConnect = callback; }
+        void setOnDisconnect(DisconnectionCallback callback) { _onDisconnect = callback; }
         
     private:
         void processOutgoingQueue();
@@ -32,6 +39,9 @@ class TCPServer : public AServer {
         std::map<int, LinearBuffer> _buffers;
         ThreadedQueue<OutgoingMessage> _outgoingQueue;
         mutable std::mutex _buffersMutex;
+        
+        ConnectionCallback _onConnect;
+        DisconnectionCallback _onDisconnect;
 };
 
 #endif /* !TCPSERVER_HPP_ */
