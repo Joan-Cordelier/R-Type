@@ -110,6 +110,11 @@ void MessageHandler::handleConnect(const DecodedMessage& msg)
     // Mark player as connected/ready
     player->connected = true;
     
+    // Notify GameHandler to create player entity
+    if (_onPlayerConnect) {
+        _onPlayerConnect(*player);
+    }
+    
     // Send confirmation back to the player with their assigned player ID
     auto& factory = MessageFactory::getInstance();
     std::vector<uint8_t> payload;

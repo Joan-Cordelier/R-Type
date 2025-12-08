@@ -102,7 +102,14 @@ void SessionManager::removePlayerByTcpFd(int tcpFd)
     auto it = _tcpFdToPlayerId.find(tcpFd);
     if (it != _tcpFdToPlayerId.end()) {
         uint32_t playerId = it->second;
-        _players.erase(playerId);
+        auto playerIt = _players.find(playerId);
+        if (playerIt != _players.end()) {
+            // Notify callback before removing
+            if (_onPlayerDisconnect) {
+                _onPlayerDisconnect(playerIt->second);
+            }
+            _players.erase(playerIt);
+        }
         _tcpFdToPlayerId.erase(it);
         LOG_INFO("Player " + std::to_string(playerId) + " removed (by TCP fd)");
     }

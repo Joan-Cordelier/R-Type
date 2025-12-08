@@ -16,15 +16,20 @@
 #include <mutex>
 #include <thread>
 #include <atomic>
+#include <functional>
 
 class SessionManager {
     public:
+        using PlayerCallback = std::function<void(const Player&)>;
+        
         SessionManager();
         ~SessionManager();
         
         void start();
         void stop();
         bool isRunning() const { return _running; }
+        
+        void setOnPlayerDisconnect(PlayerCallback callback) { _onPlayerDisconnect = callback; }
         
         uint32_t addPlayer(int tcpFd);
         void linkPlayerUdp(uint32_t playerId, const sockaddr_in& addr);
@@ -70,6 +75,8 @@ class SessionManager {
         std::unordered_map<int, uint32_t> _tcpFdToPlayerId;
         mutable std::mutex _playersMutex;
         uint32_t _nextPlayerId = 1;
+        
+        PlayerCallback _onPlayerDisconnect;
         
         bool compareUdpAddr(const sockaddr_in& a, const sockaddr_in& b) const;
 };
