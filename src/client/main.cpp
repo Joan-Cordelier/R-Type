@@ -128,7 +128,6 @@ int main()
         MessageFactory& factory = MessageFactory::getInstance();
         PreparedMessage msg = factory.createMessage(OpCode::CONNECT, {});
         network.sendTcp(msg);
-        network.sendUdp(msg);
     });
 
     while (running) {
