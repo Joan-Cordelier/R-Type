@@ -21,7 +21,7 @@ GameHandler::GameHandler(SessionManager& session, std::atomic<bool>& running)
     
     ScoreEntity = reg.createEntity();
     reg.addComponent<Position>(ScoreEntity, 0.f, 0.f);
-    reg.addComponent<Label>(ScoreEntity, "Score: 0", "font/josefin-sans/JosefinSans-Regular.ttf", "default_font", Color(255, 255, 255), 0, true);
+    reg.addComponent<Label>(ScoreEntity, std::string("Score: 0"), std::string("font/josefin-sans/JosefinSans-Regular.ttf"), std::string("default_font"), Color(255, 255, 255), 0, true);
 }
 
 void GameHandler::run()
