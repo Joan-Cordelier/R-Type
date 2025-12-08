@@ -29,6 +29,40 @@
 #include <functional>
 #include <SDL2/SDL.h>
 
+void handleMessages(NetworkManager& network, Registry& reg, Entity player)
+{
+    std::optional<DecodedMessage> msg;
+    while (network.hasMessages()) {
+        msg = network.popMessage(Priority::CRITICAL);
+        if (msg.has_value() == false) {
+            msg = network.popMessage(Priority::HIGH);
+            if (msg.has_value() == false) {
+                msg = network.popMessage(Priority::MEDIUM);
+                if (msg.has_value() == false) {
+                    msg = network.popMessage(Priority::LOW);
+                    if (msg.has_value() == false) {
+                        msg = network.popMessage(Priority::ERROR);
+                        if (msg.has_value() == false) {
+                            break;
+                        }
+                    }
+                }
+            }
+        }
+
+        switch (msg->opCode) {
+            case OpCode::MOVE: {
+                reg.getComponent<Position>(player).x = *reinterpret_cast<const float*>(&msg->data[4]);
+                reg.getComponent<Position>(player).y = *reinterpret_cast<const float*>(&msg->data[8]);
+                std::cout << "Player moved to (" << reg.getComponent<Position>(player).x << ", " << reg.getComponent<Position>(player).y << ")" << std::endl;
+                break;
+            }
+            default:
+                break;
+        }
+    }
+}
+
 int main()
 {
     Renderer renderer;
@@ -92,7 +126,7 @@ int main()
         Input.setControlled(player);
 
         MessageFactory& factory = MessageFactory::getInstance();
-        PreparedMessage msg = factory.createMessage(OpCode::PARSING_ERROR, {'L', 'a', ' ', 'g', 'a', 'm', 'e', ' ', 'a', ' ', 'c', 'o', 'm', 'm', 'e', 'n', 'c', 'e'});
+        PreparedMessage msg = factory.createMessage(OpCode::CONNECT, {});
         network.sendTcp(msg);
         network.sendUdp(msg);
     });
@@ -107,6 +141,8 @@ int main()
         double dt = (double)(now - last) / SDL_GetPerformanceFrequency();
         animationClock += dt;
         last = now;
+
+        handleMessages(network, reg, player);
 
         Input.update(reg, status, network);
 

@@ -16,7 +16,10 @@
 #include <SDL2/SDL.h>
 #include <cmath>
 
-InputSystem::InputSystem() {}
+InputSystem::InputSystem() {
+    last_x = 0;
+    last_y = 0;
+}
 
 InputSystem::~InputSystem() {}
 
@@ -36,25 +39,9 @@ void InputSystem::update(Registry& reg, SDL_Event& e, NetworkManager& networkMan
         if (ks[SDL_SCANCODE_LEFT] || ks[SDL_SCANCODE_A])  vx -= 1.f;
         if (ks[SDL_SCANCODE_RIGHT] || ks[SDL_SCANCODE_D]) vx += 1.f;
 
-        if (reg.hasComponent<Stats>(controlled)) {
-            auto &player_sprit_sheet = reg.getComponent<SpriteSheets>(controlled);
-            if (vx > 0.f)
-                player_sprit_sheet.frameIndex = 2;
-            else if (vx < 0.f)
-                player_sprit_sheet.frameIndex = 0;
-            else
-                player_sprit_sheet.frameIndex = 1;
-            float speed = static_cast<float>(reg.getComponent<Stats>(controlled).movement_speed);
-            if (vx != 0.f || vy != 0.f) {
-                float inv = 1.0f / std::sqrt(vx*vx + vy*vy);
-                vx = vx * inv * speed;
-                vy = vy * inv * speed;
-            } else {
-                vx = 0.f; vy = 0.f;
-            }
-            auto &vel = reg.getComponent<Velocity>(controlled);
-            vel.vx = vx;
-            vel.vy = vy;
+        if (last_x != vx || last_y != vy) {
+            last_x = vx;
+            last_y = vy;
             if (vx != 0.f || vy != 0.f) {
                 MessageFactory& factory = MessageFactory::getInstance();
                 networkManager.sendUdp(factory.createMessage(OpCode::MOVE, factory.encodeMessageMovementPlayer(controlled, vx, vy)));

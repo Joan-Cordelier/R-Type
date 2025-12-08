@@ -22,6 +22,7 @@ public:
 
 private:
     Entity controlled;
+    float last_x, last_y;
 };
 
 #endif
