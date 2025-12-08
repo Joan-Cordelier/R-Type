@@ -55,6 +55,26 @@ void GameHandler::run()
     LOG_INFO("Game loop stopped");
 }
 
+void GameHandler::sendUpdatedPositionToAllPlayers()
+{
+    for (const auto& [playerId, entity] : playerEntities) {
+        sendUpdatedPositionToPlayer(playerId);
+    }
+}
+
+/// @brief send cur position of all entity containing a vector to a player
+/// @param playerId the id of the player to send the position to
+void GameHandler::sendUpdatedPositionToPlayer(uint32_t playerId)
+{
+    for (const auto& [pid, entity] : playerEntities) {
+        Position& pos = reg.getComponent<Position>(entity);
+        if (!reg.hasComponent<Velocity>(entity))
+            continue;
+        MessageData msg = MessageFactory::getInstance().encodeMessageMovementPlayer(entity, pos.x, pos.y);
+        _session.sendUdp(playerId, msg);
+    }
+}
+
 void GameHandler::processMessages()
 {
     // Process up to a maximum number of messages per frame to avoid starvation
