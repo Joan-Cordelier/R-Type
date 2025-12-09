@@ -157,6 +157,15 @@ void ClientGameHandler::handleMessages()
                     auto it = playerEntities.find(serverEntity);
                     if (it != playerEntities.end()) {
                         Entity localEntity = it->second;
+                        if (_reg.getComponent<Position>(localEntity).x > x) {
+                            _reg.getComponent<SpriteSheets>(localEntity).frameIndex = 0;
+                        }
+                        else if (_reg.getComponent<Position>(localEntity).x < x) {
+                            _reg.getComponent<SpriteSheets>(localEntity).frameIndex = 2;
+                        }
+                        else {
+                            _reg.getComponent<SpriteSheets>(localEntity).frameIndex = 1;
+                        }
                         _reg.getComponent<Position>(localEntity).x = x;
                         _reg.getComponent<Position>(localEntity).y = y;
                     }
@@ -213,15 +222,6 @@ void ClientGameHandler::handlePlayerPacket(const DecodedMessage& msg)
         }
     } else {
         Entity localEntity = it->second;
-        if (_reg.getComponent<Position>(localEntity).x > x) {
-            _reg.getComponent<SpriteSheets>(localEntity).frameIndex = 0;
-        }
-        else if (_reg.getComponent<Position>(localEntity).x < x) {
-            _reg.getComponent<SpriteSheets>(localEntity).frameIndex = 2;
-        }
-        else {
-            _reg.getComponent<SpriteSheets>(localEntity).frameIndex = 1;
-        }
         _reg.getComponent<Position>(localEntity).x = x;
         _reg.getComponent<Position>(localEntity).y = y;
     }
