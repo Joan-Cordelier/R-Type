@@ -11,6 +11,7 @@
 
 #include <functional>
 #include <map>
+#include <unordered_map>
 #include <vector>
 #include <SDL2/SDL.h>
 #include <arpa/inet.h>
@@ -44,6 +45,8 @@ private:
 
     void handleMessages();
     void handlePlayerPacket(const DecodedMessage& msg);
+
+    std::unordered_map<Entity, float> lastXPositions;
 public:
     uint32_t myPlayerId = 0;
     Entity myEntity = 0;

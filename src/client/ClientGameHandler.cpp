@@ -105,7 +105,6 @@ void ClientGameHandler::handleMessages()
         }
         switch (msg->opCode) {
             case OpCode::CONNECT_ACK: {
-                // Server responds to CONNECT with CONNECT_ACK containing playerId
                 if (msg->data.size() >= 4) {
                     myPlayerId = 
                         (static_cast<uint32_t>(msg->data[0]) << 24) |
@@ -114,7 +113,6 @@ void ClientGameHandler::handleMessages()
                         static_cast<uint32_t>(msg->data[3]);
                     std::cout << "Received playerId: " << myPlayerId << std::endl;
 
-                    // Send LINK message via UDP to associate our UDP address with our playerId
                     MessageFactory& factory = MessageFactory::getInstance();
                     std::vector<uint8_t> linkPayload;
                     linkPayload.push_back(static_cast<uint8_t>((myPlayerId >> 24) & 0xFF));
@@ -124,7 +122,6 @@ void ClientGameHandler::handleMessages()
                     PreparedMessage linkMsg = factory.createMessage(OpCode::LINK, linkPayload);
                     _network.sendUdp(linkMsg);
                     
-                    // Get our local UDP port using getsockname
                     struct sockaddr_in localAddr;
                     socklen_t addrLen = sizeof(localAddr);
                     int udpFd = _network.getUdpClient().getSocketFd();
@@ -135,7 +132,6 @@ void ClientGameHandler::handleMessages()
                         std::cout << "Sent LINK message via UDP" << std::endl;
                     }
                     
-                    // Process any PLAYER packets that arrived before CONNECT_ACK
                     for (auto& pendingMsg : pendingPlayerPackets) {
                         handlePlayerPacket(pendingMsg);
                     }
@@ -148,7 +144,6 @@ void ClientGameHandler::handleMessages()
                 break;
             }
             case OpCode::MOVE: {
-                // MOVE packet: entityId (4) + x (4) + y (4)
                 if (msg->data.size() >= 12) {
                     Entity serverEntity = 
                         (static_cast<Entity>(msg->data[0]) << 24) |
@@ -176,11 +171,10 @@ void ClientGameHandler::handleMessages()
 
 void ClientGameHandler::handlePlayerPacket(const DecodedMessage& msg)
 {
-    // PLAYER packet: playerId (4) + entityId (4) + x (4) + y (4)
     if (msg.data.size() < 16) {
         return;
     }
-    if (myPlayerId == 0) { // we don't have our playerId yet, queue the packet for later
+    if (myPlayerId == 0) {
         pendingPlayerPackets.push_back(msg);
         return;
     }
@@ -201,16 +195,15 @@ void ClientGameHandler::handlePlayerPacket(const DecodedMessage& msg)
     float y = *reinterpret_cast<const float*>(&msg.data[12]);
 
     auto it = playerEntities.find(serverEntity);
-    if (it == playerEntities.end()) { //we dont have this player yet, create it
+    if (it == playerEntities.end()) {
         Entity localEntity = _reg.createEntity();
         _reg.addComponent<Position>(localEntity, x, y);
         _reg.addComponent<Velocity>(localEntity, 0.f, 0.f);
-        _reg.addComponent<SpriteSheets>(localEntity, std::string("textures/ships/player_ship.png"), std::string("player_ship"), 120, 130, 1, 3, 0, true, true);
+        _reg.addComponent<SpriteSheets>(localEntity, std::string("textures/ships/player_ship.png"), std::string("player_ship"), 120, 130, 1, 3, 0, true, false);
         _reg.addComponent<Stats>(localEntity, 100, 100, 1, 0.f, 10, 1, 200);
                         
         playerEntities[serverEntity] = localEntity;
-                        
-        // If this is our own player, set it as controlled
+
         if (playerId == myPlayerId) {
             myEntity = localEntity;
             _input.setControlled(localEntity);
@@ -218,8 +211,17 @@ void ClientGameHandler::handlePlayerPacket(const DecodedMessage& msg)
         } else {
             std::cout << "Created other player entity (serverId: " << serverEntity << ", localId: " << localEntity << ") at (" << x << ", " << y << ")" << std::endl;
         }
-    } else { // We already have this player, updating the positon
+    } else {
         Entity localEntity = it->second;
+        if (_reg.getComponent<Position>(localEntity).x > x) {
+            _reg.getComponent<SpriteSheets>(localEntity).frameIndex = 0;
+        }
+        else if (_reg.getComponent<Position>(localEntity).x < x) {
+            _reg.getComponent<SpriteSheets>(localEntity).frameIndex = 2;
+        }
+        else {
+            _reg.getComponent<SpriteSheets>(localEntity).frameIndex = 1;
+        }
         _reg.getComponent<Position>(localEntity).x = x;
         _reg.getComponent<Position>(localEntity).y = y;
     }
