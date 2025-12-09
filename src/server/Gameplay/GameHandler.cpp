@@ -77,11 +77,19 @@ void GameHandler::sendUpdatedPositionToPlayer(uint32_t playerId)
         Position& pos = reg.getComponent<Position>(entity);
         if (!reg.hasComponent<Velocity>(entity))
             continue;
-        if (reg.getComponent<Velocity>(entity).vx == 0.f && reg.getComponent<Velocity>(entity).vy == 0.f)
-            continue;
-        MessageData payload = MessageFactory::getInstance().encodeMessageMovementPlayer(entity, pos.x, pos.y);
-        PreparedMessage msg = MessageFactory::getInstance().createMessage(OpCode::MOVE, payload);
-        _session.sendUdp(playerId, msg);
+        
+        bool isMoving = reg.getComponent<Velocity>(entity).vx != 0.f || reg.getComponent<Velocity>(entity).vy != 0.f;
+        bool entityWasMoving = wasMoving[entity];
+        
+        // Send update if moving OR if just stopped moving (one final update)
+        if (isMoving || entityWasMoving) {
+            MessageData payload = MessageFactory::getInstance().encodeMessageMovementPlayer(entity, pos.x, pos.y);
+            PreparedMessage msg = MessageFactory::getInstance().createMessage(OpCode::MOVE, payload);
+            _session.sendUdp(playerId, msg);
+        }
+        
+        // Update movement state for next frame
+        wasMoving[entity] = isMoving;
     }
 }
 

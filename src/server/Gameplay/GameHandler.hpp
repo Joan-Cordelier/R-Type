@@ -36,6 +36,7 @@ private:
     StatSystem statsys;
 
     std::map<uint32_t, Entity> playerEntities;
+    std::map<Entity, bool> wasMoving;  // Track if entity was moving last frame
     Entity ScoreEntity;
     int score = 0;
 
