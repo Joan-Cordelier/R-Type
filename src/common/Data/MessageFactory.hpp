@@ -98,6 +98,7 @@ class MessageFactory {
 
         MessageData encodeMessagePlayer(Entity entity) const;
         MessageData encodeMessageMovementPlayer(Entity entity, float x, float y) const;
+        MessageData encodePlayerInfo(uint32_t playerId, Entity entity, float x, float y) const;
         MessageData encodeMessageServer(std::string type, Entity entity, Entity entity_changes) const;
 
     private:

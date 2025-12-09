@@ -109,8 +109,30 @@ void GameHandler::onPlayerConnect(const Player& player)
     reg.addComponent<Velocity>(playerEntity, 0.f, 0.f);
     reg.addComponent<Stats>(playerEntity, 100, 100, 1, 0.f, 10, 1, 200);
     
+    auto& factory = MessageFactory::getInstance();
+    
+    // Send all existing players' info to the new player
+    for (const auto& [existingPlayerId, existingEntity] : playerEntities) {
+        Position& pos = reg.getComponent<Position>(existingEntity);
+        MessageData payload = factory.encodePlayerInfo(existingPlayerId, existingEntity, pos.x, pos.y);
+        PreparedMessage msg = factory.createMessage(OpCode::PLAYER, payload);
+        _session.sendTcp(player.id, msg);
+        LOG_DEBUG("Sent existing player " + std::to_string(existingPlayerId) + " info to new player " + std::to_string(player.id));
+    }
+    
+    // Add new player to the map
     playerEntities[player.id] = playerEntity;
-    LOG_INFO("Player " + std::to_string(player.id) + " entity created");
+    
+    // Send the new player's info to all players (including themselves)
+    Position& newPlayerPos = reg.getComponent<Position>(playerEntity);
+    MessageData payload = factory.encodePlayerInfo(player.id, playerEntity, newPlayerPos.x, newPlayerPos.y);
+    PreparedMessage msg = factory.createMessage(OpCode::PLAYER, payload);
+    for (const auto& [existingPlayerId, existingEntity] : playerEntities) {
+        _session.sendTcp(existingPlayerId, msg);
+        LOG_DEBUG("Sent new player " + std::to_string(player.id) + " info to player " + std::to_string(existingPlayerId));
+    }
+    
+    LOG_INFO("Player " + std::to_string(player.id) + " entity created and synced with " + std::to_string(playerEntities.size() - 1) + " other players");
 }
 
 void GameHandler::onPlayerDisconnect(const Player& player)

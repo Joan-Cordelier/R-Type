@@ -29,7 +29,7 @@ std::array<MessageFactory::Message, 256> MessageFactory::initMessageTable()
     table[START] = {0, Priority::CRITICAL}; 
     table[JOIN] = {1, Priority::CRITICAL}; 
     table[CRASH] = {1, Priority::CRITICAL}; 
-    table[PLAYER] = {1, Priority::CRITICAL};
+    table[PLAYER] = {16, Priority::CRITICAL}; // playerid (4) + entityId (4) + x (4) + y (4)
     table[LINK] = {4, Priority::CRITICAL};
 
     return table;
@@ -180,6 +180,33 @@ MessageData MessageFactory::encodeMessageMovementPlayer(Entity entity, float x, 
     const uint8_t* py = reinterpret_cast<const uint8_t*>(&y);
     
     data.insert(data.end(), px, px + sizeof(float));
+    data.insert(data.end(), py, py + sizeof(float));
+    
+    return data;
+}
+
+MessageData MessageFactory::encodePlayerInfo(uint32_t playerId, Entity entity, float x, float y) const
+{
+    MessageData data;
+    
+    // Player ID (4 bytes, big-endian)
+    data.push_back(static_cast<uint8_t>((playerId >> 24) & 0xFF));
+    data.push_back(static_cast<uint8_t>((playerId >> 16) & 0xFF));
+    data.push_back(static_cast<uint8_t>((playerId >> 8) & 0xFF));
+    data.push_back(static_cast<uint8_t>(playerId & 0xFF));
+    
+    // Entity ID (4 bytes, big-endian)
+    data.push_back(static_cast<uint8_t>((entity >> 24) & 0xFF));
+    data.push_back(static_cast<uint8_t>((entity >> 16) & 0xFF));
+    data.push_back(static_cast<uint8_t>((entity >> 8) & 0xFF));
+    data.push_back(static_cast<uint8_t>(entity & 0xFF));
+    
+    // Position X (4 bytes, float)
+    const uint8_t* px = reinterpret_cast<const uint8_t*>(&x);
+    data.insert(data.end(), px, px + sizeof(float));
+    
+    // Position Y (4 bytes, float)
+    const uint8_t* py = reinterpret_cast<const uint8_t*>(&y);
     data.insert(data.end(), py, py + sizeof(float));
     
     return data;

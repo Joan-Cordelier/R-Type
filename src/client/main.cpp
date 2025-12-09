@@ -27,11 +27,16 @@
 #include "../common/Data/MessageFactory.hpp"
 
 #include <functional>
+#include <map>
+#include <vector>
 #include <SDL2/SDL.h>
 #include <arpa/inet.h>
 #include <sys/socket.h>
 
-void handleMessages(NetworkManager& network, Registry& reg, Entity player, uint32_t& myPlayerId)
+void handleMessages(NetworkManager& network, Registry& reg, Renderer& renderer, 
+                    std::map<Entity, Entity>& playerEntities, uint32_t& myPlayerId,
+                    Entity& myEntity, InputSystem& input,
+                    std::vector<DecodedMessage>& pendingPlayerPackets)
 {
     std::optional<DecodedMessage> msg;
     while (network.hasMessages()) {
@@ -83,13 +88,123 @@ void handleMessages(NetworkManager& network, Registry& reg, Entity player, uint3
                     } else {
                         std::cout << "Sent LINK message via UDP" << std::endl;
                     }
+                    
+                    // Process any PLAYER packets that arrived before CONNECT_ACK
+                    for (auto& pendingMsg : pendingPlayerPackets) {
+                        if (pendingMsg.data.size() >= 16) {
+                            uint32_t pendingPlayerId = 
+                                (static_cast<uint32_t>(pendingMsg.data[0]) << 24) |
+                                (static_cast<uint32_t>(pendingMsg.data[1]) << 16) |
+                                (static_cast<uint32_t>(pendingMsg.data[2]) << 8) |
+                                static_cast<uint32_t>(pendingMsg.data[3]);
+                            
+                            Entity serverEntity = 
+                                (static_cast<Entity>(pendingMsg.data[4]) << 24) |
+                                (static_cast<Entity>(pendingMsg.data[5]) << 16) |
+                                (static_cast<Entity>(pendingMsg.data[6]) << 8) |
+                                static_cast<Entity>(pendingMsg.data[7]);
+                            
+                            float x = *reinterpret_cast<const float*>(&pendingMsg.data[8]);
+                            float y = *reinterpret_cast<const float*>(&pendingMsg.data[12]);
+                            
+                            auto it = playerEntities.find(serverEntity);
+                            if (it == playerEntities.end()) {
+                                Entity localEntity = reg.createEntity();
+                                reg.addComponent<Position>(localEntity, x, y);
+                                reg.addComponent<Velocity>(localEntity, 0.f, 0.f);
+                                reg.addComponent<SpriteSheets>(localEntity, std::string("textures/ships/player_ship.png"), std::string("test"), 120, 130, 1, 3, 0, false, true);
+                                reg.addComponent<Stats>(localEntity, 100, 100, 1, 0.f, 10, 1, 200);
+                                
+                                playerEntities[serverEntity] = localEntity;
+                                
+                                if (pendingPlayerId == myPlayerId) {
+                                    myEntity = localEntity;
+                                    input.setControlled(localEntity);
+                                    std::cout << "Created my player entity from pending (serverId: " << serverEntity << ", localId: " << localEntity << ")" << std::endl;
+                                } else {
+                                    std::cout << "Created other player entity from pending (serverId: " << serverEntity << ", localId: " << localEntity << ")" << std::endl;
+                                }
+                            }
+                        }
+                    }
+                    pendingPlayerPackets.clear();
+                }
+                break;
+            }
+            case OpCode::PLAYER: {
+                // PLAYER packet: playerId (4) + entityId (4) + x (4) + y (4)
+                if (msg->data.size() >= 16) {
+                    // If we don't have our playerId yet, queue this packet
+                    if (myPlayerId == 0) {
+                        pendingPlayerPackets.push_back(*msg);
+                        std::cout << "Queued PLAYER packet (waiting for CONNECT_ACK)" << std::endl;
+                        break;
+                    }
+                    
+                    uint32_t playerId = 
+                        (static_cast<uint32_t>(msg->data[0]) << 24) |
+                        (static_cast<uint32_t>(msg->data[1]) << 16) |
+                        (static_cast<uint32_t>(msg->data[2]) << 8) |
+                        static_cast<uint32_t>(msg->data[3]);
+                    
+                    Entity serverEntity = 
+                        (static_cast<Entity>(msg->data[4]) << 24) |
+                        (static_cast<Entity>(msg->data[5]) << 16) |
+                        (static_cast<Entity>(msg->data[6]) << 8) |
+                        static_cast<Entity>(msg->data[7]);
+                    
+                    float x = *reinterpret_cast<const float*>(&msg->data[8]);
+                    float y = *reinterpret_cast<const float*>(&msg->data[12]);
+                    
+                    // Check if we already have this player
+                    auto it = playerEntities.find(serverEntity);
+                    if (it == playerEntities.end()) {
+                        // Create new player entity
+                        Entity localEntity = reg.createEntity();
+                        reg.addComponent<Position>(localEntity, x, y);
+                        reg.addComponent<Velocity>(localEntity, 0.f, 0.f);
+                        reg.addComponent<SpriteSheets>(localEntity, std::string("textures/ships/player_ship.png"), std::string("test"), 120, 130, 1, 3, 0, true, true);
+                        reg.addComponent<Stats>(localEntity, 100, 100, 1, 0.f, 10, 1, 200);
+                        
+                        playerEntities[serverEntity] = localEntity;
+                        
+                        // If this is our own player, set it as controlled
+                        std::cout << "Player ID in PLAYER packet: " << playerId << ", myPlayerId: " << myPlayerId << std::endl;
+                        if (playerId == myPlayerId) {
+                            myEntity = localEntity;
+                            input.setControlled(localEntity);
+                            std::cout << "Created my player entity (serverId: " << serverEntity << ", localId: " << localEntity << ") at (" << x << ", " << y << ")" << std::endl;
+                        } else {
+                            std::cout << "Created other player entity (serverId: " << serverEntity << ", localId: " << localEntity << ") at (" << x << ", " << y << ")" << std::endl;
+                        }
+                    } else {
+                        // Update existing player position
+                        Entity localEntity = it->second;
+                        reg.getComponent<Position>(localEntity).x = x;
+                        reg.getComponent<Position>(localEntity).y = y;
+                    }
                 }
                 break;
             }
             case OpCode::MOVE: {
-                reg.getComponent<Position>(player).x = *reinterpret_cast<const float*>(&msg->data[4]);
-                reg.getComponent<Position>(player).y = *reinterpret_cast<const float*>(&msg->data[8]);
-                std::cout << "Player moved to (" << reg.getComponent<Position>(player).x << ", " << reg.getComponent<Position>(player).y << ")" << std::endl;
+                // MOVE packet: entityId (4) + x (4) + y (4)
+                if (msg->data.size() >= 12) {
+                    Entity serverEntity = 
+                        (static_cast<Entity>(msg->data[0]) << 24) |
+                        (static_cast<Entity>(msg->data[1]) << 16) |
+                        (static_cast<Entity>(msg->data[2]) << 8) |
+                        static_cast<Entity>(msg->data[3]);
+                    
+                    float x = *reinterpret_cast<const float*>(&msg->data[4]);
+                    float y = *reinterpret_cast<const float*>(&msg->data[8]);
+                    
+                    auto it = playerEntities.find(serverEntity);
+                    if (it != playerEntities.end()) {
+                        Entity localEntity = it->second;
+                        reg.getComponent<Position>(localEntity).x = x;
+                        reg.getComponent<Position>(localEntity).y = y;
+                    }
+                }
                 break;
             }
             default:
@@ -114,14 +229,11 @@ int main()
     std::string ip_adress = "127.0.0.1";
     double animationClock = 0.0;
     uint32_t myPlayerId = 0;
+    Entity myEntity = 0;  // Will be set when we receive our PLAYER packet
+    std::map<Entity, Entity> playerEntities;  // server entity ID -> local entity ID
+    std::vector<DecodedMessage> pendingPlayerPackets;  // Queue for PLAYER packets before CONNECT_ACK
 
     renderer.loadSpriteSheet("textures/ships/player_ship.png", "test", 343, 383);
-
-    Entity player = reg.createEntity();
-    reg.addComponent<Position>(player, 100.f, 100.f);
-    reg.addComponent<Velocity>(player, 0.f, 0.f);
-    reg.addComponent<SpriteSheets>(player, (std::string)"textures/ships/player_ship.png", (std::string)"test", 120, 130, 1, 3, 0, false, false);
-    reg.addComponent<Stats>(player, 100, 100, 1, 0.f, 10, 1, 200);
 
     renderer.loadTexture("textures/play_button/default.png", "play_button");
 
@@ -155,11 +267,7 @@ int main()
         network.start();
         r.getComponent<Label>(label_input).visible = false;
         r.getComponent<Sprite>(e).visible = false;
-        r.getComponent<Position>(player).x = 100.f;
-        r.getComponent<Position>(player).y = 100.f;
-        r.getComponent<SpriteSheets>(player).visible = true;
         r.getComponent<Button>(e).enabled = false;
-        Input.setControlled(player);
 
         MessageFactory& factory = MessageFactory::getInstance();
         PreparedMessage msg = factory.createMessage(OpCode::CONNECT, {});
@@ -177,7 +285,7 @@ int main()
         animationClock += dt;
         last = now;
 
-        handleMessages(network, reg, player, myPlayerId);
+        handleMessages(network, reg, renderer, playerEntities, myPlayerId, myEntity, Input, pendingPlayerPackets);
 
         Input.update(reg, status, network);
 
