@@ -28,6 +28,8 @@
 
 #include <functional>
 #include <SDL2/SDL.h>
+#include <arpa/inet.h>
+#include <sys/socket.h>
 
 void handleMessages(NetworkManager& network, Registry& reg, Entity player, uint32_t& myPlayerId)
 {
@@ -70,7 +72,17 @@ void handleMessages(NetworkManager& network, Registry& reg, Entity player, uint3
                     linkPayload.push_back(static_cast<uint8_t>(myPlayerId & 0xFF));
                     PreparedMessage linkMsg = factory.createMessage(OpCode::LINK, linkPayload);
                     network.sendUdp(linkMsg);
-                    std::cout << "Sent LINK message via UDP" << std::endl;
+                    
+                    // Get our local UDP port using getsockname
+                    struct sockaddr_in localAddr;
+                    socklen_t addrLen = sizeof(localAddr);
+                    int udpFd = network.getUdpClient().getSocketFd();
+                    if (getsockname(udpFd, (struct sockaddr*)&localAddr, &addrLen) == 0) {
+                        uint16_t localPort = ntohs(localAddr.sin_port);
+                        std::cout << "Sent LINK message via UDP, listening on port: " << localPort << std::endl;
+                    } else {
+                        std::cout << "Sent LINK message via UDP" << std::endl;
+                    }
                 }
                 break;
             }

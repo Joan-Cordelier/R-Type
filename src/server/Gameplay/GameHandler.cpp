@@ -79,7 +79,8 @@ void GameHandler::sendUpdatedPositionToPlayer(uint32_t playerId)
             continue;
         if (reg.getComponent<Velocity>(entity).vx == 0.f && reg.getComponent<Velocity>(entity).vy == 0.f)
             continue;
-        MessageData msg = MessageFactory::getInstance().encodeMessageMovementPlayer(entity, pos.x, pos.y);
+        MessageData payload = MessageFactory::getInstance().encodeMessageMovementPlayer(entity, pos.x, pos.y);
+        PreparedMessage msg = MessageFactory::getInstance().createMessage(OpCode::MOVE, payload);
         _session.sendUdp(playerId, msg);
     }
 }

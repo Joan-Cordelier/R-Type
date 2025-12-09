@@ -19,6 +19,7 @@ class UDPClient : public AClient {
         int connect() override;
         int run() override;
         int send(const MessageData& data);
+        int getSocketFd() const { return _socketFd; }
 };
 
 #endif /* !UDPCLIENT_HPP_ */
