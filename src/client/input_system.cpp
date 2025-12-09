@@ -53,15 +53,10 @@ void InputSystem::update(Registry& reg, SDL_Event& e, NetworkManager& networkMan
             if (!stats.canAttack())
                 return;
             MessageFactory& factory = MessageFactory::getInstance();
-            networkManager.sendUdp(factory.createMessage(OpCode::SHOOT, factory.encodeMessagePlayer(controlled)));
-            Entity projectile = reg.createEntity();
-            reg.addComponent<Position>(projectile, 0.f, 0.f);
-            auto &pos = reg.getComponent<Position>(controlled);
-            reg.getComponent<Position>(projectile).y = pos.y + 30.f;
-            reg.getComponent<Position>(projectile).x = pos.x + 52.f;
-            reg.addComponent<Velocity>(projectile, 0.f, -400.f);
-            reg.addComponent<SpriteSheets>(projectile, (std::string)"textures/projectiles/projectile_player.png", (std::string)"projectile_player", 16, 16, 0, 4, 0, true, true);
-            stats.cooldown = 1.f / static_cast<float>(stats.attack_speed);
+            std::cout << "Sending SHOOT message for entity " << controlled << std::endl;
+            MessageData payload = factory.encodeMessagePlayer(controlled);
+            std::cout << "Encoded SHOOT payload size: " << payload.size() << std::endl;
+            networkManager.sendUdp(factory.createMessage(OpCode::SHOOT, payload));
         }
     } else if (reg.hasComponent<Label>(controlled)) {
         if (e.type != 0) {

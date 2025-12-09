@@ -46,6 +46,7 @@ public:
 
     void sendUpdatedPositionToAllPlayers();
     void sendUpdatedPositionToPlayer(uint32_t playerId);
+    void sendNewProjectilesToAllPlayers();
     
 private:
     void processMessages();
@@ -53,4 +54,5 @@ private:
     void onPlayerConnect(const Player& player);
     void onPlayerDisconnect(const Player& player);
     void onPlayerMove(const MoveData& moveData);
+    void onPlayerShoot(const MoveData& shootData);
 };

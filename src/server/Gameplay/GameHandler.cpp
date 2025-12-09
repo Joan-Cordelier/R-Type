@@ -17,6 +17,10 @@ GameHandler::GameHandler(SessionManager& session, std::atomic<bool>& running)
     _messageHandler.setOnPlayerMove([this](const MoveData& moveData) {
         onPlayerMove(moveData);
     });
+
+    _messageHandler.setOnPlayerShoot([this](const MoveData& shootData) {
+        onPlayerShoot(shootData);
+    });
     
     // Set up session manager callback for disconnections
     _session.setOnPlayerDisconnect([this](const Player& player) {
@@ -49,6 +53,8 @@ void GameHandler::run()
         // Send game packet to players
         sendUpdatedPositionToAllPlayers();
 
+        sendNewProjectilesToAllPlayers();
+
         // Frame rate limiting
         auto frameEnd = std::chrono::steady_clock::now();
         float frameTime = std::chrono::duration<float>(frameEnd - currentTime).count();
@@ -66,6 +72,20 @@ void GameHandler::sendUpdatedPositionToAllPlayers()
 {
     for (const auto& [playerId, entity] : playerEntities) {
         sendUpdatedPositionToPlayer(playerId);
+    }
+}
+
+void GameHandler::sendNewProjectilesToAllPlayers()
+{
+    for (const auto& [playerId, entity] : playerEntities) {
+        for (Entity e : reg.viewEntitiesWith<Position, Velocity>()) {
+            if (reg.hasComponent<Stats>(e)) {
+                continue;
+            }
+            MessageData payload = MessageFactory::getInstance().encodeMessagePlayer(e);
+            PreparedMessage msg = MessageFactory::getInstance().createMessage(OpCode::SHOOT, payload);
+            _session.sendUdp(playerId, msg);
+        }
     }
 }
 
@@ -173,4 +193,37 @@ void GameHandler::onPlayerMove(const MoveData& moveData)
         LOG_DEBUG("Player " + std::to_string(moveData.playerId) + " position is (" + 
                   std::to_string(position.x) + ", " + std::to_string(position.y) + ")");
     }
+}
+
+void GameHandler::onPlayerShoot(const MoveData& shootData)
+{
+    auto it = playerEntities.find(shootData.playerId);
+    if (it == playerEntities.end()) {
+        LOG_WARN("Shoot received for unknown player: " + std::to_string(shootData.playerId));
+        return;
+    }
+    
+    Entity entity = it->second;
+    if (!reg.hasComponent<Stats>(entity)) {
+        LOG_WARN("Shoot received for player without Stats component: " + std::to_string(shootData.playerId));
+        return;
+    }
+
+    auto &stats = reg.getComponent<Stats>(entity);
+    if (!stats.canAttack()) {
+        LOG_DEBUG("Player " + std::to_string(shootData.playerId) + " tried to shoot but is on cooldown");
+        return;
+    }
+
+    Entity projectile = reg.createEntity();
+    reg.addComponent<Position>(projectile, 0.f, 0.f);
+    auto &pos = reg.getComponent<Position>(entity);
+    reg.getComponent<Position>(projectile).y = pos.y + 30.f;
+    reg.getComponent<Position>(projectile).x = pos.x + 52.f;
+    reg.addComponent<Velocity>(projectile, 0.f, -400.f);
+    reg.addComponent<SpriteSheets>(projectile, (std::string)"textures/projectiles/projectile_player.png", (std::string)"projectile_player", 16, 16, 0, 4, 0, true, true);
+
+    LOG_INFO("Player " + std::to_string(shootData.playerId) + " shot a projectile");
+
+    stats.cooldown = 1.f / static_cast<float>(stats.attack_speed);
 }

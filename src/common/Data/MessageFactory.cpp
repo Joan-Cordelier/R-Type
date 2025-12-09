@@ -159,7 +159,6 @@ PreparedMessage MessageFactory::createMessage(OpCode opCode, const MessageData& 
 
 MessageData MessageFactory::encodeMessagePlayer(Entity entity) const
 {
-    if (!entity) return MessageData{};
     MessageData data;
     data.push_back(static_cast<uint8_t>((entity >> 24) & 0xFF));
     data.push_back(static_cast<uint8_t>((entity >> 16) & 0xFF));

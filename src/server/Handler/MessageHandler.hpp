@@ -23,6 +23,7 @@ class MessageHandler {
     public:
         using PlayerCallback = std::function<void(const Player&)>;
         using MoveCallback = std::function<void(const MoveData&)>;
+        using ShootCallback = std::function<void(const MoveData&)>;
         
         MessageHandler(SessionManager& session, std::atomic<bool>& running);
         ~MessageHandler() = default;
@@ -34,6 +35,7 @@ class MessageHandler {
         void setOnPlayerConnect(PlayerCallback callback) { _onPlayerConnect = callback; }
         void setOnPlayerDisconnect(PlayerCallback callback) { _onPlayerDisconnect = callback; }
         void setOnPlayerMove(MoveCallback callback) { _onPlayerMove = callback; }
+        void setOnPlayerShoot(ShootCallback callback) { _onPlayerShoot = callback; }
 
     private:
         SessionManager& _session;
@@ -42,6 +44,7 @@ class MessageHandler {
         PlayerCallback _onPlayerConnect;
         PlayerCallback _onPlayerDisconnect;
         MoveCallback _onPlayerMove;
+        ShootCallback _onPlayerShoot;
         
         void dispatchMessage(DecodedMessage msg);
         

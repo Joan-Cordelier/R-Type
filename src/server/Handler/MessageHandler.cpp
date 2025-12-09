@@ -212,9 +212,22 @@ void MessageHandler::handleMove(const DecodedMessage& msg)
 void MessageHandler::handleShoot(const DecodedMessage& msg)
 {
     LOG_DEBUG("Handling SHOOT message");
-    // TODO: Implement shoot logic
-    // - Parse shoot data from msg.data
-    // - Create bullet entity in ECS
-    // - Broadcast bullet spawn to other players
-    (void)msg;
+
+    if (msg.data.size() < 4) {
+        LOG_WARN("SHOOT message with invalid payload size: " + std::to_string(msg.data.size()));
+        return;
+    }
+
+    Entity entity =
+        (static_cast<Entity>(msg.data[0]) << 24) |
+        (static_cast<Entity>(msg.data[1]) << 16) |
+        (static_cast<Entity>(msg.data[2]) << 8) |
+        static_cast<Entity>(msg.data[3]);
+
+    LOG_DEBUG("SHOOT: playerId=" + std::to_string(msg.playerId) + " entity=" + std::to_string(entity));
+
+    if (_onPlayerShoot) {
+        MoveData shootData{msg.playerId, 0.f, 0.f};
+        _onPlayerShoot(shootData);
+    }
 }
