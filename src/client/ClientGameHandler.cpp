@@ -1,0 +1,226 @@
+#include "ClientGameHandler.hpp"
+
+ClientGameHandler::ClientGameHandler()
+{
+    // Load resources
+    _renderer.loadSpriteSheet("textures/ships/player_ship.png", "player_ship", 343, 383);
+    _renderer.loadTexture("textures/play_button/default.png", "play_button");
+    _renderer.loadSpriteSheet("textures/projectiles/projectile_player.png", "projectile_player", 16, 16);
+    _renderer.loadFont("font/josefin-sans/JosefinSans-Regular.ttf", 40, "default_font");
+
+    // Set up entities
+    _reg.addComponent<Position>(start_button, 400.f, 300.f);
+    _reg.addComponent<Sprite>(start_button, (std::string)"textures/play_button/default.png", (std::string)"play_button", 300, 150, 0, true);
+    _reg.addComponent<Button>(start_button, (std::string)"start_game", 1, true);
+
+    _reg.addComponent<Position>(label_input, 400.f, 200.f);
+    _reg.addComponent<Label>(label_input, (std::string)"", (std::string)"font/josefin-sans/JosefinSans-Regular.ttf", (std::string)"default_font", Color(255, 255, 255), 0, true);
+
+    // Register button handler
+    _buttonsys.registerHandler("start_game", [&](Registry& r, Entity e) {
+        ip_adress = _reg.getComponent<Label>(label_input).text;
+        if (ip_adress == "") {
+            ip_adress = "127.0.0.1";
+        }
+        if (_network.connect(ip_adress, 4789, 4790) != 0) {
+            std::cerr << "Failed to connect to server" << std::endl;
+            return;
+        }
+        _network.start();
+        r.getComponent<Label>(label_input).visible = false;
+        r.getComponent<Sprite>(e).visible = false;
+        r.getComponent<Button>(e).enabled = false;
+
+        MessageFactory& factory = MessageFactory::getInstance();
+        PreparedMessage msg = factory.createMessage(OpCode::CONNECT, {});
+        _network.sendTcp(msg);
+    });
+}
+
+int ClientGameHandler::run()
+{
+    Uint64 last = SDL_GetPerformanceCounter();
+    _input.setControlled(label_input);
+
+    while (running) {
+        _renderer.window.processSDLEvents();
+        SDL_Event status = _renderer.window.pollEvent();
+        if (status.type == SDL_QUIT)
+            break;
+
+        Uint64 now = SDL_GetPerformanceCounter();
+        double dt = (double)(now - last) / SDL_GetPerformanceFrequency();
+        animationClock += dt;
+        last = now;
+
+        handleMessages();
+
+        _input.update(_reg, status, _network);
+
+        _movement.update(_reg, static_cast<float>(dt));
+
+        _buttonsys.update(_reg);
+
+        _renderer.clear();
+
+        _statsys.update(_reg, static_cast<float>(dt));
+
+        _spritesys.render(_reg, [&](const SpriteSystem::TextureId& tid, int width, int height, int x, int y, int z) {
+            _renderer.drawTexture(tid, RenderLayer::GAME, z, Rect{x, y, width, height});
+        });
+
+        _spritesheetsys.render(_reg, [&](const SpriteSheetSystem::TextureId& tid, int frameIndex, int width, int height, int x, int y, int z) {
+            _renderer.drawFrame(tid, frameIndex, RenderLayer::GAME, z, Rect{x, y, width, height});
+        }, animationClock);
+
+        _labelsys.render(_reg, [&](const LabelSystem::TextId& tid, std::string& text, int x, int y, Color color) {
+            _renderer.drawFont(tid, text, x, y, color, RenderLayer::OVERLAY, 0);
+        });
+
+        _renderer.render();
+    }
+
+    return 0;
+}
+
+void ClientGameHandler::handleMessages()
+{
+    std::optional<DecodedMessage> msg;
+    while (_network.hasMessages()) {
+        msg = _network.popMessage(Priority::CRITICAL);
+        if (msg.has_value() == false) {
+            msg = _network.popMessage(Priority::HIGH);
+            if (msg.has_value() == false) {
+                msg = _network.popMessage(Priority::MEDIUM);
+                if (msg.has_value() == false) {
+                    msg = _network.popMessage(Priority::LOW);
+                    if (msg.has_value() == false) {
+                        msg = _network.popMessage(Priority::ERROR);
+                        if (msg.has_value() == false) {
+                            break;
+                        }
+                    }
+                }
+            }
+        }
+        switch (msg->opCode) {
+            case OpCode::CONNECT_ACK: {
+                // Server responds to CONNECT with CONNECT_ACK containing playerId
+                if (msg->data.size() >= 4) {
+                    myPlayerId = 
+                        (static_cast<uint32_t>(msg->data[0]) << 24) |
+                        (static_cast<uint32_t>(msg->data[1]) << 16) |
+                        (static_cast<uint32_t>(msg->data[2]) << 8) |
+                        static_cast<uint32_t>(msg->data[3]);
+                    std::cout << "Received playerId: " << myPlayerId << std::endl;
+
+                    // Send LINK message via UDP to associate our UDP address with our playerId
+                    MessageFactory& factory = MessageFactory::getInstance();
+                    std::vector<uint8_t> linkPayload;
+                    linkPayload.push_back(static_cast<uint8_t>((myPlayerId >> 24) & 0xFF));
+                    linkPayload.push_back(static_cast<uint8_t>((myPlayerId >> 16) & 0xFF));
+                    linkPayload.push_back(static_cast<uint8_t>((myPlayerId >> 8) & 0xFF));
+                    linkPayload.push_back(static_cast<uint8_t>(myPlayerId & 0xFF));
+                    PreparedMessage linkMsg = factory.createMessage(OpCode::LINK, linkPayload);
+                    _network.sendUdp(linkMsg);
+                    
+                    // Get our local UDP port using getsockname
+                    struct sockaddr_in localAddr;
+                    socklen_t addrLen = sizeof(localAddr);
+                    int udpFd = _network.getUdpClient().getSocketFd();
+                    if (getsockname(udpFd, (struct sockaddr*)&localAddr, &addrLen) == 0) {
+                        uint16_t localPort = ntohs(localAddr.sin_port);
+                        std::cout << "Sent LINK message via UDP, listening on port: " << localPort << std::endl;
+                    } else {
+                        std::cout << "Sent LINK message via UDP" << std::endl;
+                    }
+                    
+                    // Process any PLAYER packets that arrived before CONNECT_ACK
+                    for (auto& pendingMsg : pendingPlayerPackets) {
+                        handlePlayerPacket(pendingMsg);
+                    }
+                    pendingPlayerPackets.clear();
+                }
+                break;
+            }
+            case OpCode::PLAYER: {
+                handlePlayerPacket(*msg);
+                break;
+            }
+            case OpCode::MOVE: {
+                // MOVE packet: entityId (4) + x (4) + y (4)
+                if (msg->data.size() >= 12) {
+                    Entity serverEntity = 
+                        (static_cast<Entity>(msg->data[0]) << 24) |
+                        (static_cast<Entity>(msg->data[1]) << 16) |
+                        (static_cast<Entity>(msg->data[2]) << 8) |
+                        static_cast<Entity>(msg->data[3]);
+                    
+                    float x = *reinterpret_cast<const float*>(&msg->data[4]);
+                    float y = *reinterpret_cast<const float*>(&msg->data[8]);
+                    
+                    auto it = playerEntities.find(serverEntity);
+                    if (it != playerEntities.end()) {
+                        Entity localEntity = it->second;
+                        _reg.getComponent<Position>(localEntity).x = x;
+                        _reg.getComponent<Position>(localEntity).y = y;
+                    }
+                }
+                break;
+            }
+            default:
+                break;
+        }
+    } 
+}
+
+void ClientGameHandler::handlePlayerPacket(const DecodedMessage& msg)
+{
+    // PLAYER packet: playerId (4) + entityId (4) + x (4) + y (4)
+    if (msg.data.size() < 16) {
+        return;
+    }
+    if (myPlayerId == 0) { // we don't have our playerId yet, queue the packet for later
+        pendingPlayerPackets.push_back(msg);
+        return;
+    }
+
+    uint32_t playerId = 
+        (static_cast<uint32_t>(msg.data[0]) << 24) |
+        (static_cast<uint32_t>(msg.data[1]) << 16) |
+        (static_cast<uint32_t>(msg.data[2]) << 8) |
+        static_cast<uint32_t>(msg.data[3]);
+    
+    Entity serverEntity =
+        (static_cast<Entity>(msg.data[4]) << 24) |
+        (static_cast<Entity>(msg.data[5]) << 16) |
+        (static_cast<Entity>(msg.data[6]) << 8) |
+        static_cast<Entity>(msg.data[7]);
+
+    float x = *reinterpret_cast<const float*>(&msg.data[8]);
+    float y = *reinterpret_cast<const float*>(&msg.data[12]);
+
+    auto it = playerEntities.find(serverEntity);
+    if (it == playerEntities.end()) { //we dont have this player yet, create it
+        Entity localEntity = _reg.createEntity();
+        _reg.addComponent<Position>(localEntity, x, y);
+        _reg.addComponent<Velocity>(localEntity, 0.f, 0.f);
+        _reg.addComponent<SpriteSheets>(localEntity, std::string("textures/ships/player_ship.png"), std::string("player_ship"), 120, 130, 1, 3, 0, true, true);
+        _reg.addComponent<Stats>(localEntity, 100, 100, 1, 0.f, 10, 1, 200);
+                        
+        playerEntities[serverEntity] = localEntity;
+                        
+        // If this is our own player, set it as controlled
+        if (playerId == myPlayerId) {
+            myEntity = localEntity;
+            _input.setControlled(localEntity);
+            std::cout << "Created my player entity (serverId: " << serverEntity << ", localId: " << localEntity << ") at (" << x << ", " << y << ")" << std::endl;
+        } else {
+            std::cout << "Created other player entity (serverId: " << serverEntity << ", localId: " << localEntity << ") at (" << x << ", " << y << ")" << std::endl;
+        }
+    } else { // We already have this player, updating the positon
+        Entity localEntity = it->second;
+        _reg.getComponent<Position>(localEntity).x = x;
+        _reg.getComponent<Position>(localEntity).y = y;
+    }
+}
