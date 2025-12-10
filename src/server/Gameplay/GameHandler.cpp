@@ -71,6 +71,10 @@ void GameHandler::sendUpdatedPositionToAllPlayers()
     for (const auto& [playerId, entity] : playerEntities) {
         sendUpdatedPositionToPlayer(playerId);
     }
+    for (const auto& [playerId, entity] : playerEntities) {
+        wasMoving[entity] = reg.hasComponent<Velocity>(entity) &&
+                             (reg.getComponent<Velocity>(entity).vx != 0.f || reg.getComponent<Velocity>(entity).vy != 0.f);
+    }
 }
 
 void GameHandler::sendNewProjectilesToAllPlayers(Entity player)
@@ -100,9 +104,6 @@ void GameHandler::sendUpdatedPositionToPlayer(uint32_t playerId)
             PreparedMessage msg = MessageFactory::getInstance().createMessage(OpCode::MOVE, payload);
             _session.sendUdp(playerId, msg);
         }
-        
-        // Update movement state for next frame
-        wasMoving[entity] = isMoving;
     }
 }
 
