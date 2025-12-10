@@ -18,7 +18,7 @@ GameHandler::GameHandler(SessionManager& session, std::atomic<bool>& running)
         onPlayerMove(moveData);
     });
 
-    _messageHandler.setOnPlayerShoot([this](const MoveData& shootData) {
+    _messageHandler.setOnPlayerShoot([this](const ShootData& shootData) {
         onPlayerShoot(shootData);
     });
     
@@ -195,7 +195,7 @@ void GameHandler::onPlayerMove(const MoveData& moveData)
     }
 }
 
-void GameHandler::onPlayerShoot(const MoveData& shootData)
+void GameHandler::onPlayerShoot(const ShootData& shootData)
 {
     auto it = playerEntities.find(shootData.playerId);
     if (it == playerEntities.end()) {
@@ -220,8 +220,7 @@ void GameHandler::onPlayerShoot(const MoveData& shootData)
     auto &pos = reg.getComponent<Position>(entity);
     reg.getComponent<Position>(projectile).y = pos.y + 30.f;
     reg.getComponent<Position>(projectile).x = pos.x + 52.f;
-    reg.addComponent<Velocity>(projectile, 0.f, -400.f);
-    reg.addComponent<SpriteSheets>(projectile, (std::string)"textures/projectiles/projectile_player.png", (std::string)"projectile_player", 16, 16, 0, 4, 0, true, true);
+    // reg.addComponent<Velocity>(projectile, 0.f, -400.f);
 
     LOG_INFO("Player " + std::to_string(shootData.playerId) + " shot a projectile");
 

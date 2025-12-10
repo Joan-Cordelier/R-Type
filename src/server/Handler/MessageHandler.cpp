@@ -227,7 +227,7 @@ void MessageHandler::handleShoot(const DecodedMessage& msg)
     LOG_DEBUG("SHOOT: playerId=" + std::to_string(msg.playerId) + " entity=" + std::to_string(entity));
 
     if (_onPlayerShoot) {
-        MoveData shootData{msg.playerId, 0.f, 0.f};
+        ShootData shootData{msg.playerId};
         _onPlayerShoot(shootData);
     }
 }

@@ -19,11 +19,15 @@ struct MoveData {
     float vy;
 };
 
+struct ShootData {
+    uint32_t playerId;
+};
+
 class MessageHandler {
     public:
         using PlayerCallback = std::function<void(const Player&)>;
         using MoveCallback = std::function<void(const MoveData&)>;
-        using ShootCallback = std::function<void(const MoveData&)>;
+        using ShootCallback = std::function<void(const ShootData&)>;
         
         MessageHandler(SessionManager& session, std::atomic<bool>& running);
         ~MessageHandler() = default;

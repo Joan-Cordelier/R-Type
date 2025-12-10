@@ -53,10 +53,9 @@ void InputSystem::update(Registry& reg, SDL_Event& e, NetworkManager& networkMan
             if (!stats.canAttack())
                 return;
             MessageFactory& factory = MessageFactory::getInstance();
-            std::cout << "Sending SHOOT message for entity " << controlled << std::endl;
             MessageData payload = factory.encodeMessagePlayer(controlled);
-            std::cout << "Encoded SHOOT payload size: " << payload.size() << std::endl;
             networkManager.sendUdp(factory.createMessage(OpCode::SHOOT, payload));
+            stats.cooldown = 1.f / static_cast<float>(stats.attack_speed);
         }
     } else if (reg.hasComponent<Label>(controlled)) {
         if (e.type != 0) {

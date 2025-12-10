@@ -54,5 +54,5 @@ private:
     void onPlayerConnect(const Player& player);
     void onPlayerDisconnect(const Player& player);
     void onPlayerMove(const MoveData& moveData);
-    void onPlayerShoot(const MoveData& shootData);
+    void onPlayerShoot(const ShootData& shootData);
 };
