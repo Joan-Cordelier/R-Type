@@ -46,7 +46,7 @@ public:
 
     void sendUpdatedPositionToAllPlayers();
     void sendUpdatedPositionToPlayer(uint32_t playerId);
-    void sendNewProjectilesToAllPlayers();
+    void sendNewProjectilesToAllPlayers(Entity player);
     
 private:
     void processMessages();

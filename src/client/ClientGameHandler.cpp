@@ -184,10 +184,8 @@ void ClientGameHandler::handleMessages()
                     if (it != playerEntities.end()) {
                         Entity localEntity = it->second;
                         Entity projectile = _reg.createEntity();
-                        _reg.addComponent<Position>(projectile, 0.f, 0.f);
-                        auto &pos = _reg.getComponent<Position>(localEntity);
-                        _reg.getComponent<Position>(projectile).y = pos.y + 30.f;
-                        _reg.getComponent<Position>(projectile).x = pos.x + 52.f;
+                        Position &pos = _reg.getComponent<Position>(localEntity);
+                        _reg.addComponent<Position>(projectile, pos.x + 52.f, pos.y + 30.f);
                         _reg.addComponent<Velocity>(projectile, 0.f, -400.f);
                         _reg.addComponent<SpriteSheets>(projectile, (std::string)"textures/projectiles/projectile_player.png", (std::string)"projectile_player", 16, 16, 0, 4, 0, true, true);
                     }

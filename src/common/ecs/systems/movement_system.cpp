@@ -8,13 +8,20 @@ void MovementSystem::update(Registry& reg, float dt) {
     auto posArr = reg.componentArray<Position>();
     auto velArr = reg.componentArray<Velocity>();
     auto stat = reg.componentArray<Stats>();
-    if (!posArr || !velArr) return;
+    if (!posArr || !velArr || !stat) return;
 
     for (auto e : entities) {
         if (!posArr->has(e) || !velArr->has(e)) continue;
-        auto &p = posArr->get(e);
-        auto &v = velArr->get(e);
-        p.x += v.vx * dt * stat->get(e).movement_speed;
-        p.y += v.vy * dt * stat->get(e).movement_speed;
+        if (!stat->has(e)) {
+            auto &p = posArr->get(e);
+            auto &v = velArr->get(e);
+            p.x += v.vx * dt;
+            p.y += v.vy * dt;
+        } else {
+            auto &p = posArr->get(e);
+            auto &v = velArr->get(e);
+            p.x += v.vx * dt * stat->get(e).movement_speed;
+            p.y += v.vy * dt * stat->get(e).movement_speed;
+        }
     }
 }

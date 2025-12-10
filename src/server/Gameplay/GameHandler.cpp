@@ -53,8 +53,6 @@ void GameHandler::run()
         // Send game packet to players
         sendUpdatedPositionToAllPlayers();
 
-        sendNewProjectilesToAllPlayers();
-
         // Frame rate limiting
         auto frameEnd = std::chrono::steady_clock::now();
         float frameTime = std::chrono::duration<float>(frameEnd - currentTime).count();
@@ -75,17 +73,12 @@ void GameHandler::sendUpdatedPositionToAllPlayers()
     }
 }
 
-void GameHandler::sendNewProjectilesToAllPlayers()
+void GameHandler::sendNewProjectilesToAllPlayers(Entity player)
 {
     for (const auto& [playerId, entity] : playerEntities) {
-        for (Entity e : reg.viewEntitiesWith<Position, Velocity>()) {
-            if (reg.hasComponent<Stats>(e)) {
-                continue;
-            }
-            MessageData payload = MessageFactory::getInstance().encodeMessagePlayer(e);
-            PreparedMessage msg = MessageFactory::getInstance().createMessage(OpCode::SHOOT, payload);
-            _session.sendUdp(playerId, msg);
-        }
+        MessageData payload = MessageFactory::getInstance().encodeMessagePlayer(player);
+        PreparedMessage msg = MessageFactory::getInstance().createMessage(OpCode::SHOOT, payload);
+        _session.sendUdp(playerId, msg);
     }
 }
 
@@ -220,9 +213,11 @@ void GameHandler::onPlayerShoot(const ShootData& shootData)
     auto &pos = reg.getComponent<Position>(entity);
     reg.getComponent<Position>(projectile).y = pos.y + 30.f;
     reg.getComponent<Position>(projectile).x = pos.x + 52.f;
-    // reg.addComponent<Velocity>(projectile, 0.f, -400.f);
+    reg.addComponent<Velocity>(projectile, 0.f, -400.f);
 
     LOG_INFO("Player " + std::to_string(shootData.playerId) + " shot a projectile");
 
     stats.cooldown = 1.f / static_cast<float>(stats.attack_speed);
+
+    sendNewProjectilesToAllPlayers(entity);
 }
