@@ -21,16 +21,18 @@ std::array<MessageFactory::Message, 256> MessageFactory::initMessageTable()
 
     table[INCOMPLETE] = {0, Priority::ERROR};
     table[PARSING_ERROR] = {0, Priority::ERROR};
-    table[DEATH] = {0, Priority::CRITICAL};
-    table[SHOOT] = {4, Priority::HIGH};
-    table[MOVE] = {12, Priority::LOW};
-    table[CONNECT] = {0, Priority::CRITICAL};      // Client request (no payload)
-    table[CONNECT_ACK] = {4, Priority::CRITICAL};  // Server response with playerId (4 bytes)
+    table[DEATH] = {5, Priority::CRITICAL};
+    table[SHOOT] = {18, Priority::HIGH};
+    table[MOVE_SYNC] = {13, Priority::LOW};
+    table[MOVE_INPUT] = {12, Priority::LOW};
+    table[CONNECT] = {0, Priority::CRITICAL};
+    table[CONNECT_ACK] = {4, Priority::CRITICAL};
     table[START] = {0, Priority::CRITICAL}; 
     table[JOIN] = {1, Priority::CRITICAL}; 
     table[CRASH] = {1, Priority::CRITICAL}; 
-    table[PLAYER] = {16, Priority::CRITICAL}; // playerid (4) + entityId (4) + x (4) + y (4)
+    table[PLAYER] = {16, Priority::CRITICAL};
     table[LINK] = {4, Priority::CRITICAL};
+    table[ENEMY] = {12, Priority::HIGH};
 
     return table;
 }
@@ -167,32 +169,35 @@ MessageData MessageFactory::encodeMessagePlayer(Entity entity) const
     return data;
 }
 
-MessageData MessageFactory::encodeMessageMovementPlayer(Entity entity, float x, float y) const
+MessageData MessageFactory::encodeMessageProjectile(Entity projectileEntity, Entity parentEntity, const std::string& ownerType) const
 {
     MessageData data;
-    data.push_back(static_cast<uint8_t>((entity >> 24) & 0xFF));
-    data.push_back(static_cast<uint8_t>((entity >> 16) & 0xFF));
-    data.push_back(static_cast<uint8_t>((entity >> 8) & 0xFF));
-    data.push_back(static_cast<uint8_t>(entity & 0xFF));
     
-    const uint8_t* px = reinterpret_cast<const uint8_t*>(&x);
-    const uint8_t* py = reinterpret_cast<const uint8_t*>(&y);
+    data.push_back(static_cast<uint8_t>((projectileEntity >> 24) & 0xFF));
+    data.push_back(static_cast<uint8_t>((projectileEntity >> 16) & 0xFF));
+    data.push_back(static_cast<uint8_t>((projectileEntity >> 8) & 0xFF));
+    data.push_back(static_cast<uint8_t>(projectileEntity & 0xFF));
     
-    data.insert(data.end(), px, px + sizeof(float));
-    data.insert(data.end(), py, py + sizeof(float));
+    data.push_back(static_cast<uint8_t>((parentEntity >> 24) & 0xFF));
+    data.push_back(static_cast<uint8_t>((parentEntity >> 16) & 0xFF));
+    data.push_back(static_cast<uint8_t>((parentEntity >> 8) & 0xFF));
+    data.push_back(static_cast<uint8_t>(parentEntity & 0xFF));
+
+    std::string fixedOwnerType = ownerType;
+    fixedOwnerType.resize(10, '\0');
+    for (char c : fixedOwnerType) {
+        data.push_back(static_cast<uint8_t>(c));
+    }
     
     return data;
 }
 
-MessageData MessageFactory::encodePlayerInfo(uint32_t playerId, Entity entity, float x, float y) const
+MessageData MessageFactory::encodeMessageMove(EntityType type, Entity entity, float x, float y) const
 {
     MessageData data;
     
-    // Player ID (4 bytes, big-endian)
-    data.push_back(static_cast<uint8_t>((playerId >> 24) & 0xFF));
-    data.push_back(static_cast<uint8_t>((playerId >> 16) & 0xFF));
-    data.push_back(static_cast<uint8_t>((playerId >> 8) & 0xFF));
-    data.push_back(static_cast<uint8_t>(playerId & 0xFF));
+    // Entity Type (1 byte)
+    data.push_back(static_cast<uint8_t>(type));
     
     // Entity ID (4 bytes, big-endian)
     data.push_back(static_cast<uint8_t>((entity >> 24) & 0xFF));
@@ -211,9 +216,118 @@ MessageData MessageFactory::encodePlayerInfo(uint32_t playerId, Entity entity, f
     return data;
 }
 
+MessageData MessageFactory::encodeMessageDeath(EntityType type, Entity entity) const
+{
+    MessageData data;
+    
+    // Entity Type (1 byte)
+    data.push_back(static_cast<uint8_t>(type));
+    
+    // Entity ID (4 bytes, big-endian)
+    data.push_back(static_cast<uint8_t>((entity >> 24) & 0xFF));
+    data.push_back(static_cast<uint8_t>((entity >> 16) & 0xFF));
+    data.push_back(static_cast<uint8_t>((entity >> 8) & 0xFF));
+    data.push_back(static_cast<uint8_t>(entity & 0xFF));
+    
+    return data;
+}
+
+MessageData MessageFactory::encodeMessageMoveInput(Entity entity, float vx, float vy) const
+{
+    MessageData data;
+    
+    data.push_back(static_cast<uint8_t>((entity >> 24) & 0xFF));
+    data.push_back(static_cast<uint8_t>((entity >> 16) & 0xFF));
+    data.push_back(static_cast<uint8_t>((entity >> 8) & 0xFF));
+    data.push_back(static_cast<uint8_t>(entity & 0xFF));
+    
+    const uint8_t* pvx = reinterpret_cast<const uint8_t*>(&vx);
+    data.insert(data.end(), pvx, pvx + sizeof(float));
+    
+    const uint8_t* pvy = reinterpret_cast<const uint8_t*>(&vy);
+    data.insert(data.end(), pvy, pvy + sizeof(float));
+    
+    return data;
+}
+
+MessageData MessageFactory::encodeMessageEnemy(Entity entity, float x, float y) const
+{
+    MessageData data;
+    
+    data.push_back(static_cast<uint8_t>((entity >> 24) & 0xFF));
+    data.push_back(static_cast<uint8_t>((entity >> 16) & 0xFF));
+    data.push_back(static_cast<uint8_t>((entity >> 8) & 0xFF));
+    data.push_back(static_cast<uint8_t>(entity & 0xFF));
+    
+    const uint8_t* px = reinterpret_cast<const uint8_t*>(&x);
+    data.insert(data.end(), px, px + sizeof(float));
+    
+    const uint8_t* py = reinterpret_cast<const uint8_t*>(&y);
+    data.insert(data.end(), py, py + sizeof(float));
+    
+    return data;
+}
+
+MessageData MessageFactory::encodePlayerInfo(uint32_t playerId, Entity entity, float x, float y) const
+{
+    MessageData data;
+    
+    data.push_back(static_cast<uint8_t>((playerId >> 24) & 0xFF));
+    data.push_back(static_cast<uint8_t>((playerId >> 16) & 0xFF));
+    data.push_back(static_cast<uint8_t>((playerId >> 8) & 0xFF));
+    data.push_back(static_cast<uint8_t>(playerId & 0xFF));
+    
+    data.push_back(static_cast<uint8_t>((entity >> 24) & 0xFF));
+    data.push_back(static_cast<uint8_t>((entity >> 16) & 0xFF));
+    data.push_back(static_cast<uint8_t>((entity >> 8) & 0xFF));
+    data.push_back(static_cast<uint8_t>(entity & 0xFF));
+    
+    const uint8_t* px = reinterpret_cast<const uint8_t*>(&x);
+    data.insert(data.end(), px, px + sizeof(float));
+    
+    const uint8_t* py = reinterpret_cast<const uint8_t*>(&y);
+    data.insert(data.end(), py, py + sizeof(float));
+    
+    return data;
+}
+
 MessageData MessageFactory::encodeMessageServer(std::string type, Entity entity, Entity entity_changes) const
 {
     MessageData data;
-    (void)type; (void)entity; (void)entity_changes;
+    
+    std::string fixedType = type;
+    fixedType.resize(10, '\0');
+    for (char c : fixedType) {
+        data.push_back(static_cast<uint8_t>(c));
+    }
+    
+    data.push_back(static_cast<uint8_t>((entity >> 24) & 0xFF));
+    data.push_back(static_cast<uint8_t>((entity >> 16) & 0xFF));
+    data.push_back(static_cast<uint8_t>((entity >> 8) & 0xFF));
+    data.push_back(static_cast<uint8_t>(entity & 0xFF));
+    
+    data.push_back(static_cast<uint8_t>((entity_changes >> 24) & 0xFF));
+    data.push_back(static_cast<uint8_t>((entity_changes >> 16) & 0xFF));
+    data.push_back(static_cast<uint8_t>((entity_changes >> 8) & 0xFF));
+    data.push_back(static_cast<uint8_t>(entity_changes & 0xFF));
+    
+    return data;
+}
+
+MessageData MessageFactory::encodeMessageMovementPlayer(Entity entity, float x, float y) const
+{
+    MessageData data;
+    
+    data.push_back(static_cast<uint8_t>((entity >> 24) & 0xFF));
+    data.push_back(static_cast<uint8_t>((entity >> 16) & 0xFF));
+    data.push_back(static_cast<uint8_t>((entity >> 8) & 0xFF));
+    data.push_back(static_cast<uint8_t>(entity & 0xFF));
+    
+    const uint8_t* px = reinterpret_cast<const uint8_t*>(&x);
+    data.insert(data.end(), px, px + sizeof(float));
+    
+    const uint8_t* py = reinterpret_cast<const uint8_t*>(&y);
+    data.insert(data.end(), py, py + sizeof(float));
+    
     return data;
 }

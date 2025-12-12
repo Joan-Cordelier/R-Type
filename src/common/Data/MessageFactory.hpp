@@ -15,6 +15,7 @@
 #include <netinet/in.h>
 
 #include "../ecs/entity_manager.hpp"
+#include "EntityType.hpp"
 
 enum Priority {
     CRITICAL,
@@ -28,15 +29,17 @@ enum OpCode : uint8_t {
     INCOMPLETE = 0x00,
     PARSING_ERROR = 0x01,
     DEATH = 0x02,
-    MOVE = 0x03,
     SHOOT = 0x04,
     CONNECT = 0x05,
-    CONNECT_ACK = 0x06,  // Server response with playerId (4 bytes)
+    CONNECT_ACK = 0x06,
     START = 0x07,
     JOIN = 0x08,
     CRASH = 0x09,
     PLAYER = 0x0A,
-    LINK = 0x0B  // UDP link: client sends playerId to associate UDP address
+    LINK = 0x0B,
+    ENEMY = 0x0C,
+    MOVE_SYNC = 0x0D,
+    MOVE_INPUT = 0x0E,
 };
 
 using MessageData = std::vector<uint8_t>;
@@ -100,7 +103,12 @@ class MessageFactory {
         MessageData encodeMessageMovementPlayer(Entity entity, float x, float y) const;
         MessageData encodePlayerInfo(uint32_t playerId, Entity entity, float x, float y) const;
         MessageData encodeMessageServer(std::string type, Entity entity, Entity entity_changes) const;
-
+        MessageData encodeMessageMove(EntityType type, Entity entity, float x, float y) const;
+        MessageData encodeMessageDeath(EntityType type, Entity entity) const;
+        MessageData encodeMessageEnemy(Entity entity, float x, float y) const;
+        MessageData encodeMessageProjectile(Entity projectileEntity, Entity parentEntity, const std::string& ownerType) const;
+        MessageData encodeMessageMoveInput(Entity entity, float vx, float vy) const;
+    
     private:
         MessageFactory();
         ~MessageFactory() = default;

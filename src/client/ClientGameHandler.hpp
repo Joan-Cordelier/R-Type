@@ -32,6 +32,8 @@ private:
     NetworkManager _network;
 
     std::map<Entity, Entity> playerEntities;
+    std::map<Entity, Entity> enemyEntities;
+    std::map<Entity, Entity> projectileEntities;
     std::vector<DecodedMessage> pendingPlayerPackets;
 
     double animationClock = 0.0;

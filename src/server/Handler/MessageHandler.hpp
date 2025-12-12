@@ -40,6 +40,7 @@ class MessageHandler {
         void setOnPlayerDisconnect(PlayerCallback callback) { _onPlayerDisconnect = callback; }
         void setOnPlayerMove(MoveCallback callback) { _onPlayerMove = callback; }
         void setOnPlayerShoot(ShootCallback callback) { _onPlayerShoot = callback; }
+        void setOnPlayerLink(std::function<void(uint32_t)> callback) { _onPlayerLink = callback; }
 
     private:
         SessionManager& _session;
@@ -49,13 +50,14 @@ class MessageHandler {
         PlayerCallback _onPlayerDisconnect;
         MoveCallback _onPlayerMove;
         ShootCallback _onPlayerShoot;
+        std::function<void(uint32_t)> _onPlayerLink;
         
         void dispatchMessage(DecodedMessage msg);
         
         void handleConnect(const DecodedMessage& msg);
         void handleLink(const DecodedMessage& msg);
         void handleDeath(const DecodedMessage& msg);
-        void handleMove(const DecodedMessage& msg);
+        void handleMoveInput(const DecodedMessage& msg);
         void handleShoot(const DecodedMessage& msg);
 };
 

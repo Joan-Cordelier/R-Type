@@ -9,6 +9,7 @@
 #include "../common/ecs/components/position.hpp"
 #include "../common/ecs/components/spritesheet.hpp"
 #include "../common/ecs/components/stats.hpp"
+#include "../common/Data/EntityType.hpp"
 
 #include "input_system.hpp"
 #include "../common/ecs/components/velocity.hpp"
@@ -43,7 +44,8 @@ void InputSystem::update(Registry& reg, SDL_Event& e, NetworkManager& networkMan
             last_x = vx;
             last_y = vy;
             MessageFactory& factory = MessageFactory::getInstance();
-            networkManager.sendUdp(factory.createMessage(OpCode::MOVE, factory.encodeMessageMovementPlayer(controlled, vx, vy)));
+            MessageData payload = factory.encodeMessageMoveInput(controlled, vx, vy);
+            networkManager.sendUdp(factory.createMessage(OpCode::MOVE_INPUT, payload));
         }
 
         if (ks[SDL_SCANCODE_SPACE]) {
@@ -53,9 +55,8 @@ void InputSystem::update(Registry& reg, SDL_Event& e, NetworkManager& networkMan
             if (!stats.canAttack())
                 return;
             MessageFactory& factory = MessageFactory::getInstance();
-            MessageData payload = factory.encodeMessagePlayer(controlled);
+            MessageData payload = factory.encodeMessageProjectile(0, controlled, std::string("player"));
             networkManager.sendUdp(factory.createMessage(OpCode::SHOOT, payload));
-            stats.cooldown = 1.f / static_cast<float>(stats.attack_speed);
         }
     } else if (reg.hasComponent<Label>(controlled)) {
         if (e.type != 0) {

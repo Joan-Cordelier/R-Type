@@ -1,5 +1,6 @@
 #include "GameHandler.hpp"
 #include "../Logs/Logger.hpp"
+#include "../../common/Data/EntityType.hpp"
 
 #include <chrono>
 #include <thread>
@@ -20,6 +21,10 @@ GameHandler::GameHandler(SessionManager& session, std::atomic<bool>& running)
 
     _messageHandler.setOnPlayerShoot([this](const ShootData& shootData) {
         onPlayerShoot(shootData);
+    });
+    
+    _messageHandler.setOnPlayerLink([this](uint32_t playerId) {
+        onPlayerLinked(playerId);
     });
     
     // Set up session manager callback for disconnections
@@ -77,19 +82,30 @@ void GameHandler::sendUpdatedPositionToAllPlayers()
     }
 }
 
-void GameHandler::sendNewProjectilesToAllPlayers(Entity player)
+void GameHandler::sendNewProjectilesToAllPlayers(Entity parentEntity, Entity projectileEntity)
 {
+    std::string ownerType = "player";
+    if (reg.hasComponent<Projectile>(projectileEntity)) {
+        ownerType = reg.getComponent<Projectile>(projectileEntity).ownerType;
+    }
+    
+    MessageData payload = MessageFactory::getInstance().encodeMessageProjectile(projectileEntity, parentEntity, ownerType);
+    PreparedMessage msg = MessageFactory::getInstance().createMessage(OpCode::SHOOT, payload);
+    
     for (const auto& [playerId, entity] : playerEntities) {
-        MessageData payload = MessageFactory::getInstance().encodeMessagePlayer(player);
-        PreparedMessage msg = MessageFactory::getInstance().createMessage(OpCode::SHOOT, payload);
         _session.sendUdp(playerId, msg);
     }
+    
+    LOG_DEBUG("Sent projectile " + std::to_string(projectileEntity) + " from parent " + std::to_string(parentEntity) + " to all players");
 }
 
 /// @brief send cur position of all entity containing a vector to a player
 /// @param playerId the id of the player to send the position to
 void GameHandler::sendUpdatedPositionToPlayer(uint32_t playerId)
 {
+    auto& factory = MessageFactory::getInstance();
+    
+    // Send player positions
     for (const auto& [pid, entity] : playerEntities) {
         Position& pos = reg.getComponent<Position>(entity);
         if (!reg.hasComponent<Velocity>(entity))
@@ -98,10 +114,9 @@ void GameHandler::sendUpdatedPositionToPlayer(uint32_t playerId)
         bool isMoving = reg.getComponent<Velocity>(entity).vx != 0.f || reg.getComponent<Velocity>(entity).vy != 0.f;
         bool entityWasMoving = wasMoving[entity];
         
-        // Send update if moving OR if just stopped moving (one final update)
         if (isMoving || entityWasMoving) {
-            MessageData payload = MessageFactory::getInstance().encodeMessageMovementPlayer(entity, pos.x, pos.y);
-            PreparedMessage msg = MessageFactory::getInstance().createMessage(OpCode::MOVE, payload);
+            MessageData payload = factory.encodeMessageMove(EntityType::PLAYER, entity, pos.x, pos.y);
+            PreparedMessage msg = factory.createMessage(OpCode::MOVE_SYNC, payload);  // <-- MOVE_SYNC
             _session.sendUdp(playerId, msg);
         }
     }
@@ -120,8 +135,59 @@ void GameHandler::processMessages()
 
 void GameHandler::updateGame(float deltaTime)
 {
+    enemySystem.update(reg, deltaTime);
+    
+    for (const auto& [enemy, projectile] : enemySystem.getNewProjectileEntitiesWithParent()) {
+        sendNewProjectilesToAllPlayers(enemy, projectile);
+    }
+    for (const auto& projectile : enemySystem.getProjectileColliding()) {
+        sendDestroyedProjectileToAllPlayers(projectile);
+        reg.destroyEntity(projectile);
+    }
+    
+    initNewEnemyEntities(enemySystem.getNewEnemyEntities());
+    updateEnemyPosition(enemySystem.getEnemyEntities());
     movement.update(reg, deltaTime);
     statsys.update(reg, deltaTime);
+}
+
+void GameHandler::sendDestroyedProjectileToAllPlayers(Entity projectile)
+{
+    auto& factory = MessageFactory::getInstance();
+    MessageData payload = factory.encodeMessageDeath(EntityType::PROJECTILE, projectile);
+    PreparedMessage msg = factory.createMessage(OpCode::DEATH, payload);
+    
+    for (const auto& [playerId, entity] : playerEntities) {
+        _session.sendUdp(playerId, msg);
+    }
+    
+    LOG_DEBUG("Sent DEATH for projectile " + std::to_string(projectile) + " to all players");
+}
+
+void GameHandler::sendDestroyedEnemyToAllPlayers(Entity enemy)
+{
+    auto& factory = MessageFactory::getInstance();
+    MessageData payload = factory.encodeMessageDeath(EntityType::ENEMY, enemy);
+    PreparedMessage msg = factory.createMessage(OpCode::DEATH, payload);
+    
+    for (const auto& [playerId, entity] : playerEntities) {
+        _session.sendUdp(playerId, msg);
+    }
+    
+    LOG_DEBUG("Sent DEATH for enemy " + std::to_string(enemy) + " to all players");
+}
+
+void GameHandler::sendDestroyedPlayerToAllPlayers(Entity player)
+{
+    auto& factory = MessageFactory::getInstance();
+    MessageData payload = factory.encodeMessageDeath(EntityType::PLAYER, player);
+    PreparedMessage msg = factory.createMessage(OpCode::DEATH, payload);
+    
+    for (const auto& [playerId, entity] : playerEntities) {
+        _session.sendUdp(playerId, msg);
+    }
+    
+    LOG_DEBUG("Sent DEATH for player " + std::to_string(player) + " to all players");
 }
 
 void GameHandler::onPlayerConnect(const Player& player)
@@ -144,6 +210,12 @@ void GameHandler::onPlayerConnect(const Player& player)
     
     // Add new player to the map
     playerEntities[player.id] = playerEntity;
+
+    if (playerEntities.size() >= 1 && !_gameStarted) {
+        _gameStarted = true;
+        LOG_INFO("Minimum players reached. Game started!");
+        enemySystem.startSpawning();
+    }
     
     // Send the new player's info to all players (including themselves)
     Position& newPlayerPos = reg.getComponent<Position>(playerEntity);
@@ -215,10 +287,59 @@ void GameHandler::onPlayerShoot(const ShootData& shootData)
     reg.getComponent<Position>(projectile).y = pos.y + 30.f;
     reg.getComponent<Position>(projectile).x = pos.x + 52.f;
     reg.addComponent<Velocity>(projectile, 0.f, -400.f);
+    reg.addComponent<Projectile>(projectile, stats.attack_damage, std::string("player"));
 
-    LOG_INFO("Player " + std::to_string(shootData.playerId) + " shot a projectile");
+    LOG_INFO("Player " + std::to_string(shootData.playerId) + " shot projectile " + std::to_string(projectile));
 
     stats.cooldown = 1.f / static_cast<float>(stats.attack_speed);
 
-    sendNewProjectilesToAllPlayers(entity);
+    sendNewProjectilesToAllPlayers(entity, projectile);
+}
+
+void GameHandler::initNewEnemyEntities(const std::vector<Entity>& newEnemyEntities)
+{
+    for (const auto& enemyEntity : newEnemyEntities) {
+        if (!reg.hasComponent<Position>(enemyEntity)) continue;
+        
+        Position& pos = reg.getComponent<Position>(enemyEntity);
+        MessageData payload = MessageFactory::getInstance().encodeMessageEnemy(enemyEntity, pos.x, pos.y);
+        PreparedMessage msg = MessageFactory::getInstance().createMessage(OpCode::ENEMY, payload);
+        
+        for (const auto& [playerId, playerEntity] : playerEntities) {
+            _session.sendUdp(playerId, msg);
+            LOG_DEBUG("Sent new enemy entity " + std::to_string(enemyEntity) + " to player " + std::to_string(playerId));
+        }
+    }
+}
+
+void GameHandler::updateEnemyPosition(const std::vector<Entity>& allEnemyEntities)
+{
+    auto& factory = MessageFactory::getInstance();
+    
+    for (const auto& enemyEntity : allEnemyEntities) {
+        if (!reg.hasComponent<Position>(enemyEntity)) continue;
+        
+        Position& pos = reg.getComponent<Position>(enemyEntity);
+        MessageData payload = factory.encodeMessageMove(EntityType::ENEMY, enemyEntity, pos.x, pos.y);
+        PreparedMessage msg = factory.createMessage(OpCode::MOVE_SYNC, payload);
+        
+        for (const auto& [playerId, playerEntity] : playerEntities) {
+            _session.sendUdp(playerId, msg);
+        }
+    }
+}
+
+void GameHandler::onPlayerLinked(uint32_t playerId)
+{
+    auto& factory = MessageFactory::getInstance();
+    
+    for (Entity enemyEntity : enemySystem.getEnemyEntities()) {
+        if (!reg.hasComponent<Position>(enemyEntity)) continue;
+        
+        Position& pos = reg.getComponent<Position>(enemyEntity);
+        MessageData payload = factory.encodeMessageEnemy(enemyEntity, pos.x, pos.y);
+        PreparedMessage msg = factory.createMessage(OpCode::ENEMY, payload);
+        _session.sendUdp(playerId, msg);
+        LOG_DEBUG("Sent existing enemy " + std::to_string(enemyEntity) + " to newly linked player " + std::to_string(playerId));
+    }
 }

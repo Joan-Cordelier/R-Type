@@ -87,8 +87,8 @@ void MessageHandler::dispatchMessage(DecodedMessage msg)
         case DEATH:
             handleDeath(msg);
             break;
-        case MOVE:
-            handleMove(msg);
+        case MOVE_INPUT:  // <-- Changé de MOVE à MOVE_INPUT
+            handleMoveInput(msg);
             break;
         case SHOOT:
             handleShoot(msg);
@@ -139,6 +139,10 @@ void MessageHandler::handleLink(const DecodedMessage& msg)
     } else {
         LOG_WARN("LINK message without valid UDP address");
     }
+
+    if (_onPlayerLink && playerId != 0) {
+        _onPlayerLink(playerId);
+    }
 }
 
 void MessageHandler::handleConnect(const DecodedMessage& msg)
@@ -184,24 +188,22 @@ void MessageHandler::handleConnect(const DecodedMessage& msg)
     }
 }
 
-void MessageHandler::handleMove(const DecodedMessage& msg)
+void MessageHandler::handleMoveInput(const DecodedMessage& msg)
 {
-    LOG_DEBUG("Handling MOVE message");
+    LOG_DEBUG("Handling MOVE_INPUT message");
     
     if (msg.data.size() < 12) {
-        LOG_WARN("MOVE message with invalid payload size: " + std::to_string(msg.data.size()));
+        LOG_WARN("MOVE_INPUT message with invalid payload size: " + std::to_string(msg.data.size()));
         return;
     }
     
-    // Extract velocity x (4 bytes, float)
     float vx;
     std::memcpy(&vx, &msg.data[4], sizeof(float));
     
-    // Extract velocity y (4 bytes, float)
     float vy;
     std::memcpy(&vy, &msg.data[8], sizeof(float));
     
-    LOG_DEBUG("MOVE: playerId=" + std::to_string(msg.playerId) + " vx=" + std::to_string(vx) + " vy=" + std::to_string(vy));
+    LOG_DEBUG("MOVE_INPUT: playerId=" + std::to_string(msg.playerId) + " vx=" + std::to_string(vx) + " vy=" + std::to_string(vy));
     
     if (_onPlayerMove) {
         MoveData moveData{msg.playerId, vx, vy};
@@ -213,16 +215,16 @@ void MessageHandler::handleShoot(const DecodedMessage& msg)
 {
     LOG_DEBUG("Handling SHOOT message");
 
-    if (msg.data.size() < 4) {
+    if (msg.data.size() < 18) {
         LOG_WARN("SHOOT message with invalid payload size: " + std::to_string(msg.data.size()));
         return;
     }
-
+    
     Entity entity =
-        (static_cast<Entity>(msg.data[0]) << 24) |
-        (static_cast<Entity>(msg.data[1]) << 16) |
-        (static_cast<Entity>(msg.data[2]) << 8) |
-        static_cast<Entity>(msg.data[3]);
+        (static_cast<Entity>(msg.data[4]) << 24) |
+        (static_cast<Entity>(msg.data[5]) << 16) |
+        (static_cast<Entity>(msg.data[6]) << 8) |
+        static_cast<Entity>(msg.data[7]);
 
     LOG_DEBUG("SHOOT: playerId=" + std::to_string(msg.playerId) + " entity=" + std::to_string(entity));
 

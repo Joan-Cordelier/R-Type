@@ -6,3 +6,4 @@
 #include "systems/label_system.hpp"
 #include "systems/spritesheet_system.hpp"
 #include "systems/stat_system.hpp"
+#include "systems/enemy_system.hpp"

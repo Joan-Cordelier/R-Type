@@ -7,3 +7,5 @@
 #include "components/label.hpp"
 #include "components/stats.hpp"
 #include "components/spritesheet.hpp"
+#include "components/enemy.hpp"
+#include "components/projectile.hpp"

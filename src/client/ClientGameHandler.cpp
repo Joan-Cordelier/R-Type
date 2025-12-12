@@ -1,4 +1,5 @@
 #include "ClientGameHandler.hpp"
+#include "../common/Data/EntityType.hpp"
 
 ClientGameHandler::ClientGameHandler()
 {
@@ -7,6 +8,7 @@ ClientGameHandler::ClientGameHandler()
     _renderer.loadTexture("textures/play_button/default.png", "play_button");
     _renderer.loadSpriteSheet("textures/projectiles/projectile_player.png", "projectile_player", 16, 16);
     _renderer.loadFont("font/josefin-sans/JosefinSans-Regular.ttf", 40, "default_font");
+    _renderer.loadTexture("textures/ships/enemy_ship.png", "enemy_ship");
 
     // Set up entities
     _reg.addComponent<Position>(start_button, 400.f, 300.f);
@@ -143,7 +145,120 @@ void ClientGameHandler::handleMessages()
                 handlePlayerPacket(*msg);
                 break;
             }
-            case OpCode::MOVE: {
+            case OpCode::MOVE_SYNC: {
+                if (msg->data.size() >= 13) {
+                    EntityType type = static_cast<EntityType>(msg->data[0]);
+                    
+                    Entity serverEntity = 
+                        (static_cast<Entity>(msg->data[1]) << 24) |
+                        (static_cast<Entity>(msg->data[2]) << 16) |
+                        (static_cast<Entity>(msg->data[3]) << 8) |
+                        static_cast<Entity>(msg->data[4]);
+                    
+                    float x = *reinterpret_cast<const float*>(&msg->data[5]);
+                    float y = *reinterpret_cast<const float*>(&msg->data[9]);
+                    
+                    switch (type) {
+                        case EntityType::PLAYER: {
+                            auto itPlayer = playerEntities.find(serverEntity);
+                            if (itPlayer != playerEntities.end()) {
+                                Entity localEntity = itPlayer->second;
+                                
+                                float prevX = _reg.getComponent<Position>(localEntity).x;
+                                if (prevX > x) {
+                                    _reg.getComponent<SpriteSheets>(localEntity).frameIndex = 0;
+                                } else if (prevX < x) {
+                                    _reg.getComponent<SpriteSheets>(localEntity).frameIndex = 2;
+                                } else {
+                                    _reg.getComponent<SpriteSheets>(localEntity).frameIndex = 1;
+                                }
+                                
+                                _reg.getComponent<Position>(localEntity).x = x;
+                                _reg.getComponent<Position>(localEntity).y = y;
+                            }
+                            break;
+                        }
+                        case EntityType::ENEMY: {
+                            auto itEnemy = enemyEntities.find(serverEntity);
+                            if (itEnemy != enemyEntities.end()) {
+                                Entity localEntity = itEnemy->second;
+                                _reg.getComponent<Position>(localEntity).x = x;
+                                _reg.getComponent<Position>(localEntity).y = y;
+                            }
+                            break;
+                        }
+                        case EntityType::PROJECTILE: {
+                            auto itProj = projectileEntities.find(serverEntity);
+                            if (itProj != projectileEntities.end()) {
+                                Entity localEntity = itProj->second;
+                                _reg.getComponent<Position>(localEntity).x = x;
+                                _reg.getComponent<Position>(localEntity).y = y;
+                            }
+                            break;
+                        }
+                    }
+                }
+                break;
+            }
+            case OpCode::SHOOT: {
+                std::cout << "Received SHOOT message, size=" << msg->data.size() << std::endl;
+                if (msg->data.size() >= 18) {
+                    Entity serverProjectileEntity = 
+                        (static_cast<Entity>(msg->data[0]) << 24) |
+                        (static_cast<Entity>(msg->data[1]) << 16) |
+                        (static_cast<Entity>(msg->data[2]) << 8) |
+                        static_cast<Entity>(msg->data[3]);
+                    
+                    Entity serverParentEntity = 
+                        (static_cast<Entity>(msg->data[4]) << 24) |
+                        (static_cast<Entity>(msg->data[5]) << 16) |
+                        (static_cast<Entity>(msg->data[6]) << 8) |
+                        static_cast<Entity>(msg->data[7]);
+                    
+                    std::string ownerType;
+                    for (size_t i = 8; i < 18; ++i) {
+                        ownerType += static_cast<char>(msg->data[i]);
+                    }
+                    ownerType.erase(std::find(ownerType.begin(), ownerType.end(), '\0'), ownerType.end());
+
+                    auto itProj = projectileEntities.find(serverProjectileEntity);
+                    if (itProj != projectileEntities.end()) {
+                        break;
+                    }
+
+                    if (ownerType == "player") {
+                        auto it = playerEntities.find(serverParentEntity);
+                        if (it != playerEntities.end()) {
+                            Entity localParent = it->second;
+                            Entity projectile = _reg.createEntity();
+                            Position &pos = _reg.getComponent<Position>(localParent);
+                            _reg.addComponent<Position>(projectile, pos.x + 52.f, pos.y + 30.f);
+                            _reg.addComponent<Velocity>(projectile, 0.f, -400.f);
+                            _reg.addComponent<SpriteSheets>(projectile, std::string("textures/projectiles/projectile_player.png"), std::string("projectile_player"), 16, 16, 0, 4, 0, true, true);
+                            
+                            projectileEntities[serverProjectileEntity] = projectile;
+                            std::cout << "Created player projectile (serverId: " << serverProjectileEntity << ", localId: " << projectile << ")" << std::endl;
+                        }
+                    } else if (ownerType == "enemy") {
+                        auto it = enemyEntities.find(serverParentEntity);
+                        if (it != enemyEntities.end()) {
+                            Entity localParent = it->second;
+                            Entity projectile = _reg.createEntity();
+                            Position &pos = _reg.getComponent<Position>(localParent);
+                            _reg.addComponent<Position>(projectile, pos.x + 18.f, pos.y + 50.f);
+                            _reg.addComponent<Velocity>(projectile, 0.f, 200.f);
+                            _reg.addComponent<SpriteSheets>(projectile, std::string("textures/projectiles/projectile_player.png"), std::string("projectile_player"), 16, 16, 0, 4, 0, true, true);
+                            
+                            projectileEntities[serverProjectileEntity] = projectile;
+                            std::cout << "Created enemy projectile (serverId: " << serverProjectileEntity << ", localId: " << projectile << ")" << std::endl;
+                        }
+                    } else {
+                        std::cout << "Invalid ownerType in SHOOT message: " << ownerType << std::endl;
+                    }
+                }
+                break;
+            }
+            case OpCode::ENEMY: {
                 if (msg->data.size() >= 12) {
                     Entity serverEntity = 
                         (static_cast<Entity>(msg->data[0]) << 24) |
@@ -153,41 +268,61 @@ void ClientGameHandler::handleMessages()
                     
                     float x = *reinterpret_cast<const float*>(&msg->data[4]);
                     float y = *reinterpret_cast<const float*>(&msg->data[8]);
-                    
-                    auto it = playerEntities.find(serverEntity);
-                    if (it != playerEntities.end()) {
+
+                    auto it = enemyEntities.find(serverEntity);
+                    if (it == enemyEntities.end()) {
+                        Entity localEntity = _reg.createEntity();
+                        _reg.addComponent<Position>(localEntity, x, y);
+                        _reg.addComponent<Velocity>(localEntity, 0.f, 0.f);
+                        _reg.addComponent<Sprite>(localEntity, std::string("textures/ships/enemy_ship.png"), std::string("enemy_ship"), 50, 50, 0, true);
+
+                        enemyEntities[serverEntity] = localEntity;
+                    } else {
                         Entity localEntity = it->second;
-                        if (_reg.getComponent<Position>(localEntity).x > x) {
-                            _reg.getComponent<SpriteSheets>(localEntity).frameIndex = 0;
-                        }
-                        else if (_reg.getComponent<Position>(localEntity).x < x) {
-                            _reg.getComponent<SpriteSheets>(localEntity).frameIndex = 2;
-                        }
-                        else {
-                            _reg.getComponent<SpriteSheets>(localEntity).frameIndex = 1;
-                        }
                         _reg.getComponent<Position>(localEntity).x = x;
                         _reg.getComponent<Position>(localEntity).y = y;
                     }
                 }
                 break;
             }
-            case OpCode::SHOOT: {
-                if (msg->data.size() >= 4) {
-                    Entity serverEntity = 
-                        (static_cast<Entity>(msg->data[0]) << 24) |
-                        (static_cast<Entity>(msg->data[1]) << 16) |
-                        (static_cast<Entity>(msg->data[2]) << 8) |
-                        static_cast<Entity>(msg->data[3]);
+            case OpCode::DEATH: {
+                if (msg->data.size() >= 5) {
+                    EntityType type = static_cast<EntityType>(msg->data[0]);
                     
-                    auto it = playerEntities.find(serverEntity);
-                    if (it != playerEntities.end()) {
-                        Entity localEntity = it->second;
-                        Entity projectile = _reg.createEntity();
-                        Position &pos = _reg.getComponent<Position>(localEntity);
-                        _reg.addComponent<Position>(projectile, pos.x + 52.f, pos.y + 30.f);
-                        _reg.addComponent<Velocity>(projectile, 0.f, -400.f);
-                        _reg.addComponent<SpriteSheets>(projectile, (std::string)"textures/projectiles/projectile_player.png", (std::string)"projectile_player", 16, 16, 0, 4, 0, true, true);
+                    Entity serverEntity = 
+                        (static_cast<Entity>(msg->data[1]) << 24) |
+                        (static_cast<Entity>(msg->data[2]) << 16) |
+                        (static_cast<Entity>(msg->data[3]) << 8) |
+                        static_cast<Entity>(msg->data[4]);
+                
+                    switch (type) {
+                        case EntityType::PROJECTILE: {
+                            auto itProjectile = projectileEntities.find(serverEntity);
+                            if (itProjectile != projectileEntities.end()) {
+                                _reg.destroyEntity(itProjectile->second);
+                                projectileEntities.erase(itProjectile);
+                                std::cout << "Projectile " << serverEntity << " destroyed" << std::endl;
+                            }
+                            break;
+                        }
+                        case EntityType::ENEMY: {
+                            auto itEnemy = enemyEntities.find(serverEntity);
+                            if (itEnemy != enemyEntities.end()) {
+                                _reg.destroyEntity(itEnemy->second);
+                                enemyEntities.erase(itEnemy);
+                                std::cout << "Enemy " << serverEntity << " destroyed" << std::endl;
+                            }
+                            break;
+                        }
+                        case EntityType::PLAYER: {
+                            auto itPlayer = playerEntities.find(serverEntity);
+                            if (itPlayer != playerEntities.end()) {
+                                _reg.destroyEntity(itPlayer->second);
+                                playerEntities.erase(itPlayer);
+                                std::cout << "Player " << serverEntity << " destroyed" << std::endl;
+                            }
+                            break;
+                        }
                     }
                 }
                 break;
