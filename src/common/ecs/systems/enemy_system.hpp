@@ -12,11 +12,13 @@ class EnemySystem {
         std::vector<Entity>& getNewEnemyEntities() { return newEnemyEntities; }
         void startSpawning() { canSpawn = true; }
         std::vector<Entity>& getProjectileColliding() { return projectileColliding; }
+        std::vector<Entity>& getDeadEnemyEntities() { return deadEnemyEntities; }
     private:
         std::vector<Entity> enemyEntities;
         std::vector<std::pair<Entity, Entity>> newProjectileEntitiesWithParent;
         std::vector<Entity> newEnemyEntities;
         std::vector<Entity> projectileColliding;
+        std::vector<Entity> deadEnemyEntities;
         int enemiesAlive = 0;
         int wave = 0;
         bool canSpawn = false;

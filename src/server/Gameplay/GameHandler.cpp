@@ -144,6 +144,9 @@ void GameHandler::updateGame(float deltaTime)
         sendDestroyedProjectileToAllPlayers(projectile);
         reg.destroyEntity(projectile);
     }
+    for (const auto& enemy : enemySystem.getDeadEnemyEntities()) {
+        sendDestroyedEnemyToAllPlayers(enemy);
+    }
     
     initNewEnemyEntities(enemySystem.getNewEnemyEntities());
     updateEnemyPosition(enemySystem.getEnemyEntities());

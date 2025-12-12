@@ -3,11 +3,13 @@
 #include "../components/position.hpp"
 #include "../components/velocity.hpp"
 #include "../components/projectile.hpp"
+#include <algorithm>
 
 void EnemySystem::update(Registry& reg, float dt) {
     newProjectileEntitiesWithParent.clear();
     newEnemyEntities.clear();
     projectileColliding.clear();
+    deadEnemyEntities.clear();
     for (auto e : reg.viewEntitiesWith<Enemy, Position, Velocity>()) {
         Position& position = reg.getComponent<Position>(e);
         Velocity& velocity = reg.getComponent<Velocity>(e);
@@ -33,6 +35,8 @@ void EnemySystem::update(Registry& reg, float dt) {
                     enemy.health -= reg.getComponent<Projectile>(entity).damage;
                     projectileColliding.push_back(entity);
                     if (enemy.health <= 0) {
+                        deadEnemyEntities.push_back(e);
+                        enemyEntities.erase(std::remove(enemyEntities.begin(), enemyEntities.end(), e), enemyEntities.end());
                         reg.destroyEntity(e);
                         enemiesAlive--;
                     }
