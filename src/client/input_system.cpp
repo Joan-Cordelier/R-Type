@@ -57,6 +57,7 @@ void InputSystem::update(Registry& reg, SDL_Event& e, NetworkManager& networkMan
             MessageFactory& factory = MessageFactory::getInstance();
             MessageData payload = factory.encodeMessageProjectile(0, controlled, std::string("player"));
             networkManager.sendUdp(factory.createMessage(OpCode::SHOOT, payload));
+            stats.cooldown = 1.f / static_cast<float>(stats.attack_speed);
         }
     } else if (reg.hasComponent<Label>(controlled)) {
         if (e.type != 0) {

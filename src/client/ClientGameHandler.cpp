@@ -248,12 +248,6 @@ void ClientGameHandler::handleMessages()
                     }
                     ownerType.erase(std::find(ownerType.begin(), ownerType.end(), '\0'), ownerType.end());
 
-                    auto itProj = projectileEntities.find(serverProjectileEntity);
-                    if (itProj != projectileEntities.end()) {
-                        break;
-                    }
-
-                    // Nettoyer les anciennes références AVANT de créer le projectile
                     cleanupServerEntity(serverProjectileEntity);
 
                     if (ownerType == "player") {
