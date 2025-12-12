@@ -320,6 +320,9 @@ void GameHandler::updateEnemyPosition(const std::vector<Entity>& allEnemyEntitie
         if (!reg.hasComponent<Position>(enemyEntity)) continue;
         
         Position& pos = reg.getComponent<Position>(enemyEntity);
+        auto vector = reg.hasComponent<Velocity>(enemyEntity) ? reg.getComponent<Velocity>(enemyEntity) : Velocity{0.f, 0.f};
+        if (vector.vx == 0.f && vector.vy == 0.f)
+            continue; //enemy is not moving no update
         MessageData payload = factory.encodeMessageMove(EntityType::ENEMY, enemyEntity, pos.x, pos.y);
         PreparedMessage msg = factory.createMessage(OpCode::MOVE_SYNC, payload);
         
