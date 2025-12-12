@@ -47,6 +47,8 @@ private:
 
     void handleMessages();
     void handlePlayerPacket(const DecodedMessage& msg);
+
+    void cleanupServerEntity(Entity serverEntity);
 public:
     uint32_t myPlayerId = 0;
     Entity myEntity = 0;

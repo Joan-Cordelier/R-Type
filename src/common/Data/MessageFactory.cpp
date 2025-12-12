@@ -177,7 +177,7 @@ MessageData MessageFactory::encodeMessageProjectile(Entity projectileEntity, Ent
     data.push_back(static_cast<uint8_t>((projectileEntity >> 16) & 0xFF));
     data.push_back(static_cast<uint8_t>((projectileEntity >> 8) & 0xFF));
     data.push_back(static_cast<uint8_t>(projectileEntity & 0xFF));
-    
+
     data.push_back(static_cast<uint8_t>((parentEntity >> 24) & 0xFF));
     data.push_back(static_cast<uint8_t>((parentEntity >> 16) & 0xFF));
     data.push_back(static_cast<uint8_t>((parentEntity >> 8) & 0xFF));
@@ -196,20 +196,16 @@ MessageData MessageFactory::encodeMessageMove(EntityType type, Entity entity, fl
 {
     MessageData data;
     
-    // Entity Type (1 byte)
     data.push_back(static_cast<uint8_t>(type));
     
-    // Entity ID (4 bytes, big-endian)
     data.push_back(static_cast<uint8_t>((entity >> 24) & 0xFF));
     data.push_back(static_cast<uint8_t>((entity >> 16) & 0xFF));
     data.push_back(static_cast<uint8_t>((entity >> 8) & 0xFF));
     data.push_back(static_cast<uint8_t>(entity & 0xFF));
     
-    // Position X (4 bytes, float)
     const uint8_t* px = reinterpret_cast<const uint8_t*>(&x);
     data.insert(data.end(), px, px + sizeof(float));
     
-    // Position Y (4 bytes, float)
     const uint8_t* py = reinterpret_cast<const uint8_t*>(&y);
     data.insert(data.end(), py, py + sizeof(float));
     

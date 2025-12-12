@@ -85,6 +85,33 @@ int ClientGameHandler::run()
     return 0;
 }
 
+void ClientGameHandler::cleanupServerEntity(Entity serverEntity)
+{
+    // Nettoyer dans playerEntities
+    auto itPlayer = playerEntities.find(serverEntity);
+    if (itPlayer != playerEntities.end()) {
+        std::cout << "Warning: Cleaning up old player entity with serverEntity " << serverEntity << std::endl;
+        _reg.destroyEntity(itPlayer->second);
+        playerEntities.erase(itPlayer);
+    }
+    
+    // Nettoyer dans enemyEntities
+    auto itEnemy = enemyEntities.find(serverEntity);
+    if (itEnemy != enemyEntities.end()) {
+        std::cout << "Warning: Cleaning up old enemy entity with serverEntity " << serverEntity << std::endl;
+        _reg.destroyEntity(itEnemy->second);
+        enemyEntities.erase(itEnemy);
+    }
+    
+    // Nettoyer dans projectileEntities
+    auto itProj = projectileEntities.find(serverEntity);
+    if (itProj != projectileEntities.end()) {
+        std::cout << "Warning: Cleaning up old projectile entity with serverEntity " << serverEntity << std::endl;
+        _reg.destroyEntity(itProj->second);
+        projectileEntities.erase(itProj);
+    }
+}
+
 void ClientGameHandler::handleMessages()
 {
     std::optional<DecodedMessage> msg;
@@ -226,6 +253,9 @@ void ClientGameHandler::handleMessages()
                         break;
                     }
 
+                    // Nettoyer les anciennes références AVANT de créer le projectile
+                    cleanupServerEntity(serverProjectileEntity);
+
                     if (ownerType == "player") {
                         auto it = playerEntities.find(serverParentEntity);
                         if (it != playerEntities.end()) {
@@ -271,12 +301,15 @@ void ClientGameHandler::handleMessages()
 
                     auto it = enemyEntities.find(serverEntity);
                     if (it == enemyEntities.end()) {
+                        cleanupServerEntity(serverEntity);
+                        
                         Entity localEntity = _reg.createEntity();
                         _reg.addComponent<Position>(localEntity, x, y);
                         _reg.addComponent<Velocity>(localEntity, 0.f, 0.f);
                         _reg.addComponent<Sprite>(localEntity, std::string("textures/ships/enemy_ship.png"), std::string("enemy_ship"), 50, 50, 0, true);
 
                         enemyEntities[serverEntity] = localEntity;
+                        std::cout << "Created enemy entity (serverId: " << serverEntity << ", localId: " << localEntity << ") at (" << x << ", " << y << ")" << std::endl;
                     } else {
                         Entity localEntity = it->second;
                         _reg.getComponent<Position>(localEntity).x = x;
@@ -360,6 +393,9 @@ void ClientGameHandler::handlePlayerPacket(const DecodedMessage& msg)
 
     auto it = playerEntities.find(serverEntity);
     if (it == playerEntities.end()) {
+        // Nettoyer les anciennes références AVANT de créer la nouvelle entité
+        cleanupServerEntity(serverEntity);
+        
         Entity localEntity = _reg.createEntity();
         _reg.addComponent<Position>(localEntity, x, y);
         _reg.addComponent<Velocity>(localEntity, 0.f, 0.f);
