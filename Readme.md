@@ -20,7 +20,7 @@ This project implements a networked version of the classic R-Type game using adv
 
 - **Language**: C++
 - **Build System**: CMake
-- **Package Manager**: Conan / Vcpkg / CMake CPM
+- **Package Manager**: vcpkg
 - **Platforms**: Linux (required), Windows (recommended for cross-platform)
 
 ## Quick Start
@@ -29,22 +29,25 @@ This project implements a networked version of the classic R-Type game using adv
 
 - CMake 3.20+
 - C++17 compatible compiler (GCC, Clang, MSVC)
-- Package manager (Conan recommended)
+- Git (for vcpkg)
 
 ### Building the Project
 
 ```bash
-# Install Conan (if not already installed)
-pip install conan
+# Clone and setup vcpkg
+git clone https://github.com/microsoft/vcpkg.git
+./vcpkg/bootstrap-vcpkg.sh  # On Linux/macOS
+# OR
+.\vcpkg\bootstrap-vcpkg.bat  # On Windows
 
-# Configure CMake
-cmake -B build -S . -DCMAKE_BUILD_TYPE=Release
+# Configure CMake with vcpkg toolchain
+cmake -B build -S . -DCMAKE_BUILD_TYPE=Release -DCMAKE_TOOLCHAIN_FILE=./vcpkg/scripts/buildsystems/vcpkg.cmake
 
 # Build
 cmake --build build --config Release
 
 # Run tests
-cmake --build build --target test
+ctest --test-dir build --output-on-failure
 ```
 
 ### Running the Game
@@ -160,7 +163,7 @@ chore/ci-optimization
 We use **Conventional Commits** for clear project history:
 
 ```bash
-<TYPE>(<scope>): <description courte>
+<TYPE>: <description courte>
 
 Types:
 ADD:      New feature or functionality
@@ -386,13 +389,24 @@ The `main` branch has stricter protection:
 
 ## Code Quality Standards
 
-#TODO: add linter or clang format
+### Branch Naming Convention Enforcement
+
+We automatically enforce branch naming conventions through GitHub Actions. The `.github/workflows/branch-naming.yml` workflow will block any PR from a branch that doesn't follow our conventions.
+
+### Epitech Coding Style
+
+We enforce Epitech coding style standards:
+- Function length limits
+- Code organization
+- Naming conventions
+- Documentation requirements
 
 **Automated Checks:**
 ```yaml
 # .github/workflows/ci.yml enforces:
+- Branch naming convention validation
 - Epitech coding style checker
-- CMake compilation
+- CMake compilation (Linux & Windows)
 - Unit tests execution
 ```
 
@@ -415,39 +429,44 @@ Before approving a PR, reviewers should verify:
 
 ### Package Manager Setup
 
-The project uses **Conan** for dependency management:
+The project uses **vcpkg** for dependency management:
 
 ```bash
-# Install Conan
-pip install conan
+# Clone vcpkg
+git clone https://github.com/microsoft/vcpkg.git
 
-# Create default profile
-conan profile detect
+# Bootstrap vcpkg
+./vcpkg/bootstrap-vcpkg.sh  # Linux/macOS
+.\vcpkg\bootstrap-vcpkg.bat  # Windows
 
-# Dependencies are automatically installed during CMake configuration
+# Dependencies are automatically installed during CMake configuration when using the vcpkg toolchain
 ```
 
 ### Required Dependencies
 
-```cmake
-# Example dependencies (to be configured in conanfile.txt)
-- SFML (graphics, network, system)
-- Asio (networking)
-- Catch2 (testing)
-- spdlog (logging)
+```json
+# Example dependencies (to be configured in vcpkg.json)
+{
+  "dependencies": [
+    "sfml",
+    "asio",
+    "catch2",
+    "spdlog"
+  ]
+}
 ```
 
 ### Cross-Platform Build
 
 **Linux:**
 ```bash
-cmake -B build -S . -DCMAKE_BUILD_TYPE=Release
-cmake --build build
+cmake -B build -S . -DCMAKE_BUILD_TYPE=Release -DCMAKE_TOOLCHAIN_FILE=./vcpkg/scripts/buildsystems/vcpkg.cmake
+cmake --build build --config Release
 ```
 
 **Windows (MSVC):**
 ```bash
-cmake -B build -S . -G "Visual Studio 17 2022"
+cmake -B build -S . -G "Visual Studio 17 2022" -DCMAKE_TOOLCHAIN_FILE=.\vcpkg\scripts\buildsystems\vcpkg.cmake
 cmake --build build --config Release
 ```
 
@@ -551,3 +570,4 @@ Release builds include:
 | Client/Graphics | TBD | TBD |
 | Server/Logic | TBD | TBD |
 
+.

@@ -1,0 +1,462 @@
+/*
+** EPITECH PROJECT, 2025
+** local
+** File description:
+** Renderer
+*/
+
+#include "Renderer.hpp"
+#include <algorithm>
+
+Renderer::Renderer()
+{
+    // Constructor can initialize SDL_ttf if needed
+    if (TTF_Init() == -1) {
+        std::cerr << "TTF_Init failed: " << TTF_GetError() << std::endl;
+        exit(84);
+    }
+}
+
+Renderer::~Renderer()
+{
+    for (auto &pair : textureCache) {
+        if (pair.second) {
+            SDL_DestroyTexture(pair.second);
+        }
+    }
+    for (auto &pair : spritesheetCache) {
+        if (pair.second.texture) {
+            SDL_DestroyTexture(pair.second.texture);
+        }
+    }
+    for (auto &pair : fontCache) {
+        if (pair.second.font) {
+            TTF_CloseFont(pair.second.font);
+        }
+    }
+    for (auto& pair : textCache) {
+        SDL_DestroyTexture(pair.second.texture);
+    }
+    TTF_Quit();
+}
+
+/// @brief clear the window
+void Renderer::clear()
+{
+    window.clear();
+}
+
+/// @brief present the rendered content to the window
+void Renderer::render()
+{
+    for (auto& [order, commands] : drawCommands) {
+        std::stable_sort(commands.begin(), commands.end(),
+        [](const DrawCommand& a, const DrawCommand& b) {
+            if (a.zIndex != b.zIndex)
+                return a.zIndex < b.zIndex;
+            return a.texture < b.texture;
+        });
+        for (auto& cmd : commands) {
+            if (cmd.texture != nullptr && cmd.type == DrawType::Texture) {
+                SDL_SetTextureColorMod(cmd.texture, cmd.option.tint.r, cmd.option.tint.g, cmd.option.tint.b);
+                SDL_SetTextureAlphaMod(cmd.texture, cmd.option.alpha);
+                SDL_SetTextureBlendMode(cmd.texture, cmd.option.blendMode);
+            
+                SDL_Rect destRect = cmd.destRect.toSDLRect();
+                SDL_Rect* srcRect = nullptr;
+                SDL_Rect srcRectObj;
+                if (!cmd.srcRect.isNull()) {
+                    srcRectObj = cmd.srcRect.toSDLRect();
+                    srcRect = &srcRectObj;
+                }
+                SDL_RenderCopyEx(window.renderer, cmd.texture, srcRect, &destRect, 
+                    cmd.option.rotation, cmd.option.center, cmd.option.flip);
+            }
+            else {
+                if (cmd.type == DrawType::Texture) {
+                    std::cerr << "Attempted to draw a null texture." << std::endl;
+                }
+                switch(cmd.type) {
+                    case DrawType::Line:
+                        renderLine(cmd);
+                        break;
+                    case DrawType::Rect:
+                        renderRect(cmd);
+                        break;
+                    default:
+                        break;
+                }
+            }
+        }
+    }
+    drawCommands.clear();
+    window.draw();
+}
+
+void Renderer::drawFont(const std::string &id, const std::string &text, int x, int y, Color color, RenderLayer layer, int z)
+{
+    if (fontCache.find(id) == fontCache.end()) {
+        std::cerr << "Font not found: " << id << std::endl;
+        return;
+    }
+    
+    TTF_Font* font = fontCache[id].font;
+    SDL_Color sdlColor = {color.r, color.g, color.b, color.a};
+    
+    SDL_Surface* surface = TTF_RenderText_Blended(font, text.c_str(), sdlColor);
+    if (surface == nullptr) return;
+    
+    SDL_Texture* texture = SDL_CreateTextureFromSurface(window.renderer, surface);
+    if (texture == nullptr) {
+        SDL_FreeSurface(surface);
+        return;
+    }
+
+    Rect destRect = {x, y, surface->w, surface->h};
+    SDL_FreeSurface(surface);
+    
+    DrawCommand cmd = {{}, texture, {}, destRect, z};
+    drawCommands[layer].push_back(cmd);
+}
+
+/// @brief draw a font and cache the rendered text
+/// @param id the id of the font
+/// @param text the text to render
+/// @param x the x position
+/// @param y the y position
+/// @param color the color of the text
+void Renderer::drawFontAndCache(const std::string &id, const std::string &text, 
+                        int x, int y, Color color, RenderLayer layer, int z)
+{
+    std::string cacheKey = makeTextKey(id, text, color);
+    
+    // Check cache first
+    auto it = textCache.find(cacheKey);
+    if (it != textCache.end()) {
+        Rect destRect = {x, y, it->second.width, it->second.height};
+        DrawCommand cmd = {{}, it->second.texture, {}, destRect, z};
+        drawCommands[layer].push_back(cmd);
+        return;
+    }
+    
+    // Cache miss - create texture
+    TTF_Font* font = fontCache[id].font;
+    SDL_Color sdlColor = {color.r, color.g, color.b, color.a};
+    
+    SDL_Surface* surface = TTF_RenderText_Blended(font, text.c_str(), sdlColor);
+    if (!surface) return;
+    
+    SDL_Texture* texture = SDL_CreateTextureFromSurface(window.renderer, surface);
+    if (!texture) {
+        SDL_FreeSurface(surface);
+        return;
+    }
+    
+    // Store in cache
+    textCache[cacheKey] = {texture, surface->w, surface->h};
+    
+    Rect destRect = {x, y, surface->w, surface->h};
+    SDL_FreeSurface(surface);
+    
+    DrawCommand cmd = {{}, texture, {}, destRect, z};
+    drawCommands[layer].push_back(cmd);
+}
+
+/// @brief draw a texture to the screen
+/// @param id the id of the texture
+/// @param rect the destination rectangle
+void Renderer::drawTexture(const std::string &id, RenderLayer layer, int z, Rect rect)
+{
+    drawTexture(id, layer, z, rect, DrawOptions{});
+}
+
+/// @brief draw a texture to the screen
+/// @param id the id of the texture
+/// @param rect the destination rectangle
+/// @param options drawing options like rotation and scale
+void Renderer::drawTexture(const std::string &id, RenderLayer layer, int z, Rect rect, DrawOptions options)
+{
+    if (textureCache.find(id) == textureCache.end()) {
+        std::cerr << "Error on texture loading for drawing: " << id << " not found." << std::endl;;
+        return;
+    }
+    
+    SDL_Texture *texture = textureCache[id];
+    if (texture == nullptr) {
+        std::cerr << "Error on texture loading for drawing: " << id << " not initialized." << std::endl;
+        return;
+    }
+
+    DrawCommand cmd = {options, texture, {}, rect, z};
+    drawCommands[layer].push_back({cmd});
+}
+
+/// @brief draw a region of a texture
+/// @param id the id of the texture
+/// @param srcRect the source rectangle
+/// @param rect the destination rectangle
+void Renderer::drawTextureRegion(const std::string &id, RenderLayer layer, int z, Rect srcRect, Rect rect)
+{
+    drawTextureRegion(id, layer, z, srcRect, rect, DrawOptions{});
+}
+
+/// @brief draw a region of a texture
+/// @param id the id of the texture
+/// @param srcRect the source rectangle
+/// @param rect the destination rectangle
+/// @param options drawing options like rotation and scale
+void Renderer::drawTextureRegion(const std::string &id, RenderLayer layer, int z, Rect srcRect, Rect rect, DrawOptions options)
+{
+    if (textureCache.find(id) == textureCache.end()) {
+        std::cerr << "Error on texture loading for drawing: " << id << " not found." << std::endl;;
+        return;
+    }
+    
+    SDL_Texture *texture = textureCache[id];
+    if (texture == nullptr) {
+        std::cerr << "Error on texture loading for drawing: " << id << " not initialized." << std::endl;
+        return;
+    }
+
+    DrawCommand cmd = {options, texture, srcRect, rect, z};
+    drawCommands[layer].push_back({cmd});
+}
+
+/// @brief draw a specific frame from a spritesheet
+/// @param id the id of the spritesheet
+/// @param frameIndex the index of the frame to draw
+/// @param rect the destination rectangle
+void Renderer::drawFrame(const std::string &id, int frameIndex, RenderLayer layer, int z, Rect rect)
+{
+    drawFrame(id, frameIndex, layer, z, rect, DrawOptions{});
+}
+
+/// @brief draw a specific frame from a spritesheet
+/// @param id the id of the spritesheet
+/// @param frameIndex the index of the frame to draw
+/// @param rect the destination rectangle
+/// @param options drawing options like rotation and scale
+void Renderer::drawFrame(const std::string &id, int frameIndex, RenderLayer layer, int z, Rect rect, DrawOptions options)
+{
+    if (spritesheetCache.find(id) == spritesheetCache.end()) {
+        std::cerr << "Error on spritesheet loading for drawing: " << id << " not found." << std::endl;
+        return;
+    }
+    SpriteSheet &sheet = spritesheetCache[id];
+
+    SDL_Texture *texture = sheet.texture;
+    if (texture == nullptr) {
+        std::cerr << "Error on spritesheet loading for drawing: " << id << " not initialized." << std::endl;
+        return;
+    }
+
+    Rect srcRect = {
+        (frameIndex % sheet.columns) * sheet.frameWidth,
+        (frameIndex / sheet.columns) * sheet.frameHeight,
+        sheet.frameWidth,
+        sheet.frameHeight
+    };
+
+    DrawCommand cmd = {options, texture, srcRect, rect, z};
+    drawCommands[layer].push_back(cmd);
+}
+
+void Renderer::drawLine(int x1, int y1, int x2, int y2, Color color, RenderLayer layer, int z)
+{
+    DrawCommand cmd = {{.tint = color}, nullptr, {}, {}, z, DrawType::Line, {x1, y1, x2, y2, false}};
+    drawCommands[layer].push_back(cmd);
+}
+
+void Renderer::drawRect(Rect rect, Color color, RenderLayer layer, int z, bool filled)
+{
+    DrawCommand cmd = {{.tint = color}, nullptr, {}, {}, z, DrawType::Rect, {rect.x, rect.y, rect.w, rect.h, filled}};
+    drawCommands[layer].push_back(cmd);
+}
+
+/// @brief load a spritesheet from file
+/// @param filePath the filepath of the spritesheet
+/// @param id the id to assign to the spritesheet
+/// @param frameWidth the width of each frame
+/// @param frameHeight the height of each frame
+/// @param columns the number of columns in the spritesheet
+/// @param rows the number of rows in the spritesheet
+/// @return the id of the loaded spritesheet, or empty string on failure
+std::string Renderer::loadSpriteSheet(const std::string &filePath, const std::string &id,
+        int frameWidth, int frameHeight, int columns, int rows)
+{
+    std::string textureId = (id.empty()) ? filePath : id;
+    if (textureId.empty())
+        return "";
+
+    if (spritesheetCache.find(textureId) != spritesheetCache.end())
+        return textureId;
+    
+    SDL_Surface *surface = IMG_Load(filePath.c_str());
+    if (surface == nullptr) {
+        std::cerr << "Failed to load image: " << SDL_GetError() << " !" << std::endl;
+        return "";
+    }
+    
+    SDL_Texture *texture = SDL_CreateTextureFromSurface(window.renderer, surface);
+    if (texture == nullptr) {
+        std::cerr << "Failed to create texture from image: " << SDL_GetError() << " !" << std::endl;
+        SDL_FreeSurface(surface);
+        return "";
+    }
+
+    SDL_FreeSurface(surface);
+    spritesheetCache[textureId] = {texture, frameWidth, frameHeight, columns, rows};
+    return textureId;
+}
+
+/// @brief load a spritesheet from file with automatic columns and rows calculation
+/// @param filePath the filepath of the spritesheet
+/// @param id the id to assign to the spritesheet
+/// @param frameWidth the width of each frame
+/// @param frameHeight  the height of each frame
+/// @return the id of the loaded spritesheet, or empty string on failure
+std::string Renderer::loadSpriteSheet(const std::string &filePath, const std::string &id,
+        int frameWidth, int frameHeight)
+{
+    std::string textureId = (id.empty()) ? filePath : id;
+    if (textureId.empty())
+        return "";
+
+    if (spritesheetCache.find(textureId) != spritesheetCache.end())
+        return textureId;
+    
+    SDL_Surface *surface = IMG_Load(filePath.c_str());
+    if (surface == nullptr) {
+        std::cerr << "Failed to load image: " << SDL_GetError() << " !" << std::endl;
+        return "";
+    }
+    
+    SDL_Texture *texture = SDL_CreateTextureFromSurface(window.renderer, surface);
+    if (texture == nullptr) {
+        std::cerr << "Failed to create texture from image: " << SDL_GetError() << " !" << std::endl;
+        return "";
+    }
+
+    int texWidth, texHeight;
+    SDL_QueryTexture(texture, NULL, NULL, &texWidth, &texHeight);
+    int columns = texWidth / frameWidth;
+    int rows = texHeight / frameHeight;
+
+    SDL_FreeSurface(surface);
+    spritesheetCache[textureId] = {texture, frameWidth, frameHeight, columns, rows};
+    return textureId;
+}
+
+std::string Renderer::loadFont(const std::string &filePath, int fontSize, const std::string &id)
+{
+    std::string fontId = (id.empty()) ? filePath : id;
+    if (fontId.empty())
+        return "";
+
+    if (fontCache.find(fontId) != fontCache.end())
+        return fontId;
+
+    TTF_Font* font = TTF_OpenFont(filePath.c_str(), fontSize);
+    if (font == nullptr) {
+        std::cerr << "Failed to load font: " << TTF_GetError() << std::endl;
+        return "";
+    }
+
+    fontCache[fontId] = {font, fontSize};
+    return fontId;
+}
+
+/// @brief load a texture from file
+/// @param filePath the filepath of the texture
+/// @param id the id to assign to the texture (optional)
+/// @return the id of the loaded texture, or empty string on failure
+std::string Renderer::loadTexture(const std::string &filePath, const std::string &id)
+{
+    std::string textureId = (id.empty()) ? filePath : id;
+    if (textureId.empty())
+        return "";
+
+    if (textureCache.find(textureId) != textureCache.end())
+        return textureId;
+    
+    SDL_Surface *surface = IMG_Load(filePath.c_str());
+    if (surface == nullptr) {
+        std::cerr << "Failed to load image: " << SDL_GetError() << " !" << std::endl;
+        return "";
+    }
+    
+    SDL_Texture *texture = SDL_CreateTextureFromSurface(window.renderer, surface);
+    if (texture == nullptr) {
+        std::cerr << "Failed to create texture from image: " << SDL_GetError() << " !" << std::endl;
+        return "";
+    }
+
+    SDL_FreeSurface(surface);
+    textureCache[textureId] = texture;
+    return textureId;
+}
+
+/// @brief return if a texture or spritesheet is loaded
+/// @param id id of the texture or spritesheet
+/// @return a boolean indicating if it's loaded
+bool Renderer::isLoaded(const std::string &id) const
+{
+    return (textureCache.find(id) != textureCache.end() ||
+            spritesheetCache.find(id) != spritesheetCache.end());
+}
+
+/// @brief return the spritesheet info
+/// @param id the id of the spritesheet
+/// @return the spritesheet info, or a default one if not found
+SpriteSheet Renderer::getSpritesheetInfo(const std::string &id) const
+{
+    if (spritesheetCache.find(id) != spritesheetCache.end()) {
+        return spritesheetCache.at(id);
+    }
+    std::cerr << "Spritesheet not found: " << id << std::endl;
+    return {nullptr, 0, 0, 0, 0};
+}
+
+/// @brief return the number of frames in the spritesheet
+/// @param id the id of the spritesheet
+/// @return the number of frames, or 0 if not found
+int Renderer::getFrameCount(const std::string &id) const
+{
+    if (spritesheetCache.find(id) != spritesheetCache.end()) {
+        const SpriteSheet &sheet = spritesheetCache.at(id);
+        return sheet.columns * sheet.rows;
+    }
+    std::cerr << "Spritesheet not found: " << id << std::endl;
+    return 0;
+}
+
+std::string Renderer::makeTextKey(const std::string& fontId, const std::string& text, Color color) {
+    std::string key;
+    key.reserve(fontId.size() + text.size() + 20);
+    key += fontId;
+    key += '|';
+    key += text;
+    key += '|';
+    key += std::to_string(color.r);
+    key += std::to_string(color.g);
+    key += std::to_string(color.b);
+    key += std::to_string(color.a);
+    return key;
+}
+
+void Renderer::renderLine(const DrawCommand& cmd) {
+    SDL_SetRenderDrawColor(window.renderer, cmd.option.tint.r, cmd.option.tint.g, cmd.option.tint.b, 255);
+    SDL_RenderDrawLine(window.renderer, cmd.primitiveData.x1, cmd.primitiveData.y1,
+                       cmd.primitiveData.x2, cmd.primitiveData.y2);
+}
+
+void Renderer::renderRect(const DrawCommand& cmd) {
+    SDL_SetRenderDrawColor(window.renderer, cmd.option.tint.r, cmd.option.tint.g, cmd.option.tint.b, 255);
+    SDL_Rect sdlRect = {cmd.primitiveData.x1, cmd.primitiveData.y1,
+                        cmd.primitiveData.x2, cmd.primitiveData.y2};
+    if (cmd.primitiveData.filled) {
+        SDL_RenderFillRect(window.renderer, &sdlRect);
+    } else {
+        SDL_RenderDrawRect(window.renderer, &sdlRect);
+    }
+}
