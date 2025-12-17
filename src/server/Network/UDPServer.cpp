@@ -11,7 +11,7 @@
 
 UDPServer::UDPServer(ThreadedQueue<DecodedMessage>& queue) : AServer(queue)
 {
-    init(AServer::protocol::UDP, 4789);
+    init(AServer::protocol::UDP, 4790);
 }
 
 UDPServer::~UDPServer()
@@ -64,6 +64,7 @@ int UDPServer::run()
                     std::vector<uint8_t> rawData(buffer, buffer + n);
                     DecodedMessage msg = factory.decode(rawData);
                     if (msg.opCode != PARSING_ERROR) {
+                        msg.udpAddr = clientAddr;
                         LOG_INFO("UDP message received: OpCode=" + std::to_string(msg.opCode) + " Len=" + std::to_string(msg.len));
                         _queue.push(msg.priority, msg);
                     } else {
