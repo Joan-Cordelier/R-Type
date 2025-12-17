@@ -70,26 +70,23 @@ jobs:
                 restore-keys: |
                   vcpkg-binary-${{ runner.os }}-
 
-            - name: Cache vcpkg installation
-              id: cache-vcpkg
-              uses: actions/cache@v4
-              with:
-                path: vcpkg
-                key: vcpkg-${{ runner.os }}-${{ hashFiles('vcpkg.json') }}
-                restore-keys: |
-                  vcpkg-${{ runner.os }}-
-
             - name: Install dependencies
               run: |
                 sudo apt-get update
                 sudo apt-get install -y cmake build-essential ninja-build curl zip unzip tar \
-                  autoconf autoconf-archive automake libtool libltdl-dev
+                  autoconf autoconf-archive automake libtool libltdl-dev \
+                  libgl1-mesa-dev libx11-dev libxrandr-dev libxinerama-dev libxcursor-dev \
+                  libxi-dev libxext-dev libwayland-dev libxkbcommon-dev
 
-            - name: Setup vcpkg
-              if: steps.cache-vcpkg.outputs.cache-hit != 'true'
+            - name: Setup and bootstrap vcpkg
               run: |
-                git clone https://github.com/microsoft/vcpkg.git
-                ./vcpkg/bootstrap-vcpkg.sh
+                if [ ! -d "vcpkg/.git" ]; then
+                  rm -rf vcpkg
+                  git clone https://github.com/microsoft/vcpkg.git
+                fi
+                if [ ! -f vcpkg/vcpkg ]; then
+                  ./vcpkg/bootstrap-vcpkg.sh
+                fi
 
             - name: Configure CMake
               run: |
