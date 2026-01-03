@@ -9,6 +9,7 @@
 #include <algorithm>
 
 Renderer::Renderer()
+    : daltonianMode(DaltonianType::None), daltonianStrength(0.0f)
 {
     // Constructor can initialize SDL_ttf if needed
     if (TTF_Init() == -1) {
@@ -58,7 +59,8 @@ void Renderer::render()
         });
         for (auto& cmd : commands) {
             if (cmd.texture != nullptr && cmd.type == DrawType::Texture) {
-                SDL_SetTextureColorMod(cmd.texture, cmd.option.tint.r, cmd.option.tint.g, cmd.option.tint.b);
+                Color tint = applyDaltonianFilter(cmd.option.tint);
+                SDL_SetTextureColorMod(cmd.texture, tint.r, tint.g, tint.b);
                 SDL_SetTextureAlphaMod(cmd.texture, cmd.option.alpha);
                 SDL_SetTextureBlendMode(cmd.texture, cmd.option.blendMode);
             
@@ -445,13 +447,15 @@ std::string Renderer::makeTextKey(const std::string& fontId, const std::string& 
 }
 
 void Renderer::renderLine(const DrawCommand& cmd) {
-    SDL_SetRenderDrawColor(window.renderer, cmd.option.tint.r, cmd.option.tint.g, cmd.option.tint.b, 255);
+    Color tint = applyDaltonianFilter(cmd.option.tint);
+    SDL_SetRenderDrawColor(window.renderer, tint.r, tint.g, tint.b, 255);
     SDL_RenderDrawLine(window.renderer, cmd.primitiveData.x1, cmd.primitiveData.y1,
                        cmd.primitiveData.x2, cmd.primitiveData.y2);
 }
 
 void Renderer::renderRect(const DrawCommand& cmd) {
-    SDL_SetRenderDrawColor(window.renderer, cmd.option.tint.r, cmd.option.tint.g, cmd.option.tint.b, 255);
+    Color tint = applyDaltonianFilter(cmd.option.tint);
+    SDL_SetRenderDrawColor(window.renderer, tint.r, tint.g, tint.b, 255);
     SDL_Rect sdlRect = {cmd.primitiveData.x1, cmd.primitiveData.y1,
                         cmd.primitiveData.x2, cmd.primitiveData.y2};
     if (cmd.primitiveData.filled) {
@@ -459,4 +463,72 @@ void Renderer::renderRect(const DrawCommand& cmd) {
     } else {
         SDL_RenderDrawRect(window.renderer, &sdlRect);
     }
+}
+
+void Renderer::setDaltonianMode(DaltonianType type, float strength) {
+    daltonianMode = type;
+    daltonianStrength = std::max(0.0f, std::min(100.0f, strength)) / 100.0f;
+}
+
+DaltonianType Renderer::getDaltonianMode() const {
+    return daltonianMode;
+}
+
+float Renderer::getDaltonianStrength() const {
+    return daltonianStrength * 100.0f;
+}
+
+Color Renderer::applyDaltonianFilter(const Color& color) const {
+    if (daltonianMode == DaltonianType::None || daltonianStrength == 0.0f) {
+        return color;
+    }
+
+    // Convert to normalized RGB (0.0 - 1.0)
+    float r = color.r / 255.0f;
+    float g = color.g / 255.0f;
+    float b = color.b / 255.0f;
+
+    float newR, newG, newB;
+
+    // Apply color transformation matrix based on type
+    switch (daltonianMode) {
+        case DaltonianType::Protanopia:
+            // Protanopia simulation (missing red cones)
+            newR = 0.567f * r + 0.433f * g;
+            newG = 0.558f * r + 0.442f * g;
+            newB = 0.242f * g + 0.758f * b;
+            break;
+
+        case DaltonianType::Deuteranopia:
+            // Deuteranopia simulation (missing green cones)
+            newR = 0.625f * r + 0.375f * g;
+            newG = 0.700f * r + 0.300f * g;
+            newB = 0.300f * g + 0.700f * b;
+            break;
+
+        case DaltonianType::Tritanopia:
+            // Tritanopia simulation (missing blue cones)
+            newR = 0.950f * r + 0.050f * g;
+            newG = 0.433f * g + 0.567f * b;
+            newB = 0.475f * g + 0.525f * b;
+            break;
+
+        default:
+            newR = r;
+            newG = g;
+            newB = b;
+            break;
+    }
+
+    // Interpolate between original and simulated colors based on strength
+    float finalR = r + (newR - r) * daltonianStrength;
+    float finalG = g + (newG - g) * daltonianStrength;
+    float finalB = b + (newB - b) * daltonianStrength;
+
+    // Clamp and convert back to 0-255 range
+    uint8_t outR = static_cast<uint8_t>(std::max(0.0f, std::min(255.0f, finalR * 255.0f)));
+    uint8_t outG = static_cast<uint8_t>(std::max(0.0f, std::min(255.0f, finalG * 255.0f)));
+    uint8_t outB = static_cast<uint8_t>(std::max(0.0f, std::min(255.0f, finalB * 255.0f)));
+
+    return Color(outR, outG, outB, color.a);
 }

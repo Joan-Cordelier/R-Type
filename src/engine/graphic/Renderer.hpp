@@ -16,6 +16,13 @@
 #include <map>
 #include <functional>
 
+enum class DaltonianType {
+    None,
+    Protanopia,
+    Deuteranopia,
+    Tritanopia
+};
+
 class Renderer
 {
 public:
@@ -28,11 +35,15 @@ private:
 
     std::map<RenderLayer, std::vector<DrawCommand>> drawCommands;
 
+    DaltonianType daltonianMode;
+    float daltonianStrength;
+
     void clearTextCache();
     void invalidateText(const std::string& fontId, const std::string& text);
     std::string makeTextKey(const std::string& fontId, const std::string& text, Color color);
     void renderLine(const DrawCommand& cmd);
     void renderRect(const DrawCommand& cmd);
+    Color applyDaltonianFilter(const Color& color) const;
 
 public:
     Renderer();
@@ -62,4 +73,8 @@ public:
     bool isLoaded(const std::string &id) const;
     SpriteSheet getSpritesheetInfo(const std::string &id) const;
     int getFrameCount(const std::string &id) const;
+
+    void setDaltonianMode(DaltonianType type, float strength = 100.0f);
+    DaltonianType getDaltonianMode() const;
+    float getDaltonianStrength() const;
 };
