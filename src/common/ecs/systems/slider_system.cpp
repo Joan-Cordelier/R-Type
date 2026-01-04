@@ -140,8 +140,8 @@ void SliderSystem::render(Registry& reg, Renderer& renderer) {
         Rect trackRect = {
             static_cast<int>(pos.x),
             static_cast<int>(pos.y),
-            slider.width,
-            slider.height
+            static_cast<int>(slider.width),
+            static_cast<int>(slider.height)
         };
         renderer.drawRect(trackRect, slider.trackColor, RenderLayer::OVERLAY, slider.z, true);
 
@@ -151,8 +151,8 @@ void SliderSystem::render(Registry& reg, Renderer& renderer) {
             Rect fillRect = {
                 static_cast<int>(pos.x),
                 static_cast<int>(pos.y),
-                fillWidth,
-                slider.height
+                static_cast<int>(fillWidth),
+                static_cast<int>(slider.height)
             };
             renderer.drawRect(fillRect, slider.fillColor, RenderLayer::OVERLAY, slider.z + 1, true);
         }

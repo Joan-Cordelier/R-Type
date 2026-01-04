@@ -11,6 +11,7 @@ ClientGameHandler::ClientGameHandler() : _settingsMenu(_reg)
     _renderer.loadTexture("textures/ships/enemy_ship.png", "enemy_ship");
     _renderer.loadSpriteSheet("textures/settingmenu/colorblindbtn.png", "daltonian_btn", 401, 108);
     _renderer.loadTexture("textures/settingmenu/bg.png", "settings_bg");
+    _renderer.loadSpriteSheet("textures/settingmenu/Keybinds.png", "keybinds", 16, 16);
 
     // Set up entities
     _reg.addComponent<Position>(start_button, 400.f, 300.f);
@@ -46,7 +47,7 @@ ClientGameHandler::ClientGameHandler() : _settingsMenu(_reg)
 int ClientGameHandler::run()
 {
     Uint64 last = SDL_GetPerformanceCounter();
-    _input.setControlled(label_input);
+    _input.setControlled(label_input, _keybindsManager);
 
     while (running) {
         _renderer.window.processSDLEvents();
@@ -411,7 +412,7 @@ void ClientGameHandler::handlePlayerPacket(const DecodedMessage& msg)
 
         if (playerId == myPlayerId) {
             myEntity = localEntity;
-            _input.setControlled(localEntity);
+            _input.setControlled(localEntity, _keybindsManager);
             std::cout << "Created my player entity (serverId: " << serverEntity << ", localId: " << localEntity << ") at (" << x << ", " << y << ")" << std::endl;
         } else {
             std::cout << "Created other player entity (serverId: " << serverEntity << ", localId: " << localEntity << ") at (" << x << ", " << y << ")" << std::endl;

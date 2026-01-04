@@ -24,8 +24,9 @@ InputSystem::InputSystem() {
 
 InputSystem::~InputSystem() {}
 
-void InputSystem::setControlled(Entity e) {
+void InputSystem::setControlled(Entity e, KeybindsManager kbManager) {
     controlled = e;
+    keybindsManager = kbManager;
 }
 
 void InputSystem::update(Registry& reg, SDL_Event& e, NetworkManager& networkManager) {
@@ -35,10 +36,10 @@ void InputSystem::update(Registry& reg, SDL_Event& e, NetworkManager& networkMan
 
     if (reg.hasComponent<Velocity>(controlled)) {
         float vx = 0.f, vy = 0.f;
-        if (ks[SDL_SCANCODE_UP] || ks[SDL_SCANCODE_W])    vy -= 1.f;
-        if (ks[SDL_SCANCODE_DOWN] || ks[SDL_SCANCODE_S])  vy += 1.f;
-        if (ks[SDL_SCANCODE_LEFT] || ks[SDL_SCANCODE_A])  vx -= 1.f;
-        if (ks[SDL_SCANCODE_RIGHT] || ks[SDL_SCANCODE_D]) vx += 1.f;
+        if (ks[SDL_SCANCODE_UP] || ks[keybindsManager.upKey])    vy -= 1.f;
+        if (ks[SDL_SCANCODE_DOWN] || ks[keybindsManager.downKey])  vy += 1.f;
+        if (ks[SDL_SCANCODE_LEFT] || ks[keybindsManager.leftKey])  vx -= 1.f;
+        if (ks[SDL_SCANCODE_RIGHT] || ks[keybindsManager.rightKey]) vx += 1.f;
 
         if (last_x != vx || last_y != vy) {
             last_x = vx;
@@ -48,7 +49,7 @@ void InputSystem::update(Registry& reg, SDL_Event& e, NetworkManager& networkMan
             networkManager.sendUdp(factory.createMessage(OpCode::MOVE_INPUT, payload));
         }
 
-        if (ks[SDL_SCANCODE_SPACE]) {
+        if (ks[keybindsManager.shootKey]) {
             if (!reg.hasComponent<Stats>(controlled))
                 return;
             auto &stats = reg.getComponent<Stats>(controlled);

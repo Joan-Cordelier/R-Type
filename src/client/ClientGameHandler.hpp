@@ -18,6 +18,7 @@
 #include <arpa/inet.h>
 #include <sys/socket.h>
 #include "SettingMenu.hpp"
+#include "KeybindsManager.hpp"
 
 class ClientGameHandler {
 private:
@@ -31,7 +32,9 @@ private:
     StatSystem _statsys;
     InputSystem _input;
     SliderSystem _slidersys;
+
     SettingMenu _settingsMenu;
+    KeybindsManager _keybindsManager;
 
     NetworkManager _network;
 
