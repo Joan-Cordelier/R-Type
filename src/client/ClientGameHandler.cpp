@@ -9,6 +9,8 @@ ClientGameHandler::ClientGameHandler() : _settingsMenu(_reg)
     _renderer.loadSpriteSheet("textures/projectiles/projectile_player.png", "projectile_player", 16, 16);
     _renderer.loadFont("font/josefin-sans/JosefinSans-Regular.ttf", 40, "default_font");
     _renderer.loadTexture("textures/ships/enemy_ship.png", "enemy_ship");
+    _renderer.loadSpriteSheet("textures/settingmenu/colorblindbtn.png", "daltonian_btn", 401, 108);
+    _renderer.loadTexture("textures/settingmenu/bg.png", "settings_bg");
 
     // Set up entities
     _reg.addComponent<Position>(start_button, 400.f, 300.f);
