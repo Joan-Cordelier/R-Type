@@ -20,26 +20,36 @@
 InputSystem::InputSystem() {
     last_x = 0;
     last_y = 0;
+    keybindsManager = nullptr;
 }
 
 InputSystem::~InputSystem() {}
 
-void InputSystem::setControlled(Entity e, KeybindsManager kbManager) {
+void InputSystem::setControlled(Entity e, KeybindsManager& kbManager) {
     controlled = e;
-    keybindsManager = kbManager;
+    keybindsManager = &kbManager;
 }
 
 void InputSystem::update(Registry& reg, SDL_Event& e, NetworkManager& networkManager) {
+    if (!keybindsManager) return;
+    
+    if (keybindsManager->isWaitingForKeybind) {
+        if (e.type == SDL_KEYDOWN) {
+            SDL_Scancode newKey = e.key.keysym.scancode;
+            keybindsManager->assignNewKeybind(keybindsManager->currentKeybindAction, newKey);
+        }
+        return; // the label still catch the input even when we return here need to fix this later
+    }
+    
     if (controlled == INVALID_ENTITY) return;
-
     const Uint8* ks = SDL_GetKeyboardState(NULL);
 
     if (reg.hasComponent<Velocity>(controlled)) {
         float vx = 0.f, vy = 0.f;
-        if (ks[SDL_SCANCODE_UP] || ks[keybindsManager.upKey])    vy -= 1.f;
-        if (ks[SDL_SCANCODE_DOWN] || ks[keybindsManager.downKey])  vy += 1.f;
-        if (ks[SDL_SCANCODE_LEFT] || ks[keybindsManager.leftKey])  vx -= 1.f;
-        if (ks[SDL_SCANCODE_RIGHT] || ks[keybindsManager.rightKey]) vx += 1.f;
+        if (ks[SDL_SCANCODE_UP] || ks[keybindsManager->upKey])    vy -= 1.f;
+        if (ks[SDL_SCANCODE_DOWN] || ks[keybindsManager->downKey])  vy += 1.f;
+        if (ks[SDL_SCANCODE_LEFT] || ks[keybindsManager->leftKey])  vx -= 1.f;
+        if (ks[SDL_SCANCODE_RIGHT] || ks[keybindsManager->rightKey]) vx += 1.f;
 
         if (last_x != vx || last_y != vy) {
             last_x = vx;
@@ -49,7 +59,7 @@ void InputSystem::update(Registry& reg, SDL_Event& e, NetworkManager& networkMan
             networkManager.sendUdp(factory.createMessage(OpCode::MOVE_INPUT, payload));
         }
 
-        if (ks[keybindsManager.shootKey]) {
+        if (ks[keybindsManager->shootKey]) {
             if (!reg.hasComponent<Stats>(controlled))
                 return;
             auto &stats = reg.getComponent<Stats>(controlled);

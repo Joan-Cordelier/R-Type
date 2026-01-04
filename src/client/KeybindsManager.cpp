@@ -1,5 +1,7 @@
 #include "KeybindsManager.hpp"
 
+#include <iostream>
+
 KeybindsManager::KeybindsManager()
 {
 
@@ -27,9 +29,30 @@ void KeybindsManager::assignNewKeybind(KeybindAction keybind, SDL_Scancode newVa
             leftKey = newVal;
             break;
         case ShootKey:
+        std::cout << "Rebinding ShootKey to scancode " << newVal << std::endl;
             shootKey = newVal;
             break;
         default:
             break;
     }
+
+    isWaitingForKeybind = false;
+    currentKeybindAction = KeybindAction::None;
+    
+    // Notify callback if set
+    if (onKeybindChanged) {
+        onKeybindChanged(keybind, newVal);
+    }
+}
+
+void KeybindsManager::setOnKeybindChangedCallback(std::function<void(KeybindAction, SDL_Scancode)> callback)
+{
+    onKeybindChanged = callback;
+}
+
+void KeybindsManager::initiateKeybindChange(KeybindAction action)
+{
+    std::cout << "Press a key to rebind action " << action << std::endl;
+    isWaitingForKeybind = true;
+    currentKeybindAction = action;
 }

@@ -10,12 +10,18 @@
 
 class SettingMenu {
 private:
+    //colorblind mode
     Entity DaltonianSlider;
     Entity DaltonianMode;
     DaltonianType currentDaltonianMode = DaltonianType::None;
+
+    //keybinds btn
+    KeybindsManager& keybindsManager;
+    Entity ShootKeybindBtn;
+
 public:
     bool toggled = false;
-    SettingMenu(Registry& reg);
+    SettingMenu(Registry& reg, KeybindsManager& kbManager);
     void setup(Registry& reg, SliderSystem& slidersys, ButtonSystem& buttonsys);
     void toggle(Registry& reg);
     void updateVisibility(Registry& reg);

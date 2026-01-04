@@ -1,6 +1,7 @@
 #pragma once
 
 #include <SDL2/SDL.h>
+#include <functional>
 
 typedef enum {
     None,
@@ -23,8 +24,13 @@ public:
     SDL_Scancode leftKey = SDL_SCANCODE_A;
     SDL_Scancode shootKey = SDL_SCANCODE_SPACE;
 
+    bool isWaitingForKeybind = false;
+    KeybindAction currentKeybindAction = KeybindAction::None;
+    std::function<void(KeybindAction, SDL_Scancode)> onKeybindChanged;
 
     KeybindsManager();
+    void initiateKeybindChange(KeybindAction action);
     void assignNewKeybind(KeybindAction keybind, SDL_Scancode newVal);
+    void setOnKeybindChangedCallback(std::function<void(KeybindAction, SDL_Scancode)> callback);
 
 };

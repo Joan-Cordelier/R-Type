@@ -18,12 +18,12 @@ public:
     InputSystem();
     ~InputSystem();
 
-    void setControlled(Entity e, KeybindsManager kbManager);
+    void setControlled(Entity e, KeybindsManager& kbManager);
     void update(Registry& reg, SDL_Event& e, NetworkManager& networkManager);
 
 private:
     Entity controlled;
-    KeybindsManager keybindsManager;
+    KeybindsManager* keybindsManager;
     float last_x, last_y;
 };
 

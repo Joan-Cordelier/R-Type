@@ -1,24 +1,41 @@
 #include "SettingMenu.hpp"
 #include "../common/ecs/registry.hpp"
 
-SettingMenu::SettingMenu(Registry& reg)
+SettingMenu::SettingMenu(Registry& reg, KeybindsManager& kbManager) : keybindsManager(kbManager)
 {
+
     DaltonianSlider = reg.createEntity();
     DaltonianMode = reg.createEntity();
+    ShootKeybindBtn = reg.createEntity();
     
     reg.addComponent<Slider>(DaltonianSlider, 0.0f, 0.0f, 100.0f, 150.0f, 20.0f, 0, 16, 24, false, false, false, std::string("DaltonianHandler"), Color(100, 100, 100), Color(50, 150, 250), Color(255, 255, 255));
     reg.addComponent<Position>(DaltonianSlider, 300.0f, 170.0f);
 
     reg.addComponent<Position>(DaltonianMode, 275.0f, 100.0f);
     reg.addComponent<SpriteSheets>(DaltonianMode, std::string(""), std::string("daltonian_btn"), 200, 50, 0, 3, 0, false, false);
-    reg.addComponent<Sprite>(DaltonianMode, std::string("textures/colorblind_btn/colorblindbtn.png"), std::string("daltonian_btn"), 200, 50, 0, false);
+    reg.addComponent<Sprite>(DaltonianMode, std::string("textures/colorblind_btn/colorblindbtn.png"), std::string("daltonian_btn"), 200, 50, 0, false); //only for button system to work
     reg.addComponent<Button>(DaltonianMode, std::string("DaltonianModeButton"), 1, false);
+
+    reg.addComponent<Position>(ShootKeybindBtn, 600.0f, 100.0f);
+    reg.addComponent<SpriteSheets>(ShootKeybindBtn, std::string(""), std::string("keybinds"), 50, 50, 52, 111, 0, false, false);
+    reg.addComponent<Sprite>(ShootKeybindBtn, std::string("textures/keybinds_btn/colorblindbtn.png"), std::string("daltonian_btn"), 50, 50, 0, false); //only for button system to work
+    reg.addComponent<Button>(ShootKeybindBtn, std::string("ShootKeybindButton"), 1, false);
 }
 
 void SettingMenu::setup(Registry& reg, SliderSystem& slidersys, ButtonSystem& buttonsys)
 {
     (void) reg;
     (void) slidersys;
+    
+    keybindsManager.setOnKeybindChangedCallback([&](KeybindAction action, SDL_Scancode scancode) {
+        if (action == KeybindAction::ShootKey && reg.hasComponent<SpriteSheets>(ShootKeybindBtn)) {
+            if (scancode == SDL_SCANCODE_SPACE)
+                reg.getComponent<SpriteSheets>(ShootKeybindBtn).frameIndex = 52;
+            else
+                reg.getComponent<SpriteSheets>(ShootKeybindBtn).frameIndex = 16 + (scancode - SDL_SCANCODE_A);
+        }
+    });
+    
     buttonsys.registerHandler("DaltonianModeButton", [&](Registry& r, Entity e) {
         // Cycle through Daltonian modes
         switch (currentDaltonianMode) {
@@ -44,6 +61,11 @@ void SettingMenu::setup(Registry& reg, SliderSystem& slidersys, ButtonSystem& bu
                 break;
         }
     });
+
+    buttonsys.registerHandler("ShootKeybindButton", [&](Registry& r, Entity e) {
+        keybindsManager.initiateKeybindChange(KeybindAction::ShootKey);
+        r.getComponent<SpriteSheets>(e).frameIndex = 42;
+    });
 }
 
 void SettingMenu::toggle(Registry& reg)
@@ -57,7 +79,12 @@ void SettingMenu::updateVisibility(Registry& reg)
     std::cout << "SettingMenu visibility set to " << (toggled ? "true" : "false") << std::endl;
     reg.getComponent<Slider>(DaltonianSlider).visible = toggled;
     reg.getComponent<Slider>(DaltonianSlider).enabled = toggled;
+
     reg.getComponent<Button>(DaltonianMode).visible = toggled;
     reg.getComponent<Button>(DaltonianMode).enabled = toggled;
     reg.getComponent<SpriteSheets>(DaltonianMode).visible = toggled;
+
+    reg.getComponent<Button>(ShootKeybindBtn).visible = toggled;
+    reg.getComponent<Button>(ShootKeybindBtn).enabled = toggled;
+    reg.getComponent<SpriteSheets>(ShootKeybindBtn).visible = toggled;
 }

@@ -1,7 +1,7 @@
 #include "ClientGameHandler.hpp"
 #include "../common/Data/EntityType.hpp"
 
-ClientGameHandler::ClientGameHandler() : _settingsMenu(_reg)
+ClientGameHandler::ClientGameHandler() : _settingsMenu(_reg, _keybindsManager)
 {
     // Load resources
     _renderer.loadSpriteSheet("textures/ships/player_ship.png", "player_ship", 343, 383);
