@@ -56,6 +56,7 @@ int ClientGameHandler::run()
         
         // Handle ESC key for settings menu
         if (status.type == SDL_KEYDOWN && status.key.keysym.sym == SDLK_ESCAPE) {
+            std::cout << "toggling settings menu" << std::endl;
             toggleSettingsMenu();
         }
         _renderer.setDaltonianMode(_settingsMenu.getCurrentDaltonianMode(), _settingsMenu.getDaltonianSliderValue(_reg));

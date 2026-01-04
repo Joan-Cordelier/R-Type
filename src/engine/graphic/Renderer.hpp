@@ -37,6 +37,9 @@ private:
 
     DaltonianType daltonianMode;
     float daltonianStrength;
+    SDL_Texture* renderTarget;
+    int renderTargetWidth;
+    int renderTargetHeight;
 
     void clearTextCache();
     void invalidateText(const std::string& fontId, const std::string& text);
@@ -44,6 +47,9 @@ private:
     void renderLine(const DrawCommand& cmd);
     void renderRect(const DrawCommand& cmd);
     Color applyDaltonianFilter(const Color& color) const;
+    void createRenderTarget();
+    void destroyRenderTarget();
+    Color getColorblindTintColor() const;
 
 public:
     Renderer();

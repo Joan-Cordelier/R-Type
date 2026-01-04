@@ -9,7 +9,8 @@
 #include <algorithm>
 
 Renderer::Renderer()
-    : daltonianMode(DaltonianType::None), daltonianStrength(0.0f)
+    : daltonianMode(DaltonianType::None), daltonianStrength(0.0f),
+      renderTarget(nullptr), renderTargetWidth(0), renderTargetHeight(0)
 {
     // Constructor can initialize SDL_ttf if needed
     if (TTF_Init() == -1) {
@@ -20,6 +21,7 @@ Renderer::Renderer()
 
 Renderer::~Renderer()
 {
+    destroyRenderTarget();
     for (auto &pair : textureCache) {
         if (pair.second) {
             SDL_DestroyTexture(pair.second);
@@ -50,6 +52,20 @@ void Renderer::clear()
 /// @brief present the rendered content to the window
 void Renderer::render()
 {
+    bool useColorblindFilter = (daltonianMode != DaltonianType::None && daltonianStrength > 0.0f);
+    
+    if (useColorblindFilter) {
+        int currentWidth, currentHeight;
+        SDL_GetRendererOutputSize(window.renderer, &currentWidth, &currentHeight);
+        if (renderTarget == nullptr || renderTargetWidth != currentWidth || renderTargetHeight != currentHeight) {
+            createRenderTarget();
+        }
+        SDL_SetRenderTarget(window.renderer, renderTarget);
+        SDL_SetRenderDrawColor(window.renderer, 0, 0, 0, 255);
+        SDL_RenderClear(window.renderer);
+    }
+    
+    // Render all commands
     for (auto& [order, commands] : drawCommands) {
         std::stable_sort(commands.begin(), commands.end(),
         [](const DrawCommand& a, const DrawCommand& b) {
@@ -59,8 +75,7 @@ void Renderer::render()
         });
         for (auto& cmd : commands) {
             if (cmd.texture != nullptr && cmd.type == DrawType::Texture) {
-                Color tint = applyDaltonianFilter(cmd.option.tint);
-                SDL_SetTextureColorMod(cmd.texture, tint.r, tint.g, tint.b);
+                SDL_SetTextureColorMod(cmd.texture, cmd.option.tint.r, cmd.option.tint.g, cmd.option.tint.b);
                 SDL_SetTextureAlphaMod(cmd.texture, cmd.option.alpha);
                 SDL_SetTextureBlendMode(cmd.texture, cmd.option.blendMode);
             
@@ -92,6 +107,23 @@ void Renderer::render()
         }
     }
     drawCommands.clear();
+    
+    // Apply colorblind filter
+    if (useColorblindFilter) {
+        SDL_SetRenderTarget(window.renderer, nullptr);
+        
+        // Interpolate between no filter and colorblind tint based on strength
+        Color filterColor = getColorblindTintColor();
+        uint8_t r = static_cast<uint8_t>(255 + (filterColor.r - 255) * daltonianStrength);
+        uint8_t g = static_cast<uint8_t>(255 + (filterColor.g - 255) * daltonianStrength);
+        uint8_t b = static_cast<uint8_t>(255 + (filterColor.b - 255) * daltonianStrength);
+        
+        SDL_SetTextureBlendMode(renderTarget, SDL_BLENDMODE_BLEND);
+        SDL_SetTextureAlphaMod(renderTarget, 255);
+        SDL_SetTextureColorMod(renderTarget, r, g, b);
+        SDL_RenderCopy(window.renderer, renderTarget, nullptr, nullptr);
+    }
+    
     window.draw();
 }
 
@@ -447,15 +479,13 @@ std::string Renderer::makeTextKey(const std::string& fontId, const std::string& 
 }
 
 void Renderer::renderLine(const DrawCommand& cmd) {
-    Color tint = applyDaltonianFilter(cmd.option.tint);
-    SDL_SetRenderDrawColor(window.renderer, tint.r, tint.g, tint.b, 255);
+    SDL_SetRenderDrawColor(window.renderer, cmd.option.tint.r, cmd.option.tint.g, cmd.option.tint.b, 255);
     SDL_RenderDrawLine(window.renderer, cmd.primitiveData.x1, cmd.primitiveData.y1,
                        cmd.primitiveData.x2, cmd.primitiveData.y2);
 }
 
 void Renderer::renderRect(const DrawCommand& cmd) {
-    Color tint = applyDaltonianFilter(cmd.option.tint);
-    SDL_SetRenderDrawColor(window.renderer, tint.r, tint.g, tint.b, 255);
+    SDL_SetRenderDrawColor(window.renderer, cmd.option.tint.r, cmd.option.tint.g, cmd.option.tint.b, 255);
     SDL_Rect sdlRect = {cmd.primitiveData.x1, cmd.primitiveData.y1,
                         cmd.primitiveData.x2, cmd.primitiveData.y2};
     if (cmd.primitiveData.filled) {
@@ -531,4 +561,38 @@ Color Renderer::applyDaltonianFilter(const Color& color) const {
     uint8_t outB = static_cast<uint8_t>(std::max(0.0f, std::min(255.0f, finalB * 255.0f)));
 
     return Color(outR, outG, outB, color.a);
+}
+
+void Renderer::createRenderTarget() {
+    destroyRenderTarget();
+    
+    SDL_GetRendererOutputSize(window.renderer, &renderTargetWidth, &renderTargetHeight);
+    renderTarget = SDL_CreateTexture(window.renderer, SDL_PIXELFORMAT_RGBA8888,
+                                     SDL_TEXTUREACCESS_TARGET, renderTargetWidth, renderTargetHeight);
+    if (!renderTarget) {
+        std::cerr << "Failed to create render target: " << SDL_GetError() << std::endl;
+    }
+}
+
+void Renderer::destroyRenderTarget() {
+    if (renderTarget) {
+        SDL_DestroyTexture(renderTarget);
+        renderTarget = nullptr;
+    }
+}
+
+Color Renderer::getColorblindTintColor() const {
+    switch (daltonianMode) {
+        case DaltonianType::Protanopia:
+            return Color(140, 180, 255);
+        
+        case DaltonianType::Deuteranopia:
+            return Color(180, 140, 255);
+        
+        case DaltonianType::Tritanopia:
+            return Color(255, 180, 140);
+        
+        default:
+            return Color(255, 255, 255);
+    }
 }
