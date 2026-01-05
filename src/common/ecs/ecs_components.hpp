@@ -9,3 +9,4 @@
 #include "components/spritesheet.hpp"
 #include "components/enemy.hpp"
 #include "components/projectile.hpp"
+#include "components/slider.hpp"

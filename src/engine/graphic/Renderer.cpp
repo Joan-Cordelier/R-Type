@@ -9,6 +9,8 @@
 #include <algorithm>
 
 Renderer::Renderer()
+    : daltonianMode(DaltonianType::None), daltonianStrength(0.0f),
+      renderTarget(nullptr), renderTargetWidth(0), renderTargetHeight(0)
 {
     // Constructor can initialize SDL_ttf if needed
     if (TTF_Init() == -1) {
@@ -19,6 +21,7 @@ Renderer::Renderer()
 
 Renderer::~Renderer()
 {
+    destroyRenderTarget();
     for (auto &pair : textureCache) {
         if (pair.second) {
             SDL_DestroyTexture(pair.second);
@@ -49,6 +52,20 @@ void Renderer::clear()
 /// @brief present the rendered content to the window
 void Renderer::render()
 {
+    bool useColorblindFilter = (daltonianMode != DaltonianType::None && daltonianStrength > 0.0f);
+    
+    if (useColorblindFilter) {
+        int currentWidth, currentHeight;
+        SDL_GetRendererOutputSize(window.renderer, &currentWidth, &currentHeight);
+        if (renderTarget == nullptr || renderTargetWidth != currentWidth || renderTargetHeight != currentHeight) {
+            createRenderTarget();
+        }
+        SDL_SetRenderTarget(window.renderer, renderTarget);
+        SDL_SetRenderDrawColor(window.renderer, 0, 0, 0, 255);
+        SDL_RenderClear(window.renderer);
+    }
+    
+    // Render all commands
     for (auto& [order, commands] : drawCommands) {
         std::stable_sort(commands.begin(), commands.end(),
         [](const DrawCommand& a, const DrawCommand& b) {
@@ -90,6 +107,23 @@ void Renderer::render()
         }
     }
     drawCommands.clear();
+    
+    // Apply colorblind filter
+    if (useColorblindFilter) {
+        SDL_SetRenderTarget(window.renderer, nullptr);
+        
+        // Interpolate between no filter and colorblind tint based on strength
+        Color filterColor = getColorblindTintColor();
+        uint8_t r = static_cast<uint8_t>(255 + (filterColor.r - 255) * daltonianStrength);
+        uint8_t g = static_cast<uint8_t>(255 + (filterColor.g - 255) * daltonianStrength);
+        uint8_t b = static_cast<uint8_t>(255 + (filterColor.b - 255) * daltonianStrength);
+        
+        SDL_SetTextureBlendMode(renderTarget, SDL_BLENDMODE_BLEND);
+        SDL_SetTextureAlphaMod(renderTarget, 255);
+        SDL_SetTextureColorMod(renderTarget, r, g, b);
+        SDL_RenderCopy(window.renderer, renderTarget, nullptr, nullptr);
+    }
+    
     window.draw();
 }
 
@@ -458,5 +492,107 @@ void Renderer::renderRect(const DrawCommand& cmd) {
         SDL_RenderFillRect(window.renderer, &sdlRect);
     } else {
         SDL_RenderDrawRect(window.renderer, &sdlRect);
+    }
+}
+
+void Renderer::setDaltonianMode(DaltonianType type, float strength) {
+    daltonianMode = type;
+    daltonianStrength = std::max(0.0f, std::min(100.0f, strength)) / 100.0f;
+}
+
+DaltonianType Renderer::getDaltonianMode() const {
+    return daltonianMode;
+}
+
+float Renderer::getDaltonianStrength() const {
+    return daltonianStrength * 100.0f;
+}
+
+Color Renderer::applyDaltonianFilter(const Color& color) const {
+    if (daltonianMode == DaltonianType::None || daltonianStrength == 0.0f) {
+        return color;
+    }
+
+    // Convert to normalized RGB (0.0 - 1.0)
+    float r = color.r / 255.0f;
+    float g = color.g / 255.0f;
+    float b = color.b / 255.0f;
+
+    float newR, newG, newB;
+
+    // Apply color transformation matrix based on type
+    switch (daltonianMode) {
+        case DaltonianType::Protanopia:
+            // Protanopia simulation (missing red cones)
+            newR = 0.567f * r + 0.433f * g;
+            newG = 0.558f * r + 0.442f * g;
+            newB = 0.242f * g + 0.758f * b;
+            break;
+
+        case DaltonianType::Deuteranopia:
+            // Deuteranopia simulation (missing green cones)
+            newR = 0.625f * r + 0.375f * g;
+            newG = 0.700f * r + 0.300f * g;
+            newB = 0.300f * g + 0.700f * b;
+            break;
+
+        case DaltonianType::Tritanopia:
+            // Tritanopia simulation (missing blue cones)
+            newR = 0.950f * r + 0.050f * g;
+            newG = 0.433f * g + 0.567f * b;
+            newB = 0.475f * g + 0.525f * b;
+            break;
+
+        default:
+            newR = r;
+            newG = g;
+            newB = b;
+            break;
+    }
+
+    // Interpolate between original and simulated colors based on strength
+    float finalR = r + (newR - r) * daltonianStrength;
+    float finalG = g + (newG - g) * daltonianStrength;
+    float finalB = b + (newB - b) * daltonianStrength;
+
+    // Clamp and convert back to 0-255 range
+    uint8_t outR = static_cast<uint8_t>(std::max(0.0f, std::min(255.0f, finalR * 255.0f)));
+    uint8_t outG = static_cast<uint8_t>(std::max(0.0f, std::min(255.0f, finalG * 255.0f)));
+    uint8_t outB = static_cast<uint8_t>(std::max(0.0f, std::min(255.0f, finalB * 255.0f)));
+
+    return Color(outR, outG, outB, color.a);
+}
+
+void Renderer::createRenderTarget() {
+    destroyRenderTarget();
+    
+    SDL_GetRendererOutputSize(window.renderer, &renderTargetWidth, &renderTargetHeight);
+    renderTarget = SDL_CreateTexture(window.renderer, SDL_PIXELFORMAT_RGBA8888,
+                                     SDL_TEXTUREACCESS_TARGET, renderTargetWidth, renderTargetHeight);
+    if (!renderTarget) {
+        std::cerr << "Failed to create render target: " << SDL_GetError() << std::endl;
+    }
+}
+
+void Renderer::destroyRenderTarget() {
+    if (renderTarget) {
+        SDL_DestroyTexture(renderTarget);
+        renderTarget = nullptr;
+    }
+}
+
+Color Renderer::getColorblindTintColor() const {
+    switch (daltonianMode) {
+        case DaltonianType::Protanopia:
+            return Color(140, 180, 255);
+        
+        case DaltonianType::Deuteranopia:
+            return Color(180, 140, 255);
+        
+        case DaltonianType::Tritanopia:
+            return Color(255, 180, 140);
+        
+        default:
+            return Color(255, 255, 255);
     }
 }

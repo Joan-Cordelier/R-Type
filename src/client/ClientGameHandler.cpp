@@ -1,14 +1,18 @@
 #include "ClientGameHandler.hpp"
 #include "../common/Data/EntityType.hpp"
 
-ClientGameHandler::ClientGameHandler()
+ClientGameHandler::ClientGameHandler() : _settingsMenu(_reg, _keybindsManager)
 {
     // Load resources
     _renderer.loadSpriteSheet("textures/ships/player_ship.png", "player_ship", 343, 383);
     _renderer.loadTexture("textures/play_button/default.png", "play_button");
     _renderer.loadSpriteSheet("textures/projectiles/projectile_player.png", "projectile_player", 16, 16);
     _renderer.loadFont("font/josefin-sans/JosefinSans-Regular.ttf", 40, "default_font");
+    _renderer.loadFont("font/josefin-sans/JosefinSans-Regular.ttf", 25, "default_font_small");
     _renderer.loadTexture("textures/ships/enemy_ship.png", "enemy_ship");
+    _renderer.loadSpriteSheet("textures/settingmenu/colorblindbtn.png", "daltonian_btn", 401, 108);
+    _renderer.loadTexture("textures/settingmenu/bg.png", "settings_bg");
+    _renderer.loadSpriteSheet("textures/settingmenu/Keybinds.png", "keybinds", 16, 16);
 
     // Set up entities
     _reg.addComponent<Position>(start_button, 400.f, 300.f);
@@ -37,18 +41,27 @@ ClientGameHandler::ClientGameHandler()
         PreparedMessage msg = factory.createMessage(OpCode::CONNECT, {});
         _network.sendTcp(msg);
     });
+
+    _settingsMenu.setup(_reg, _slidersys, _buttonsys);
 }
 
 int ClientGameHandler::run()
 {
     Uint64 last = SDL_GetPerformanceCounter();
-    _input.setControlled(label_input);
+    _input.setControlled(label_input, _keybindsManager);
 
     while (running) {
         _renderer.window.processSDLEvents();
         SDL_Event status = _renderer.window.pollEvent();
         if (status.type == SDL_QUIT)
             break;
+        
+        // Handle ESC key for settings menu
+        if (status.type == SDL_KEYDOWN && status.key.keysym.sym == SDLK_ESCAPE) {
+            std::cout << "toggling settings menu" << std::endl;
+            toggleSettingsMenu();
+        }
+        _renderer.setDaltonianMode(_settingsMenu.getCurrentDaltonianMode(), _settingsMenu.getDaltonianSliderValue(_reg));
 
         Uint64 now = SDL_GetPerformanceCounter();
         double dt = (double)(now - last) / SDL_GetPerformanceFrequency();
@@ -62,6 +75,7 @@ int ClientGameHandler::run()
         _movement.update(_reg, static_cast<float>(dt));
 
         _buttonsys.update(_reg);
+        _slidersys.update(_reg);
 
         _renderer.clear();
 
@@ -76,8 +90,10 @@ int ClientGameHandler::run()
         }, animationClock);
 
         _labelsys.render(_reg, [&](const LabelSystem::TextId& tid, std::string& text, int x, int y, Color color) {
-            _renderer.drawFont(tid, text, x, y, color, RenderLayer::OVERLAY, 0);
+            _renderer.drawFontAndCache(tid, text, x, y, color, RenderLayer::OVERLAY, 0);
         });
+
+        _slidersys.render(_reg, _renderer);
 
         _renderer.render();
     }
@@ -87,7 +103,6 @@ int ClientGameHandler::run()
 
 void ClientGameHandler::cleanupServerEntity(Entity serverEntity)
 {
-    // Nettoyer dans playerEntities
     auto itPlayer = playerEntities.find(serverEntity);
     if (itPlayer != playerEntities.end()) {
         std::cout << "Warning: Cleaning up old player entity with serverEntity " << serverEntity << std::endl;
@@ -95,7 +110,6 @@ void ClientGameHandler::cleanupServerEntity(Entity serverEntity)
         playerEntities.erase(itPlayer);
     }
     
-    // Nettoyer dans enemyEntities
     auto itEnemy = enemyEntities.find(serverEntity);
     if (itEnemy != enemyEntities.end()) {
         std::cout << "Warning: Cleaning up old enemy entity with serverEntity " << serverEntity << std::endl;
@@ -103,7 +117,6 @@ void ClientGameHandler::cleanupServerEntity(Entity serverEntity)
         enemyEntities.erase(itEnemy);
     }
     
-    // Nettoyer dans projectileEntities
     auto itProj = projectileEntities.find(serverEntity);
     if (itProj != projectileEntities.end()) {
         std::cout << "Warning: Cleaning up old projectile entity with serverEntity " << serverEntity << std::endl;
@@ -400,7 +413,7 @@ void ClientGameHandler::handlePlayerPacket(const DecodedMessage& msg)
 
         if (playerId == myPlayerId) {
             myEntity = localEntity;
-            _input.setControlled(localEntity);
+            _input.setControlled(localEntity, _keybindsManager);
             std::cout << "Created my player entity (serverId: " << serverEntity << ", localId: " << localEntity << ") at (" << x << ", " << y << ")" << std::endl;
         } else {
             std::cout << "Created other player entity (serverId: " << serverEntity << ", localId: " << localEntity << ") at (" << x << ", " << y << ")" << std::endl;
@@ -410,4 +423,10 @@ void ClientGameHandler::handlePlayerPacket(const DecodedMessage& msg)
         _reg.getComponent<Position>(localEntity).x = x;
         _reg.getComponent<Position>(localEntity).y = y;
     }
+}
+
+void ClientGameHandler::toggleSettingsMenu()
+{
+    settingsMenuOpen = !settingsMenuOpen;
+    _settingsMenu.toggle(_reg);
 }

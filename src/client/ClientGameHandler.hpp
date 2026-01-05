@@ -8,6 +8,7 @@
 #include "../common/ecs/registry.hpp"
 #include "../common/ecs/ecs_system.hpp"
 #include "../common/ecs/ecs_components.hpp"
+#include "../common/ecs/systems/slider_system.hpp"
 
 #include <functional>
 #include <map>
@@ -16,6 +17,8 @@
 #include <SDL2/SDL.h>
 #include <arpa/inet.h>
 #include <sys/socket.h>
+#include "SettingMenu.hpp"
+#include "KeybindsManager.hpp"
 
 class ClientGameHandler {
 private:
@@ -28,6 +31,10 @@ private:
     SpriteSheetSystem _spritesheetsys;
     StatSystem _statsys;
     InputSystem _input;
+    SliderSystem _slidersys;
+
+    SettingMenu _settingsMenu;
+    KeybindsManager _keybindsManager;
 
     NetworkManager _network;
 
@@ -38,12 +45,15 @@ private:
 
     double animationClock = 0.0;
     bool running = true;
+    bool settingsMenuOpen = false;
 
     std::string ip_adress = "127.0.0.1";
 
     // menu Entities
     Entity start_button = _reg.createEntity();
     Entity label_input = _reg.createEntity();
+
+    void toggleSettingsMenu();
 
     void handleMessages();
     void handlePlayerPacket(const DecodedMessage& msg);
