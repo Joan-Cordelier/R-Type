@@ -8,6 +8,7 @@ ClientGameHandler::ClientGameHandler() : _settingsMenu(_reg, _keybindsManager)
     _renderer.loadTexture("textures/play_button/default.png", "play_button");
     _renderer.loadSpriteSheet("textures/projectiles/projectile_player.png", "projectile_player", 16, 16);
     _renderer.loadFont("font/josefin-sans/JosefinSans-Regular.ttf", 40, "default_font");
+    _renderer.loadFont("font/josefin-sans/JosefinSans-Regular.ttf", 25, "default_font_small");
     _renderer.loadTexture("textures/ships/enemy_ship.png", "enemy_ship");
     _renderer.loadSpriteSheet("textures/settingmenu/colorblindbtn.png", "daltonian_btn", 401, 108);
     _renderer.loadTexture("textures/settingmenu/bg.png", "settings_bg");
@@ -89,7 +90,7 @@ int ClientGameHandler::run()
         }, animationClock);
 
         _labelsys.render(_reg, [&](const LabelSystem::TextId& tid, std::string& text, int x, int y, Color color) {
-            _renderer.drawFont(tid, text, x, y, color, RenderLayer::OVERLAY, 0);
+            _renderer.drawFontAndCache(tid, text, x, y, color, RenderLayer::OVERLAY, 0);
         });
 
         _slidersys.render(_reg, _renderer);

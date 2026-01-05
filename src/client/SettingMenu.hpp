@@ -17,7 +17,16 @@ private:
 
     //keybinds btn
     KeybindsManager& keybindsManager;
+    Entity ShootLabel;
     Entity ShootKeybindBtn;
+    Entity MoveUpLabel;
+    Entity MoveUpKeybindBtn;
+    Entity MoveDownLabel;
+    Entity MoveDownKeybindBtn;
+    Entity MoveLeftLabel;
+    Entity MoveLeftKeybindBtn;
+    Entity MoveRightLabel;
+    Entity MoveRightKeybindBtn;
 
 public:
     bool toggled = false;
