@@ -1,5 +1,6 @@
 #include "ClientGameHandler.hpp"
 #include "../common/Data/EntityType.hpp"
+#include "../common/ecs/components/weapon.hpp"
 
 ClientGameHandler::ClientGameHandler() : _settingsMenu(_reg, _keybindsManager)
 {
@@ -43,6 +44,8 @@ ClientGameHandler::ClientGameHandler() : _settingsMenu(_reg, _keybindsManager)
     });
 
     _settingsMenu.setup(_reg, _slidersys, _buttonsys);
+
+    _weaponsys.setIsServer(false);
 }
 
 int ClientGameHandler::run()
@@ -70,7 +73,8 @@ int ClientGameHandler::run()
 
         handleMessages();
 
-        _input.update(_reg, status, _network);
+        _weaponsys.update(_reg, static_cast<float>(dt));
+        _input.update(_reg, status, _network, _weaponsys);
 
         _movement.update(_reg, static_cast<float>(dt));
 
@@ -414,6 +418,7 @@ void ClientGameHandler::handlePlayerPacket(const DecodedMessage& msg)
         if (playerId == myPlayerId) {
             myEntity = localEntity;
             _input.setControlled(localEntity, _keybindsManager);
+            _reg.addComponent<Weapon>(localEntity, 10, 1, 0.5f);
             std::cout << "Created my player entity (serverId: " << serverEntity << ", localId: " << localEntity << ") at (" << x << ", " << y << ")" << std::endl;
         } else {
             std::cout << "Created other player entity (serverId: " << serverEntity << ", localId: " << localEntity << ") at (" << x << ", " << y << ")" << std::endl;

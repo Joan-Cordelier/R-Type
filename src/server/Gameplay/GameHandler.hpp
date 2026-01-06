@@ -12,6 +12,7 @@
 #include "ecs/systems/spritesheet_system.hpp"
 #include "ecs/systems/stat_system.hpp"
 #include "ecs/systems/enemy_system.hpp"
+#include "ecs/systems/weapon_system.hpp"
 
 #include "../common/ecs/components/position.hpp"
 #include "../common/ecs/components/velocity.hpp"
@@ -22,6 +23,7 @@
 #include "../common/ecs/components/spritesheet.hpp"
 #include "../common/ecs/components/enemy.hpp"
 #include "../common/ecs/components/projectile.hpp"
+#include "../common/ecs/components/weapon.hpp"
 
 #include <map>
 #include <atomic>
@@ -38,6 +40,7 @@ private:
     MovementSystem movement;
     StatSystem statsys;
     EnemySystem enemySystem;
+    WeaponSystem weaponSystem;
 
     std::map<uint32_t, Entity> playerEntities;
     std::map<Entity, bool> wasMoving;
