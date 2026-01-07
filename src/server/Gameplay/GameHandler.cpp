@@ -52,6 +52,10 @@ GameHandler::GameHandler(SessionManager& session, std::atomic<bool>& running, co
     ScoreEntity = reg.createEntity();
     reg.addComponent<Position>(ScoreEntity, 0.f, 0.f);
     reg.addComponent<Label>(ScoreEntity, std::string("Score: 0"), std::string("font/josefin-sans/JosefinSans-Regular.ttf"), std::string("default_font"), Color(255, 255, 255), 0, true);
+
+    weaponSystem.setProjectileNotifier([this](Entity parent, Entity projectile) {
+        sendNewProjectilesToAllPlayers(parent, projectile);
+    });
 }
 
 void GameHandler::run()
@@ -169,6 +173,7 @@ void GameHandler::updateGame(float deltaTime)
     updateEnemyPosition(enemySystem.getEnemyEntities());
     movement.update(reg, deltaTime);
     statsys.update(reg, deltaTime);
+    weaponSystem.update(reg, deltaTime);
 }
 
 void GameHandler::sendDestroyedProjectileToAllPlayers(Entity projectile)
@@ -216,6 +221,7 @@ void GameHandler::onPlayerConnect(const Player& player)
     reg.addComponent<Position>(playerEntity, 0.f, 0.f);
     reg.addComponent<Velocity>(playerEntity, 0.f, 0.f);
     reg.addComponent<Stats>(playerEntity, 100, 100, 1, 0.f, 10, 1, 200);
+    reg.addComponent<Weapon>(playerEntity, 10, 1, 0.5f);
     
     auto& factory = MessageFactory::getInstance();
     
@@ -295,25 +301,12 @@ void GameHandler::onPlayerShoot(const ShootData& shootData)
         return;
     }
 
-    auto &stats = reg.getComponent<Stats>(entity);
-    if (!stats.canAttack()) {
-        LOG_DEBUG("Player " + std::to_string(shootData.playerId) + " tried to shoot but is on cooldown");
+    if (!reg.hasComponent<Weapon>(entity)) {
+        LOG_WARN("Shoot received for player without Weapon component: " + std::to_string(shootData.playerId));
         return;
     }
 
-    Entity projectile = reg.createEntity();
-    reg.addComponent<Position>(projectile, 0.f, 0.f);
-    auto &pos = reg.getComponent<Position>(entity);
-    reg.getComponent<Position>(projectile).y = pos.y + 30.f;
-    reg.getComponent<Position>(projectile).x = pos.x + 52.f;
-    reg.addComponent<Velocity>(projectile, 0.f, -400.f);
-    reg.addComponent<Projectile>(projectile, stats.attack_damage, std::string("player"));
-
-    LOG_INFO("Player " + std::to_string(shootData.playerId) + " shot projectile " + std::to_string(projectile));
-
-    stats.cooldown = 1.f / static_cast<float>(stats.attack_speed);
-
-    sendNewProjectilesToAllPlayers(entity, projectile);
+    weaponSystem.fireWeapon(reg, entity);
 }
 
 void GameHandler::initNewEnemyEntities(const std::vector<Entity>& newEnemyEntities)

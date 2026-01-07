@@ -9,6 +9,7 @@
 #include "../common/ecs/ecs_system.hpp"
 #include "../common/ecs/ecs_components.hpp"
 #include "../common/ecs/systems/slider_system.hpp"
+#include "../common/ecs/systems/weapon_system.hpp"
 
 #include <functional>
 #include <map>
@@ -30,6 +31,7 @@ private:
     LabelSystem _labelsys;
     SpriteSheetSystem _spritesheetsys;
     StatSystem _statsys;
+    WeaponSystem _weaponsys;
     InputSystem _input;
     SliderSystem _slidersys;
 

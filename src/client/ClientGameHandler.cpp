@@ -1,10 +1,15 @@
 #include "ClientGameHandler.hpp"
 #include "../common/Data/EntityType.hpp"
+#include "../common/ecs/components/weapon.hpp"
 
 ClientGameHandler::ClientGameHandler() : _settingsMenu(_reg, _keybindsManager)
 {
     // Load resources
     _renderer.loadSpriteSheet("textures/ships/player_ship.png", "player_ship", 343, 383);
+    _renderer.loadSpriteSheet("textures/ships/player_ship_blue.png", "player_ship_blue", 343, 383);
+    _renderer.loadSpriteSheet("textures/ships/player_ship_green.png", "player_ship_green", 343, 383);
+    _renderer.loadSpriteSheet("textures/ships/player_ship_yellow.png", "player_ship_yellow", 343, 383);
+
     _renderer.loadTexture("textures/play_button/default.png", "play_button");
     _renderer.loadSpriteSheet("textures/projectiles/projectile_player.png", "projectile_player", 16, 16);
     _renderer.loadFont("font/josefin-sans/JosefinSans-Regular.ttf", 40, "default_font");
@@ -43,6 +48,8 @@ ClientGameHandler::ClientGameHandler() : _settingsMenu(_reg, _keybindsManager)
     });
 
     _settingsMenu.setup(_reg, _slidersys, _buttonsys);
+
+    _weaponsys.setIsServer(false);
 }
 
 int ClientGameHandler::run()
@@ -70,7 +77,8 @@ int ClientGameHandler::run()
 
         handleMessages();
 
-        _input.update(_reg, status, _network);
+        _weaponsys.update(_reg, static_cast<float>(dt));
+        _input.update(_reg, status, _network, _weaponsys);
 
         _movement.update(_reg, static_cast<float>(dt));
 
@@ -399,14 +407,23 @@ void ClientGameHandler::handlePlayerPacket(const DecodedMessage& msg)
     float y = *reinterpret_cast<const float*>(&msg.data[12]);
 
     auto it = playerEntities.find(serverEntity);
+    static std::vector<std::string> shipSkins = {
+        "player_ship",
+        "player_ship_blue",
+        "player_ship_green",
+        "player_ship_yellow"
+    };
     if (it == playerEntities.end()) {
         // Nettoyer les anciennes références AVANT de créer la nouvelle entité
         cleanupServerEntity(serverEntity);
+
+        int nbOfPlayers = playerEntities.size();
+        std::string selectedSkin = shipSkins[nbOfPlayers % shipSkins.size()];
         
         Entity localEntity = _reg.createEntity();
         _reg.addComponent<Position>(localEntity, x, y);
         _reg.addComponent<Velocity>(localEntity, 0.f, 0.f);
-        _reg.addComponent<SpriteSheets>(localEntity, std::string("textures/ships/player_ship.png"), std::string("player_ship"), 120, 130, 1, 3, 0, true, false);
+        _reg.addComponent<SpriteSheets>(localEntity, std::string(""), selectedSkin, 120, 130, 1, 3, 0, true, false);
         _reg.addComponent<Stats>(localEntity, 100, 100, 1, 0.f, 10, 1, 200);
                         
         playerEntities[serverEntity] = localEntity;
@@ -414,6 +431,7 @@ void ClientGameHandler::handlePlayerPacket(const DecodedMessage& msg)
         if (playerId == myPlayerId) {
             myEntity = localEntity;
             _input.setControlled(localEntity, _keybindsManager);
+            _reg.addComponent<Weapon>(localEntity, 10, 1, 0.5f);
             std::cout << "Created my player entity (serverId: " << serverEntity << ", localId: " << localEntity << ") at (" << x << ", " << y << ")" << std::endl;
         } else {
             std::cout << "Created other player entity (serverId: " << serverEntity << ", localId: " << localEntity << ") at (" << x << ", " << y << ")" << std::endl;
