@@ -13,6 +13,8 @@
 #include "ecs/systems/stat_system.hpp"
 #include "ecs/systems/enemy_system.hpp"
 
+#include "GameLoopConfig.hpp"
+
 #include "../common/ecs/components/position.hpp"
 #include "../common/ecs/components/velocity.hpp"
 #include "../common/ecs/components/sprite.hpp"
@@ -38,6 +40,7 @@ private:
     MovementSystem movement;
     StatSystem statsys;
     EnemySystem enemySystem;
+    GameLoopConfig _config;
 
     std::map<uint32_t, Entity> playerEntities;
     std::map<Entity, bool> wasMoving;
@@ -45,7 +48,7 @@ private:
     int score = 0;
 
 public:
-    GameHandler(SessionManager& session, std::atomic<bool>& running);
+    GameHandler(SessionManager& session, std::atomic<bool>& running, const std::string& configPath);
     void run();
 
     void sendUpdatedPositionToAllPlayers();

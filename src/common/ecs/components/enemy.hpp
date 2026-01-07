@@ -11,6 +11,12 @@ struct Enemy {
     float shootInterval = 3.0f;
     float timeSinceLastShot = 0.0f;
     int y_max_position = 800;
+    
+    // Movement pattern parameters
+    float move_amplitude = 0.0f;
+    float move_frequency = 0.0f;
+    float time_alive = 0.0f; // To calculate sine wave position
+
     bool canAttack() const { return timeSinceLastShot >= shootInterval; }
 };
 

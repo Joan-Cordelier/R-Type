@@ -5,11 +5,28 @@
 #include <chrono>
 #include <thread>
 
-GameHandler::GameHandler(SessionManager& session, std::atomic<bool>& running)
+GameHandler::GameHandler(SessionManager& session, std::atomic<bool>& running, const std::string& configPath)
     : _running(running)
     , _session(session)
     , _messageHandler(session, running)
 {
+    // Load configuration
+    if (!_config.loadFromFile(configPath)) {
+        LOG_WARN("Failed to load config from " + configPath);
+    }
+
+    // Configure EnemySystem
+    enemySystem.setSpawnInterval(_config.getEnemySpawning().spawn_interval);
+    enemySystem.setMaxEnemies(_config.getEnemySpawning().max_enemies);
+    enemySystem.setInitialDelay(_config.getEnemySpawning().initial_delay);
+    if (!_config.getEnemySpawning().enabled) {
+        enemySystem.disableSpawning();
+    }
+    
+    // Set level data
+    enemySystem.setLevels(_config.getLevels());
+    enemySystem.setEnemyTypes(_config.getEnemyTypes());
+
     // Set up message handler callbacks
     _messageHandler.setOnPlayerConnect([this](const Player& player) {
         onPlayerConnect(player);
