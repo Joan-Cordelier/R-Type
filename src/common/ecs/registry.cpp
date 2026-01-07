@@ -10,6 +10,7 @@
 #include "components/enemy.hpp"
 #include "components/projectile.hpp"
 #include "components/slider.hpp"
+#include "components/weapon.hpp"
 
 #include <algorithm>
 #include <type_traits>
@@ -105,6 +106,7 @@ template std::shared_ptr<ComponentArray<SpriteSheets>> Registry::ensure<SpriteSh
 template std::shared_ptr<ComponentArray<Enemy>> Registry::ensure<Enemy>();
 template std::shared_ptr<ComponentArray<Projectile>> Registry::ensure<Projectile>();
 template std::shared_ptr<ComponentArray<Slider>> Registry::ensure<Slider>();
+template std::shared_ptr<ComponentArray<Weapon>> Registry::ensure<Weapon>();
 
 template std::shared_ptr<ComponentArray<Position>> Registry::componentArray<Position>() const;
 template std::shared_ptr<ComponentArray<Velocity>> Registry::componentArray<Velocity>() const;
@@ -116,6 +118,7 @@ template std::shared_ptr<ComponentArray<SpriteSheets>> Registry::componentArray<
 template std::shared_ptr<ComponentArray<Enemy>> Registry::componentArray<Enemy>() const;
 template std::shared_ptr<ComponentArray<Projectile>> Registry::componentArray<Projectile>() const;
 template std::shared_ptr<ComponentArray<Slider>> Registry::componentArray<Slider>() const;
+template std::shared_ptr<ComponentArray<Weapon>> Registry::componentArray<Weapon>() const;
 
 template void Registry::addComponent<Position, float, float>(Entity, float, float);
 template void Registry::addComponent<Velocity, float, float>(Entity, float, float);
@@ -124,9 +127,10 @@ template void Registry::addComponent<Sprite, std::string, std::string, int, int,
 template void Registry::addComponent<Button, std::string, int, bool>(Entity, std::string, int, bool);
 template void Registry::addComponent<Label, std::string, std::string, std::string, Color, int, bool>(Entity, std::string, std::string, std::string, Color, int, bool);
 template void Registry::addComponent<SpriteSheets, std::string, std::string, int, int, int, int, int, bool, bool>(Entity, std::string, std::string, int, int, int, int, int, bool, bool);
-template void Registry::addComponent<Enemy, std::string, int, int, float, float, float, int>(Entity, std::string, int, int, float, float, float, int);
+template void Registry::addComponent<Enemy, std::string, int, int, float, float, float, int, float, float, float>(Entity, std::string, int, int, float, float, float, int, float, float, float);
 template void Registry::addComponent<Projectile, int, std::string>(Entity, int, std::string);
 template void Registry::addComponent<Slider, float, float, float, float, float, int, int, int, bool, bool, bool, std::string, Color, Color, Color>(Entity, float, float, float, float, float, int, int, int, bool, bool, bool, std::string, Color, Color, Color);
+template void Registry::addComponent<Weapon, int, int, float>(Entity, int, int, float);
 
 template bool Registry::hasComponent<Position>(Entity) const;
 template bool Registry::hasComponent<Velocity>(Entity) const;
@@ -138,6 +142,7 @@ template bool Registry::hasComponent<SpriteSheets>(Entity) const;
 template bool Registry::hasComponent<Enemy>(Entity) const;
 template bool Registry::hasComponent<Projectile>(Entity) const;
 template bool Registry::hasComponent<Slider>(Entity) const;
+template bool Registry::hasComponent<Weapon>(Entity) const;
 
 template Position& Registry::getComponent<Position>(Entity);
 template Velocity& Registry::getComponent<Velocity>(Entity);
@@ -149,6 +154,7 @@ template SpriteSheets& Registry::getComponent<SpriteSheets>(Entity);
 template Enemy& Registry::getComponent<Enemy>(Entity);
 template Projectile& Registry::getComponent<Projectile>(Entity);
 template Slider& Registry::getComponent<Slider>(Entity);
+template Weapon& Registry::getComponent<Weapon>(Entity);
 
 template void Registry::collectEntities<Position>(std::vector<std::vector<Entity>>& lists) const;
 template void Registry::collectEntities<Velocity>(std::vector<std::vector<Entity>>& lists) const;
@@ -160,6 +166,7 @@ template void Registry::collectEntities<SpriteSheets>(std::vector<std::vector<En
 template void Registry::collectEntities<Enemy>(std::vector<std::vector<Entity>>& lists) const;
 template void Registry::collectEntities<Projectile>(std::vector<std::vector<Entity>>& lists) const;
 template void Registry::collectEntities<Slider>(std::vector<std::vector<Entity>>& lists) const;
+template void Registry::collectEntities<Weapon>(std::vector<std::vector<Entity>>& lists) const;
 
 template std::vector<Entity> Registry::viewEntitiesWith<Position, Velocity>() const;
 template std::vector<Entity> Registry::viewEntitiesWith<Sprite>() const;
@@ -176,3 +183,5 @@ template std::vector<Entity> Registry::viewEntitiesWith<Projectile>() const;
 template std::vector<Entity> Registry::viewEntitiesWith<Projectile, Position, Velocity>() const;
 template std::vector<Entity> Registry::viewEntitiesWith<Slider>() const;
 template std::vector<Entity> Registry::viewEntitiesWith<Slider, Position>() const;
+template std::vector<Entity> Registry::viewEntitiesWith<Weapon>() const;
+template std::vector<Entity> Registry::viewEntitiesWith<Projectile, Position>() const;

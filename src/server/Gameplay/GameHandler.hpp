@@ -12,6 +12,9 @@
 #include "ecs/systems/spritesheet_system.hpp"
 #include "ecs/systems/stat_system.hpp"
 #include "ecs/systems/enemy_system.hpp"
+#include "ecs/systems/weapon_system.hpp"
+
+#include "../../common/Config/GameLoopConfig.hpp"
 
 #include "../common/ecs/components/position.hpp"
 #include "../common/ecs/components/velocity.hpp"
@@ -22,6 +25,7 @@
 #include "../common/ecs/components/spritesheet.hpp"
 #include "../common/ecs/components/enemy.hpp"
 #include "../common/ecs/components/projectile.hpp"
+#include "../common/ecs/components/weapon.hpp"
 
 #include <map>
 #include <atomic>
@@ -38,6 +42,8 @@ private:
     MovementSystem movement;
     StatSystem statsys;
     EnemySystem enemySystem;
+    WeaponSystem weaponSystem;
+    GameLoopConfig _config;
 
     std::map<uint32_t, Entity> playerEntities;
     std::map<Entity, bool> wasMoving;
@@ -45,7 +51,7 @@ private:
     int score = 0;
 
 public:
-    GameHandler(SessionManager& session, std::atomic<bool>& running);
+    GameHandler(SessionManager& session, std::atomic<bool>& running, const std::string& configPath);
     void run();
 
     void sendUpdatedPositionToAllPlayers();
@@ -65,4 +71,5 @@ private:
     void sendDestroyedProjectileToAllPlayers(Entity projectile);
     void sendDestroyedEnemyToAllPlayers(Entity enemy);
     void sendDestroyedPlayerToAllPlayers(Entity player);
+    void checkPlayerCollisions();
 };

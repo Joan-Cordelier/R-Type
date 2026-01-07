@@ -5,11 +5,51 @@
 #include <chrono>
 #include <thread>
 
-GameHandler::GameHandler(SessionManager& session, std::atomic<bool>& running)
+GameHandler::GameHandler(SessionManager& session, std::atomic<bool>& running, const std::string& configPath)
     : _running(running)
     , _session(session)
     , _messageHandler(session, running)
 {
+    // Load configuration
+    char cwd[1024];
+    if (getcwd(cwd, sizeof(cwd)) != NULL) {
+        LOG_INFO("Server CWD: " + std::string(cwd));
+    }
+
+    if (!_config.loadFromFile(configPath)) {
+        LOG_WARN("Failed to load config from " + configPath + ", trying ../" + configPath);
+        if (!_config.loadFromFile("../" + configPath)) {
+            LOG_WARN("Failed to load config from ../" + configPath + ", using defaults");
+        } else {
+            LOG_INFO("Successfully loaded config from ../" + configPath);
+        }
+    } else {
+        LOG_INFO("Successfully loaded config from " + configPath);
+    }
+    
+    // Print verify loaded values
+    auto& hb = _config.getPlayerConfig().hitbox;
+    LOG_INFO("Loaded Player Hitbox: W=" + std::to_string(hb.width) + " H=" + std::to_string(hb.height) + 
+             " OffX=" + std::to_string(hb.offset_x) + " OffY=" + std::to_string(hb.offset_y));
+
+
+    // Configure EnemySystem
+    enemySystem.setSpawnInterval(_config.getEnemySpawning().spawn_interval);
+    enemySystem.setMaxEnemies(_config.getEnemySpawning().max_enemies);
+    enemySystem.setInitialDelay(_config.getEnemySpawning().initial_delay);
+    if (!_config.getEnemySpawning().enabled) {
+        enemySystem.disableSpawning();
+    }
+    
+    // Set level data
+    enemySystem.setLevels(_config.getLevels());
+    enemySystem.setEnemyTypes(_config.getEnemyTypes());
+    
+    // Configure enemy projectile offsets from config
+    auto& projConfig = _config.getProjectilesConfig().enemy;
+    enemySystem.setProjectileOffsets(projConfig.offset_x, projConfig.offset_y);
+    LOG_INFO("Enemy projectile offsets: X=" + std::to_string(projConfig.offset_x) + " Y=" + std::to_string(projConfig.offset_y));
+
     // Set up message handler callbacks
     _messageHandler.setOnPlayerConnect([this](const Player& player) {
         onPlayerConnect(player);
@@ -35,6 +75,17 @@ GameHandler::GameHandler(SessionManager& session, std::atomic<bool>& running)
     ScoreEntity = reg.createEntity();
     reg.addComponent<Position>(ScoreEntity, 0.f, 0.f);
     reg.addComponent<Label>(ScoreEntity, std::string("Score: 0"), std::string("font/josefin-sans/JosefinSans-Regular.ttf"), std::string("default_font"), Color(255, 255, 255), 0, true);
+
+    weaponSystem.setProjectileNotifier([this](Entity parent, Entity projectile) {
+        sendNewProjectilesToAllPlayers(parent, projectile);
+    });
+    
+    // Configure projectile offsets and speed from config
+    weaponSystem.setProjectileConfig(
+        _config.getProjectilesConfig().player.offset_x,
+        _config.getProjectilesConfig().player.offset_y,
+        _config.getProjectilesConfig().player.speed
+    );
 }
 
 void GameHandler::run()
@@ -152,6 +203,9 @@ void GameHandler::updateGame(float deltaTime)
     updateEnemyPosition(enemySystem.getEnemyEntities());
     movement.update(reg, deltaTime);
     statsys.update(reg, deltaTime);
+    weaponSystem.update(reg, deltaTime);
+    
+    checkPlayerCollisions();
 }
 
 void GameHandler::sendDestroyedProjectileToAllPlayers(Entity projectile)
@@ -196,9 +250,10 @@ void GameHandler::sendDestroyedPlayerToAllPlayers(Entity player)
 void GameHandler::onPlayerConnect(const Player& player)
 {
     Entity playerEntity = reg.createEntity();
-    reg.addComponent<Position>(playerEntity, 0.f, 0.f);
+    reg.addComponent<Position>(playerEntity, _config.getPlayerConfig().initial_x, _config.getPlayerConfig().initial_y);
     reg.addComponent<Velocity>(playerEntity, 0.f, 0.f);
     reg.addComponent<Stats>(playerEntity, 100, 100, 1, 0.f, 10, 1, 200);
+    reg.addComponent<Weapon>(playerEntity, 10, 1, 0.5f);
     
     auto& factory = MessageFactory::getInstance();
     
@@ -278,25 +333,12 @@ void GameHandler::onPlayerShoot(const ShootData& shootData)
         return;
     }
 
-    auto &stats = reg.getComponent<Stats>(entity);
-    if (!stats.canAttack()) {
-        LOG_DEBUG("Player " + std::to_string(shootData.playerId) + " tried to shoot but is on cooldown");
+    if (!reg.hasComponent<Weapon>(entity)) {
+        LOG_WARN("Shoot received for player without Weapon component: " + std::to_string(shootData.playerId));
         return;
     }
 
-    Entity projectile = reg.createEntity();
-    reg.addComponent<Position>(projectile, 0.f, 0.f);
-    auto &pos = reg.getComponent<Position>(entity);
-    reg.getComponent<Position>(projectile).y = pos.y + 30.f;
-    reg.getComponent<Position>(projectile).x = pos.x + 52.f;
-    reg.addComponent<Velocity>(projectile, 0.f, -400.f);
-    reg.addComponent<Projectile>(projectile, stats.attack_damage, std::string("player"));
-
-    LOG_INFO("Player " + std::to_string(shootData.playerId) + " shot projectile " + std::to_string(projectile));
-
-    stats.cooldown = 1.f / static_cast<float>(stats.attack_speed);
-
-    sendNewProjectilesToAllPlayers(entity, projectile);
+    weaponSystem.fireWeapon(reg, entity);
 }
 
 void GameHandler::initNewEnemyEntities(const std::vector<Entity>& newEnemyEntities)
@@ -347,5 +389,110 @@ void GameHandler::onPlayerLinked(uint32_t playerId)
         PreparedMessage msg = factory.createMessage(OpCode::ENEMY, payload);
         _session.sendUdp(playerId, msg);
         LOG_DEBUG("Sent existing enemy " + std::to_string(enemyEntity) + " to newly linked player " + std::to_string(playerId));
+    }
+}
+
+void GameHandler::checkPlayerCollisions()
+{
+    std::vector<Entity> projectilesToRemove;
+    std::vector<Entity> playersToKill;
+    
+    // Config values
+    float pW = _config.getPlayerConfig().hitbox.width;
+    float pH = _config.getPlayerConfig().hitbox.height;
+    float offX = _config.getPlayerConfig().hitbox.offset_x;
+    float offY = _config.getPlayerConfig().hitbox.offset_y;
+
+    static int logCounter = 0;
+    if (logCounter++ % 120 == 0) {
+        LOG_INFO("COLLISION CHECK: W=" + std::to_string(pW) + " H=" + std::to_string(pH) + 
+                 " OffX=" + std::to_string(offX) + " OffY=" + std::to_string(offY));
+    }
+
+    // View all projectiles
+    for (auto projectileEntity : reg.viewEntitiesWith<Projectile, Position>()) {
+        if (!reg.hasComponent<Projectile>(projectileEntity)) continue; // Safety check
+        auto& projectile = reg.getComponent<Projectile>(projectileEntity);
+        
+        // Only check enemy projectiles against players
+        if (projectile.ownerType != "enemy") continue;
+        
+        Position& projPos = reg.getComponent<Position>(projectileEntity);
+        
+        // Check against all players
+        for (const auto& [playerId, playerEntity] : playerEntities) {
+            // Check validity
+            if (!reg.hasComponent<Position>(playerEntity) || !reg.hasComponent<Stats>(playerEntity)) continue; 
+            
+            Position& playerPos = reg.getComponent<Position>(playerEntity);
+            Stats& playerStats = reg.getComponent<Stats>(playerEntity);
+
+            // Skip dead players if we want to avoid beating a dead horse
+            if (playerStats.hp <= 0) continue;
+
+            // Simple AABB Collision
+            // Position (x, y) is the top-left corner of the sprite
+            // Hitbox position = Sprite top-left + offset
+            
+            float targetX = playerPos.x + offX;
+            float targetY = playerPos.y + offY;
+            
+            // Projectile size 16x16 (matching client sprite and debug visualization)
+            // Client draws projectile at (projPos.x, projPos.y), so it is Top-Left anchored.
+            
+            float projW = 16.0f;
+            float projH = 16.0f;
+            float projLeft = projPos.x;
+            float projTop = projPos.y;
+            
+            // Debug logging every 60 frames for first player
+            static int debugLogCounter = 0;
+            if (debugLogCounter++ % 60 == 0 && playerId == playerEntities.begin()->first) {
+                LOG_DEBUG("COLLISION DEBUG: PlayerPos(" + std::to_string(playerPos.x) + ", " + std::to_string(playerPos.y) + 
+                         ") -> Hitbox(" + std::to_string(targetX) + ", " + std::to_string(targetY) + ", " + 
+                         std::to_string(pW) + ", " + std::to_string(pH) + ")");
+            }
+            
+            bool collision = (projLeft < targetX + pW &&
+                              projLeft + projW > targetX &&
+                              projTop < targetY + pH &&
+                              projTop + projH > targetY);
+            
+            if (collision) {
+                LOG_INFO("HIT! Projectile(" + std::to_string(projLeft) + ", " + std::to_string(projTop) + 
+                         ", " + std::to_string(projW) + ", " + std::to_string(projH) + 
+                         ") vs PlayerHitbox(" + std::to_string(targetX) + ", " + std::to_string(targetY) + 
+                         ", " + std::to_string(pW) + ", " + std::to_string(pH) + ")");
+                // Hit
+                playerStats.hp -= projectile.damage;
+                projectilesToRemove.push_back(projectileEntity);
+                
+                LOG_DEBUG("Player " + std::to_string(playerId) + " hit by projectile " + std::to_string(projectileEntity) + ", hp: " + std::to_string(playerStats.hp));
+
+                if (playerStats.hp <= 0) {
+                     playersToKill.push_back(playerEntity);
+                }
+                
+                // One projectile hits one player
+                break; 
+            }
+        }
+    }
+
+    // Process removals
+    // Remove duplicates from projectilesToRemove if any (though break should prevent it)
+    for (auto proj : projectilesToRemove) {
+        if (reg.hasComponent<Projectile>(proj)) { // Check if still exists
+            sendDestroyedProjectileToAllPlayers(proj);
+            reg.destroyEntity(proj);
+        }
+    }
+    
+    // Notify deaths
+    for (auto player : playersToKill) {
+        sendDestroyedPlayerToAllPlayers(player);
+        // Do NOT destroy player entity here to allow respawn or game over handling
+        // Reset position or something? 
+        // For now just notify death.
     }
 }

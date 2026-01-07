@@ -28,7 +28,7 @@ int main()
     LOG_INFO("Starting R-Type server...");
 
     SessionManager session;
-    GameHandler game(session, running);
+    GameHandler game(session, running, "yaml/main_loop.yaml");
     
     session.start();
 

@@ -1,0 +1,102 @@
+#ifndef GAME_LOOP_CONFIG_HPP
+#define GAME_LOOP_CONFIG_HPP
+
+#include <string>
+#include <yaml-cpp/yaml.h>
+#include "../../common/Data/LevelData.hpp"
+
+struct PlayerStatsConfig {
+    int health = 100;
+    int max_health = 100;
+    int attack_damage = 10;
+    int attack_speed = 5;
+    int defense = 1;
+    int speed = 200;
+};
+
+struct PlayerHitboxConfig {
+    float width = 60.0f;
+    float height = 30.0f;
+    float offset_x = 30.0f;
+    float offset_y = 50.0f;
+    float sprite_width = 120.0f;
+    float sprite_height = 130.0f;
+};
+
+struct PlayerConfig {
+    float initial_x = 100.0f;
+    float initial_y = 300.0f;
+    PlayerHitboxConfig hitbox;
+    PlayerStatsConfig stats;
+};
+
+struct EnemySpawningConfig {
+    bool enabled = true;
+    float initial_delay = 2.0f;
+    float spawn_interval = 3.0f;
+    int max_enemies = 10;
+};
+
+using EnemyTypeConfig = EnemyTypeData;
+using EnemyWaveGroup = EnemyWaveGroupData;
+using WaveConfig = WaveData;
+using LevelConfig = LevelData;
+
+struct ProjectileConfig {
+    float speed = 400.0f;
+    float offset_x = 52.0f;
+    float offset_y = 30.0f;
+};
+
+struct ProjectilesConfig {
+    ProjectileConfig player;
+    ProjectileConfig enemy;
+};
+
+struct SystemsConfig {
+    bool movement = true;
+    bool stats = true;
+    bool enemy = true;
+    bool collision = true;
+};
+
+struct GameLoopSettings {
+    int tick_rate = 30;
+    int max_messages_per_frame = 100;
+    int min_players_to_start = 1;
+};
+
+class GameLoopConfig {
+public:
+    GameLoopConfig();
+    ~GameLoopConfig() = default;
+    
+    bool loadFromFile(const std::string& filepath);
+    
+    // Getters
+    const GameLoopSettings& getGameLoopSettings() const { return _gameLoop; }
+    const EnemySpawningConfig& getEnemySpawning() const { return _enemySpawning; }
+    const PlayerConfig& getPlayerConfig() const { return _player; }
+    const ProjectilesConfig& getProjectilesConfig() const { return _projectiles; }
+    const SystemsConfig& getSystemsConfig() const { return _systems; }
+    const std::map<std::string, EnemyTypeConfig>& getEnemyTypes() const { return _enemyTypes; }
+    const std::vector<LevelConfig>& getLevels() const { return _levels; }
+    
+    // Convenience methods
+    float getTargetFrameTime() const { return 1.0f / static_cast<float>(_gameLoop.tick_rate); }
+    int getMaxMessagesPerFrame() const { return _gameLoop.max_messages_per_frame; }
+    int getMinPlayersToStart() const { return _gameLoop.min_players_to_start; }
+
+private:
+    void loadDefaults();
+    
+    GameLoopSettings _gameLoop;
+    EnemySpawningConfig _enemySpawning;
+    PlayerConfig _player;
+    ProjectilesConfig _projectiles;
+    SystemsConfig _systems;
+    std::map<std::string, EnemyTypeConfig> _enemyTypes;
+    std::vector<LevelConfig> _levels;
+};
+
+#endif // GAME_LOOP_CONFIG_HPP
