@@ -119,13 +119,10 @@ int ClientGameHandler::run()
                     
                     Color boxColor = (localEntity == myEntity) ? Color{0, 255, 0, 255} : Color{0, 255, 255, 255};
                     
-                    // Hitbox position using config offsets from player position (Bottom-Right anchor)
-                    // Hitbox Top-Left = Pos - SpriteSize + Offset
-                    float sprW = playerConf.hitbox.sprite_width;
-                    float sprH = playerConf.hitbox.sprite_height;
-                    
-                    float hitboxX = pos.x - sprW + playerConf.hitbox.offset_x;
-                    float hitboxY = pos.y - sprH + playerConf.hitbox.offset_y;
+                    // Position (x, y) is the top-left corner of the sprite
+                    // Hitbox position = Sprite top-left + offset
+                    float hitboxX = pos.x + playerConf.hitbox.offset_x;
+                    float hitboxY = pos.y + playerConf.hitbox.offset_y;
                     
                     _renderer.drawRect(Rect{
                         (int)hitboxX, 

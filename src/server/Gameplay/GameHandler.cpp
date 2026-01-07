@@ -428,14 +428,11 @@ void GameHandler::checkPlayerCollisions()
             if (playerStats.hp <= 0) continue;
 
             // Simple AABB Collision
-            // "Origin is bottom right extending to top left"
-            // So Position is the Bottom-Right corner.
-            // But we want offsets to be intuitive (Top-Left from Sprite Origin).
-            // Sprite Left = Position.x - SpriteWidth
-            // Hitbox Left = Sprite Left + OffsetX
+            // Position (x, y) is the top-left corner of the sprite
+            // Hitbox position = Sprite top-left + offset
             
-            float targetX = (playerPos.x - sW) + offX;
-            float targetY = (playerPos.y - sH) + offY;
+            float targetX = playerPos.x + offX;
+            float targetY = playerPos.y + offY;
             
             // Projectile size ~10x10.
             // Client draws projectile at (projPos.x, projPos.y), so it is Top-Left anchored.
