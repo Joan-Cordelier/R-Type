@@ -19,7 +19,8 @@ target_include_directories(r-type_server PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}
     ${CMAKE_CURRENT_SOURCE_DIR}/Network
     ${CMAKE_CURRENT_SOURCE_DIR}/Session
-    ${CMAKE_CURRENT_SOURCE_DIR}/Handler
+    ${CMAKE_CURRENT_SOURCE_DIR}/Room
+    ${CMAKE_CURRENT_SOURCE_DIR}/Lobby
     ${CMAKE_CURRENT_SOURCE_DIR}/../common/Data
 )
 

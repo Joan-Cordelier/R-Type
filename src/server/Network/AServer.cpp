@@ -8,12 +8,9 @@
 #include "AServer.hpp"
 #include "../Logs/Logger.hpp"
 
-AServer::AServer(ThreadedQueue<DecodedMessage>& queue) : _queue(queue)
-{
-}
+AServer::AServer(ThreadedQueue<DecodedMessage> &queue) : _queue(queue) {}
 
-int AServer::init(AServer::protocol protocol, int port)
-{
+int AServer::init(AServer::protocol protocol, int port) {
     int opt = 1;
 
     _port = port;
@@ -35,9 +32,18 @@ int AServer::init(AServer::protocol protocol, int port)
         LOG_ERROR("setsockopt SO_REUSEPORT failed");
         return 84;
     }
-    if (bind(_serverFd, (struct sockaddr*)&_addr, sizeof(_addr)) < 0) {
+    if (bind(_serverFd, (struct sockaddr *)&_addr, sizeof(_addr)) < 0) {
         LOG_ERROR("Bind failed on port " + std::to_string(port));
         return 84;
+    }
+
+    // If port was 0 (dynamic), query the actual assigned port
+    if (port == 0) {
+        if (getsockname(_serverFd, (struct sockaddr *)&_addr, &_addrLen) < 0) {
+            LOG_ERROR("getsockname failed");
+            return 84;
+        }
+        _port = ntohs(_addr.sin_port);
     }
 
     if (protocol == TCP) {
@@ -45,16 +51,15 @@ int AServer::init(AServer::protocol protocol, int port)
             LOG_ERROR("Listen failed");
             return 84;
         }
-        LOG_INFO("TCP server listening on port " + std::to_string(port));
+        LOG_INFO("TCP server listening on port " + std::to_string(_port));
     } else {
-        LOG_INFO("UDP server listening on port " + std::to_string(port));
+        LOG_INFO("UDP server listening on port " + std::to_string(_port));
     }
 
     return 0;
 }
 
-void AServer::reset()
-{
+void AServer::reset() {
     _port = 0;
     _addrLen = 0;
     memset(&_addr, 0, sizeof(_addr));
@@ -64,16 +69,16 @@ void AServer::reset()
     }
 }
 
-void AServer::handleDisconnections(const std::vector<int>& toDisconnect)
-{
+void AServer::handleDisconnections(const std::vector<int> &toDisconnect) {
     for (int fd : toDisconnect) {
         LOG_INFO("Client disconnected (fd: " + std::to_string(fd) + ")");
         close(fd);
-        
+
         {
             std::lock_guard<std::mutex> lock(_clientsMutex);
             auto it = std::find(_clientFds.begin(), _clientFds.end(), fd);
-            if (it != _clientFds.end()) _clientFds.erase(it);
+            if (it != _clientFds.end())
+                _clientFds.erase(it);
         }
 
         {
@@ -88,7 +93,4 @@ void AServer::handleDisconnections(const std::vector<int>& toDisconnect)
     }
 }
 
-void AServer::stop()
-{
-    _running.store(false);
-}
+void AServer::stop() { _running.store(false); }
