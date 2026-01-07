@@ -2,8 +2,21 @@
 #include "../common/Data/EntityType.hpp"
 #include "../common/ecs/components/weapon.hpp"
 
-ClientGameHandler::ClientGameHandler() : _settingsMenu(_reg, _keybindsManager)
+ClientGameHandler::ClientGameHandler(bool debugMode) : _settingsMenu(_reg, _keybindsManager), _debugMode(debugMode)
 {
+    // Load config (try local, then ../ for build dir)
+    if (!_config.loadFromFile("yaml/main_loop.yaml")) {
+        // Only try parent directory if first attempt failed
+        _config.loadFromFile("../yaml/main_loop.yaml");
+    }
+
+    if (_debugMode) {
+        auto& hb = _config.getPlayerConfig().hitbox;
+        std::cout << "[DEBUG] Loaded Hitbox Config: " 
+                  << "W=" << hb.width << " H=" << hb.height 
+                  << " OffX=" << hb.offset_x << " OffY=" << hb.offset_y << std::endl;
+    }
+
     // Load resources
     _renderer.loadSpriteSheet("textures/ships/player_ship.png", "player_ship", 343, 383);
     _renderer.loadSpriteSheet("textures/ships/player_ship_blue.png", "player_ship_blue", 343, 383);
@@ -96,6 +109,52 @@ int ClientGameHandler::run()
         _spritesheetsys.render(_reg, [&](const SpriteSheetSystem::TextureId& tid, int frameIndex, int width, int height, int x, int y, int z) {
             _renderer.drawFrame(tid, frameIndex, RenderLayer::GAME, z, Rect{x, y, width, height});
         }, animationClock);
+
+        if (_debugMode) {
+            // Draw hitboxes for players
+            const auto& playerConf = _config.getPlayerConfig();
+            for (auto const& [serverEntity, localEntity] : playerEntities) {
+                if (_reg.hasComponent<Position>(localEntity)) {
+                    Position& pos = _reg.getComponent<Position>(localEntity);
+                    
+                    Color boxColor = (localEntity == myEntity) ? Color{0, 255, 0, 255} : Color{0, 255, 255, 255};
+                    
+                    // Hitbox position using config offsets from player position (Bottom-Right anchor)
+                    // Hitbox Top-Left = Pos - SpriteSize + Offset
+                    float sprW = playerConf.hitbox.sprite_width;
+                    float sprH = playerConf.hitbox.sprite_height;
+                    
+                    float hitboxX = pos.x - sprW + playerConf.hitbox.offset_x;
+                    float hitboxY = pos.y - sprH + playerConf.hitbox.offset_y;
+                    
+                    _renderer.drawRect(Rect{
+                        (int)hitboxX, 
+                        (int)hitboxY, 
+                        (int)playerConf.hitbox.width, 
+                        (int)playerConf.hitbox.height
+                    }, boxColor, RenderLayer::OVERLAY, 100);
+                }
+            }
+            
+            // Draw hitboxes for enemies
+            for (auto const& [serverEntity, localEntity] : enemyEntities) {
+                if (_reg.hasComponent<Position>(localEntity) && _reg.hasComponent<Sprite>(localEntity)) {
+                    Position& pos = _reg.getComponent<Position>(localEntity);
+                    Sprite& sprite = _reg.getComponent<Sprite>(localEntity);
+                    // Enemies usually have 50x50 or 60x60 depending on type, but for simple visualization using sprite size + red box
+                    _renderer.drawRect(Rect{(int)pos.x, (int)pos.y, sprite.width, sprite.height}, Color{255, 0, 0, 255}, RenderLayer::OVERLAY, 100);
+                }
+            }
+
+            // Draw hitboxes for projectiles
+            for (auto const& [serverEntity, localEntity] : projectileEntities) {
+                if (_reg.hasComponent<Position>(localEntity)) {
+                    Position& pos = _reg.getComponent<Position>(localEntity);
+                    // Projectiles roughly 10x10 or 16x16
+                    _renderer.drawRect(Rect{(int)pos.x, (int)pos.y, 16, 16}, Color{255, 255, 0, 255}, RenderLayer::OVERLAY, 100);
+                }
+            }
+        }
 
         _labelsys.render(_reg, [&](const LabelSystem::TextId& tid, std::string& text, int x, int y, Color color) {
             _renderer.drawFontAndCache(tid, text, x, y, color, RenderLayer::OVERLAY, 0);
@@ -277,7 +336,7 @@ void ClientGameHandler::handleMessages()
                             Entity localParent = it->second;
                             Entity projectile = _reg.createEntity();
                             Position &pos = _reg.getComponent<Position>(localParent);
-                            _reg.addComponent<Position>(projectile, pos.x + 52.f, pos.y + 30.f);
+                            _reg.addComponent<Position>(projectile, pos.x + _config.getProjectilesConfig().player.offset_x, pos.y + _config.getProjectilesConfig().player.offset_y);
                             _reg.addComponent<Velocity>(projectile, 0.f, -400.f);
                             _reg.addComponent<SpriteSheets>(projectile, std::string("textures/projectiles/projectile_player.png"), std::string("projectile_player"), 16, 16, 0, 4, 0, true, true);
                             
@@ -290,7 +349,7 @@ void ClientGameHandler::handleMessages()
                             Entity localParent = it->second;
                             Entity projectile = _reg.createEntity();
                             Position &pos = _reg.getComponent<Position>(localParent);
-                            _reg.addComponent<Position>(projectile, pos.x + 18.f, pos.y + 50.f);
+                            _reg.addComponent<Position>(projectile, pos.x + _config.getProjectilesConfig().enemy.offset_x, pos.y + _config.getProjectilesConfig().enemy.offset_y);
                             _reg.addComponent<Velocity>(projectile, 0.f, 200.f);
                             _reg.addComponent<SpriteSheets>(projectile, std::string("textures/projectiles/projectile_player.png"), std::string("projectile_player"), 16, 16, 0, 4, 0, true, true);
                             
@@ -423,7 +482,10 @@ void ClientGameHandler::handlePlayerPacket(const DecodedMessage& msg)
         Entity localEntity = _reg.createEntity();
         _reg.addComponent<Position>(localEntity, x, y);
         _reg.addComponent<Velocity>(localEntity, 0.f, 0.f);
-        _reg.addComponent<SpriteSheets>(localEntity, std::string(""), selectedSkin, 120, 130, 1, 3, 0, true, false);
+        // Use config for sprite dimensions
+        int sprW = (int)_config.getPlayerConfig().hitbox.sprite_width;
+        int sprH = (int)_config.getPlayerConfig().hitbox.sprite_height;
+        _reg.addComponent<SpriteSheets>(localEntity, std::string(""), selectedSkin, sprW, sprH, 1, 3, 0, true, false);
         _reg.addComponent<Stats>(localEntity, 100, 100, 1, 0.f, 10, 1, 200);
                         
         playerEntities[serverEntity] = localEntity;

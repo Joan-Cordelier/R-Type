@@ -87,6 +87,13 @@ player:
   initial_position:
     x: 100.0
     y: 300.0
+  hitbox:
+    width: 120.0
+    height: 130.0
+    offset_x: 0.0
+    offset_y: 0.0
+    sprite_width: 120.0
+    sprite_height: 130.0
   stats:
     health: 100
     max_health: 100

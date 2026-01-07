@@ -14,7 +14,7 @@
 #include "ecs/systems/enemy_system.hpp"
 #include "ecs/systems/weapon_system.hpp"
 
-#include "GameLoopConfig.hpp"
+#include "../../common/Config/GameLoopConfig.hpp"
 
 #include "../common/ecs/components/position.hpp"
 #include "../common/ecs/components/velocity.hpp"
@@ -71,4 +71,5 @@ private:
     void sendDestroyedProjectileToAllPlayers(Entity projectile);
     void sendDestroyedEnemyToAllPlayers(Entity enemy);
     void sendDestroyedPlayerToAllPlayers(Entity player);
+    void checkPlayerCollisions();
 };

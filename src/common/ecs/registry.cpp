@@ -184,3 +184,4 @@ template std::vector<Entity> Registry::viewEntitiesWith<Projectile, Position, Ve
 template std::vector<Entity> Registry::viewEntitiesWith<Slider>() const;
 template std::vector<Entity> Registry::viewEntitiesWith<Slider, Position>() const;
 template std::vector<Entity> Registry::viewEntitiesWith<Weapon>() const;
+template std::vector<Entity> Registry::viewEntitiesWith<Projectile, Position>() const;

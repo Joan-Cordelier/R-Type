@@ -14,9 +14,19 @@ struct PlayerStatsConfig {
     int speed = 200;
 };
 
+struct PlayerHitboxConfig {
+    float width = 60.0f;
+    float height = 30.0f;
+    float offset_x = 30.0f;
+    float offset_y = 50.0f;
+    float sprite_width = 120.0f;
+    float sprite_height = 130.0f;
+};
+
 struct PlayerConfig {
     float initial_x = 100.0f;
     float initial_y = 300.0f;
+    PlayerHitboxConfig hitbox;
     PlayerStatsConfig stats;
 };
 

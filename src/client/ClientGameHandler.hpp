@@ -10,6 +10,7 @@
 #include "../common/ecs/ecs_components.hpp"
 #include "../common/ecs/systems/slider_system.hpp"
 #include "../common/ecs/systems/weapon_system.hpp"
+#include "../common/Config/GameLoopConfig.hpp"
 
 #include <functional>
 #include <map>
@@ -39,6 +40,7 @@ private:
     KeybindsManager _keybindsManager;
 
     NetworkManager _network;
+    GameLoopConfig _config;
 
     std::map<Entity, Entity> playerEntities;
     std::map<Entity, Entity> enemyEntities;
@@ -50,6 +52,7 @@ private:
     bool settingsMenuOpen = false;
 
     std::string ip_adress = "127.0.0.1";
+    bool _debugMode = false;
 
     // menu Entities
     Entity start_button = _reg.createEntity();
@@ -64,7 +67,7 @@ private:
 public:
     uint32_t myPlayerId = 0;
     Entity myEntity = 0;
-    ClientGameHandler();
+    ClientGameHandler(bool debugMode = false);
     ~ClientGameHandler() = default;
     int run();
 };

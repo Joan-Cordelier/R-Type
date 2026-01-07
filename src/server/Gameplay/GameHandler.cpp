@@ -11,9 +11,27 @@ GameHandler::GameHandler(SessionManager& session, std::atomic<bool>& running, co
     , _messageHandler(session, running)
 {
     // Load configuration
-    if (!_config.loadFromFile(configPath)) {
-        LOG_WARN("Failed to load config from " + configPath);
+    char cwd[1024];
+    if (getcwd(cwd, sizeof(cwd)) != NULL) {
+        LOG_INFO("Server CWD: " + std::string(cwd));
     }
+
+    if (!_config.loadFromFile(configPath)) {
+        LOG_WARN("Failed to load config from " + configPath + ", trying ../" + configPath);
+        if (!_config.loadFromFile("../" + configPath)) {
+            LOG_WARN("Failed to load config from ../" + configPath + ", using defaults");
+        } else {
+            LOG_INFO("Successfully loaded config from ../" + configPath);
+        }
+    } else {
+        LOG_INFO("Successfully loaded config from " + configPath);
+    }
+    
+    // Print verify loaded values
+    auto& hb = _config.getPlayerConfig().hitbox;
+    LOG_INFO("Loaded Player Hitbox: W=" + std::to_string(hb.width) + " H=" + std::to_string(hb.height) + 
+             " OffX=" + std::to_string(hb.offset_x) + " OffY=" + std::to_string(hb.offset_y));
+
 
     // Configure EnemySystem
     enemySystem.setSpawnInterval(_config.getEnemySpawning().spawn_interval);
@@ -56,6 +74,13 @@ GameHandler::GameHandler(SessionManager& session, std::atomic<bool>& running, co
     weaponSystem.setProjectileNotifier([this](Entity parent, Entity projectile) {
         sendNewProjectilesToAllPlayers(parent, projectile);
     });
+    
+    // Configure projectile offsets and speed from config
+    weaponSystem.setProjectileConfig(
+        _config.getProjectilesConfig().player.offset_x,
+        _config.getProjectilesConfig().player.offset_y,
+        _config.getProjectilesConfig().player.speed
+    );
 }
 
 void GameHandler::run()
@@ -174,6 +199,8 @@ void GameHandler::updateGame(float deltaTime)
     movement.update(reg, deltaTime);
     statsys.update(reg, deltaTime);
     weaponSystem.update(reg, deltaTime);
+    
+    checkPlayerCollisions();
 }
 
 void GameHandler::sendDestroyedProjectileToAllPlayers(Entity projectile)
@@ -218,7 +245,7 @@ void GameHandler::sendDestroyedPlayerToAllPlayers(Entity player)
 void GameHandler::onPlayerConnect(const Player& player)
 {
     Entity playerEntity = reg.createEntity();
-    reg.addComponent<Position>(playerEntity, 0.f, 0.f);
+    reg.addComponent<Position>(playerEntity, _config.getPlayerConfig().initial_x, _config.getPlayerConfig().initial_y);
     reg.addComponent<Velocity>(playerEntity, 0.f, 0.f);
     reg.addComponent<Stats>(playerEntity, 100, 100, 1, 0.f, 10, 1, 200);
     reg.addComponent<Weapon>(playerEntity, 10, 1, 0.5f);
@@ -357,5 +384,103 @@ void GameHandler::onPlayerLinked(uint32_t playerId)
         PreparedMessage msg = factory.createMessage(OpCode::ENEMY, payload);
         _session.sendUdp(playerId, msg);
         LOG_DEBUG("Sent existing enemy " + std::to_string(enemyEntity) + " to newly linked player " + std::to_string(playerId));
+    }
+}
+
+void GameHandler::checkPlayerCollisions()
+{
+    std::vector<Entity> projectilesToRemove;
+    std::vector<Entity> playersToKill;
+    
+    // Config values
+    float pW = _config.getPlayerConfig().hitbox.width;
+    float pH = _config.getPlayerConfig().hitbox.height;
+    float offX = _config.getPlayerConfig().hitbox.offset_x;
+    float offY = _config.getPlayerConfig().hitbox.offset_y;
+    float sW = _config.getPlayerConfig().hitbox.sprite_width;
+    float sH = _config.getPlayerConfig().hitbox.sprite_height;
+
+    static int logCounter = 0;
+    if (logCounter++ % 120 == 0) {
+        LOG_INFO("COLLISION CHECK: W=" + std::to_string(pW) + " H=" + std::to_string(pH) + 
+                 " OffX=" + std::to_string(offX) + " OffY=" + std::to_string(offY));
+    }
+
+    // View all projectiles
+    for (auto projectileEntity : reg.viewEntitiesWith<Projectile, Position>()) {
+        if (!reg.hasComponent<Projectile>(projectileEntity)) continue; // Safety check
+        auto& projectile = reg.getComponent<Projectile>(projectileEntity);
+        
+        // Only check enemy projectiles against players
+        if (projectile.ownerType != "enemy") continue;
+        
+        Position& projPos = reg.getComponent<Position>(projectileEntity);
+        
+        // Check against all players
+        for (const auto& [playerId, playerEntity] : playerEntities) {
+            // Check validity
+            if (!reg.hasComponent<Position>(playerEntity) || !reg.hasComponent<Stats>(playerEntity)) continue; 
+            
+            Position& playerPos = reg.getComponent<Position>(playerEntity);
+            Stats& playerStats = reg.getComponent<Stats>(playerEntity);
+
+            // Skip dead players if we want to avoid beating a dead horse
+            if (playerStats.hp <= 0) continue;
+
+            // Simple AABB Collision
+            // "Origin is bottom right extending to top left"
+            // So Position is the Bottom-Right corner.
+            // But we want offsets to be intuitive (Top-Left from Sprite Origin).
+            // Sprite Left = Position.x - SpriteWidth
+            // Hitbox Left = Sprite Left + OffsetX
+            
+            float targetX = (playerPos.x - sW) + offX;
+            float targetY = (playerPos.y - sH) + offY;
+            
+            // Projectile size ~10x10.
+            // Client draws projectile at (projPos.x, projPos.y), so it is Top-Left anchored.
+            
+            float projW = 10.0f;
+            float projH = 10.0f;
+            float projLeft = projPos.x;
+            float projTop = projPos.y;
+            
+            bool collision = (projLeft < targetX + pW &&
+                              projLeft + projW > targetX &&
+                              projTop < targetY + pH &&
+                              projTop + projH > targetY);
+            
+            if (collision) {
+                // Hit
+                playerStats.hp -= projectile.damage;
+                projectilesToRemove.push_back(projectileEntity);
+                
+                LOG_DEBUG("Player " + std::to_string(playerId) + " hit by projectile " + std::to_string(projectileEntity) + ", hp: " + std::to_string(playerStats.hp));
+
+                if (playerStats.hp <= 0) {
+                     playersToKill.push_back(playerEntity);
+                }
+                
+                // One projectile hits one player
+                break; 
+            }
+        }
+    }
+
+    // Process removals
+    // Remove duplicates from projectilesToRemove if any (though break should prevent it)
+    for (auto proj : projectilesToRemove) {
+        if (reg.hasComponent<Projectile>(proj)) { // Check if still exists
+            sendDestroyedProjectileToAllPlayers(proj);
+            reg.destroyEntity(proj);
+        }
+    }
+    
+    // Notify deaths
+    for (auto player : playersToKill) {
+        sendDestroyedPlayerToAllPlayers(player);
+        // Do NOT destroy player entity here to allow respawn or game over handling
+        // Reset position or something? 
+        // For now just notify death.
     }
 }

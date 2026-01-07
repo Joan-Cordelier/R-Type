@@ -1,6 +1,6 @@
 #include "GameLoopConfig.hpp"
-#include "../Logs/Logger.hpp"
 #include <fstream>
+#include <iostream>
 
 GameLoopConfig::GameLoopConfig()
 {
@@ -28,7 +28,7 @@ bool GameLoopConfig::loadFromFile(const std::string& filepath)
     try {
         std::ifstream file(filepath);
         if (!file.is_open()) {
-            LOG_WARN("Could not open config file: " + filepath + ", using defaults");
+            std::cerr << "Could not open config file: " << filepath << ", using defaults" << std::endl;
             return false;
         }
         
@@ -119,6 +119,14 @@ bool GameLoopConfig::loadFromFile(const std::string& filepath)
                 if (p["initial_position"]["x"]) _player.initial_x = p["initial_position"]["x"].as<float>();
                 if (p["initial_position"]["y"]) _player.initial_y = p["initial_position"]["y"].as<float>();
             }
+            if (p["hitbox"]) {
+                if (p["hitbox"]["width"]) _player.hitbox.width = p["hitbox"]["width"].as<float>();
+                if (p["hitbox"]["height"]) _player.hitbox.height = p["hitbox"]["height"].as<float>();
+                if (p["hitbox"]["offset_x"]) _player.hitbox.offset_x = p["hitbox"]["offset_x"].as<float>();
+                if (p["hitbox"]["offset_y"]) _player.hitbox.offset_y = p["hitbox"]["offset_y"].as<float>();
+                if (p["hitbox"]["sprite_width"]) _player.hitbox.sprite_width = p["hitbox"]["sprite_width"].as<float>();
+                if (p["hitbox"]["sprite_height"]) _player.hitbox.sprite_height = p["hitbox"]["sprite_height"].as<float>();
+            }
             if (p["stats"]) {
                 auto s = p["stats"];
                 if (s["health"]) _player.stats.health = s["health"].as<int>();
@@ -154,14 +162,17 @@ bool GameLoopConfig::loadFromFile(const std::string& filepath)
             if (sys["collision"]) _systems.collision = sys["collision"].as<bool>();
         }
         
-        LOG_INFO("Loaded game loop config from: " + filepath);
-        LOG_INFO("  Tick rate: " + std::to_string(_gameLoop.tick_rate));
-        LOG_INFO("  Max messages per frame: " + std::to_string(_gameLoop.max_messages_per_frame));
-        LOG_INFO("  Min players to start: " + std::to_string(_gameLoop.min_players_to_start));
+        // std::cout << "Loaded game loop config from: " << filepath << std::endl;
+        /*
+        std::cout << "Loaded game loop config from: " << filepath << std::endl;
+        std::cout << "  Tick rate: " << std::to_string(_gameLoop.tick_rate) << std::endl;
+        std::cout << "  Max messages per frame: " << std::to_string(_gameLoop.max_messages_per_frame) << std::endl;
+        std::cout << "  Min players to start: " << std::to_string(_gameLoop.min_players_to_start) << std::endl;
+        */
         
         return true;
     } catch (const YAML::Exception& e) {
-        LOG_ERROR("Failed to parse config file: " + std::string(e.what()));
+        std::cerr << "Failed to parse config file: " << e.what() << std::endl;
         loadDefaults();
         return false;
     }

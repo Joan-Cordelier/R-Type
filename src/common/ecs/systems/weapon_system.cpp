@@ -20,9 +20,9 @@ void WeaponSystem::fireWeapon(Registry &reg, Entity entity) {
     Entity projectile = reg.createEntity();
     reg.addComponent<Position>(projectile, 0.f, 0.f);
     auto &pos = reg.getComponent<Position>(entity);
-    reg.getComponent<Position>(projectile).y = pos.y + 30.f;
-    reg.getComponent<Position>(projectile).x = pos.x + 52.f;
-    reg.addComponent<Velocity>(projectile, 0.f, -400.f);
+    reg.getComponent<Position>(projectile).y = pos.y + projOffsetY;
+    reg.getComponent<Position>(projectile).x = pos.x + projOffsetX;
+    reg.addComponent<Velocity>(projectile, 0.f, -projSpeed);
     reg.addComponent<Projectile>(projectile, weaponComp.damage, std::string("player"));
 
     if (projNotifier) {
