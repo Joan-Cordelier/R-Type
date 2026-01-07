@@ -1,10 +1,32 @@
 #include "ClientGameHandler.hpp"
 #include "../common/Data/EntityType.hpp"
+#include "../common/ecs/components/weapon.hpp"
 
-ClientGameHandler::ClientGameHandler() : _settingsMenu(_reg, _keybindsManager) {
+ClientGameHandler::ClientGameHandler(bool debugMode)
+    : _settingsMenu(_reg, _keybindsManager), _debugMode(debugMode) {
+    // Load config (try local, then ../ for build dir)
+    if (!_config.loadFromFile("yaml/main_loop.yaml")) {
+        // Only try parent directory if first attempt failed
+        _config.loadFromFile("../yaml/main_loop.yaml");
+    }
+
+    if (_debugMode) {
+        auto &hb = _config.getPlayerConfig().hitbox;
+        std::cout << "[DEBUG] Loaded Hitbox Config: "
+                  << "W=" << hb.width << " H=" << hb.height
+                  << " OffX=" << hb.offset_x << " OffY=" << hb.offset_y
+                  << std::endl;
+    }
+
     // Load resources
     _renderer.loadSpriteSheet("textures/ships/player_ship.png", "player_ship",
                               343, 383);
+    _renderer.loadSpriteSheet("textures/ships/player_ship_blue.png",
+                              "player_ship_blue", 343, 383);
+    _renderer.loadSpriteSheet("textures/ships/player_ship_green.png",
+                              "player_ship_green", 343, 383);
+    _renderer.loadSpriteSheet("textures/ships/player_ship_yellow.png",
+                              "player_ship_yellow", 343, 383);
     _renderer.loadTexture("textures/play_button/default.png", "play_button");
     _renderer.loadSpriteSheet("textures/projectiles/projectile_player.png",
                               "projectile_player", 16, 16);
@@ -54,6 +76,8 @@ ClientGameHandler::ClientGameHandler() : _settingsMenu(_reg, _keybindsManager) {
     });
 
     _settingsMenu.setup(_reg, _slidersys, _buttonsys);
+
+    _weaponsys.setIsServer(false);
 }
 
 int ClientGameHandler::run() {
@@ -82,10 +106,9 @@ int ClientGameHandler::run() {
 
         handleMessages();
 
-        _input.update(_reg, status, _network);
-
+        _weaponsys.update(_reg, static_cast<float>(dt));
+        _input.update(_reg, status, _network, _weaponsys);
         _movement.update(_reg, static_cast<float>(dt));
-
         _buttonsys.update(_reg);
         _slidersys.update(_reg);
 
@@ -109,6 +132,56 @@ int ClientGameHandler::run() {
             },
             animationClock);
 
+        if (_debugMode) {
+            // Draw hitboxes for players
+            const auto &playerConf = _config.getPlayerConfig();
+            for (auto const &[serverEntity, localEntity] : playerEntities) {
+                if (_reg.hasComponent<Position>(localEntity)) {
+                    Position &pos = _reg.getComponent<Position>(localEntity);
+
+                    Color boxColor = (localEntity == myEntity)
+                                         ? Color{0, 255, 0, 255}
+                                         : Color{0, 255, 255, 255};
+
+                    // Position (x, y) is the top-left corner of the sprite
+                    // Hitbox position = Sprite top-left + offset
+                    float hitboxX = pos.x + playerConf.hitbox.offset_x;
+                    float hitboxY = pos.y + playerConf.hitbox.offset_y;
+
+                    _renderer.drawRect(Rect{(int)hitboxX, (int)hitboxY,
+                                            (int)playerConf.hitbox.width,
+                                            (int)playerConf.hitbox.height},
+                                       boxColor, RenderLayer::OVERLAY, 100);
+                }
+            }
+
+            // Draw hitboxes for enemies
+            for (auto const &[serverEntity, localEntity] : enemyEntities) {
+                if (_reg.hasComponent<Position>(localEntity) &&
+                    _reg.hasComponent<Sprite>(localEntity)) {
+                    Position &pos = _reg.getComponent<Position>(localEntity);
+                    Sprite &sprite = _reg.getComponent<Sprite>(localEntity);
+                    // Enemies usually have 50x50 or 60x60 depending on type,
+                    // but for simple visualization using sprite size + red box
+                    _renderer.drawRect(Rect{(int)pos.x, (int)pos.y,
+                                            sprite.width, sprite.height},
+                                       Color{255, 0, 0, 255},
+                                       RenderLayer::OVERLAY, 100);
+                }
+            }
+
+            // Draw hitboxes for projectiles
+            for (auto const &[serverEntity, localEntity] : projectileEntities) {
+                if (_reg.hasComponent<Position>(localEntity)) {
+                    Position &pos = _reg.getComponent<Position>(localEntity);
+                    // Projectiles roughly 10x10 or 16x16
+                    _renderer.drawRect(Rect{(int)pos.x, (int)pos.y, 16, 16},
+                                       Color{255, 255, 0, 255},
+                                       RenderLayer::OVERLAY, 100);
+                }
+            }
+        }
+
         _labelsys.render(_reg, [&](const LabelSystem::TextId &tid,
                                    std::string &text, int x, int y,
                                    Color color) {
@@ -117,10 +190,8 @@ int ClientGameHandler::run() {
         });
 
         _slidersys.render(_reg, _renderer);
-
         _renderer.render();
     }
-
     return 0;
 }
 
@@ -155,21 +226,17 @@ void ClientGameHandler::handleMessages() {
     std::optional<DecodedMessage> msg;
     while (_network.hasMessages()) {
         msg = _network.popMessage(Priority::CRITICAL);
-        if (msg.has_value() == false) {
+        if (!msg.has_value())
             msg = _network.popMessage(Priority::HIGH);
-            if (msg.has_value() == false) {
-                msg = _network.popMessage(Priority::MEDIUM);
-                if (msg.has_value() == false) {
-                    msg = _network.popMessage(Priority::LOW);
-                    if (msg.has_value() == false) {
-                        msg = _network.popMessage(Priority::ERROR);
-                        if (msg.has_value() == false) {
-                            break;
-                        }
-                    }
-                }
-            }
-        }
+        if (!msg.has_value())
+            msg = _network.popMessage(Priority::MEDIUM);
+        if (!msg.has_value())
+            msg = _network.popMessage(Priority::LOW);
+        if (!msg.has_value())
+            msg = _network.popMessage(Priority::ERROR);
+        if (!msg.has_value())
+            break;
+
         switch (msg->opCode) {
         case OpCode::CONNECT_ACK: {
             if (msg->data.size() >= 4) {
@@ -178,8 +245,6 @@ void ClientGameHandler::handleMessages() {
                              (static_cast<uint32_t>(msg->data[2]) << 8) |
                              static_cast<uint32_t>(msg->data[3]);
                 std::cout << "Received playerId: " << myPlayerId << std::endl;
-
-                // Wait for JOIN message to connect to room
             }
             break;
         }
@@ -196,8 +261,6 @@ void ClientGameHandler::handleMessages() {
                           << std::endl;
 
                 _network.disconnect();
-
-                // Small delay to ensure sockets are closed
                 std::this_thread::sleep_for(std::chrono::milliseconds(50));
 
                 if (_network.connect(ip_adress, tcpPort, udpPort) == 0) {
@@ -238,7 +301,6 @@ void ClientGameHandler::handleMessages() {
         case OpCode::MOVE_SYNC: {
             if (msg->data.size() >= 13) {
                 EntityType type = static_cast<EntityType>(msg->data[0]);
-
                 Entity serverEntity =
                     (static_cast<Entity>(msg->data[1]) << 24) |
                     (static_cast<Entity>(msg->data[2]) << 16) |
@@ -253,7 +315,6 @@ void ClientGameHandler::handleMessages() {
                     auto itPlayer = playerEntities.find(serverEntity);
                     if (itPlayer != playerEntities.end()) {
                         Entity localEntity = itPlayer->second;
-
                         float prevX =
                             _reg.getComponent<Position>(localEntity).x;
                         if (prevX > x) {
@@ -266,9 +327,11 @@ void ClientGameHandler::handleMessages() {
                             _reg.getComponent<SpriteSheets>(localEntity)
                                 .frameIndex = 1;
                         }
-
                         _reg.getComponent<Position>(localEntity).x = x;
                         _reg.getComponent<Position>(localEntity).y = y;
+                    } else {
+                        // If player doesn't exist locally, ignore directly,
+                        // wait for PLAYER packet
                     }
                     break;
                 }
@@ -327,8 +390,13 @@ void ClientGameHandler::handleMessages() {
                         Entity projectile = _reg.createEntity();
                         Position &pos =
                             _reg.getComponent<Position>(localParent);
-                        _reg.addComponent<Position>(projectile, pos.x + 52.f,
-                                                    pos.y + 30.f);
+                        // Use config offset
+                        _reg.addComponent<Position>(
+                            projectile,
+                            pos.x +
+                                _config.getProjectilesConfig().player.offset_x,
+                            pos.y +
+                                _config.getProjectilesConfig().player.offset_y);
                         _reg.addComponent<Velocity>(projectile, 0.f, -400.f);
                         _reg.addComponent<SpriteSheets>(
                             projectile,
@@ -350,8 +418,12 @@ void ClientGameHandler::handleMessages() {
                         Entity projectile = _reg.createEntity();
                         Position &pos =
                             _reg.getComponent<Position>(localParent);
-                        _reg.addComponent<Position>(projectile, pos.x + 18.f,
-                                                    pos.y + 50.f);
+                        _reg.addComponent<Position>(
+                            projectile,
+                            pos.x +
+                                _config.getProjectilesConfig().enemy.offset_x,
+                            pos.y +
+                                _config.getProjectilesConfig().enemy.offset_y);
                         _reg.addComponent<Velocity>(projectile, 0.f, 200.f);
                         _reg.addComponent<SpriteSheets>(
                             projectile,
@@ -413,7 +485,6 @@ void ClientGameHandler::handleMessages() {
         case OpCode::DEATH: {
             if (msg->data.size() >= 5) {
                 EntityType type = static_cast<EntityType>(msg->data[0]);
-
                 Entity serverEntity =
                     (static_cast<Entity>(msg->data[1]) << 24) |
                     (static_cast<Entity>(msg->data[2]) << 16) |
@@ -462,9 +533,8 @@ void ClientGameHandler::handleMessages() {
 }
 
 void ClientGameHandler::handlePlayerPacket(const DecodedMessage &msg) {
-    if (msg.data.size() < 16) {
+    if (msg.data.size() < 16)
         return;
-    }
     if (myPlayerId == 0) {
         pendingPlayerPackets.push_back(msg);
         return;
@@ -484,16 +554,34 @@ void ClientGameHandler::handlePlayerPacket(const DecodedMessage &msg) {
     float y = *reinterpret_cast<const float *>(&msg.data[12]);
 
     auto it = playerEntities.find(serverEntity);
+    static std::vector<std::string> shipSkins = {
+        "player_ship", "player_ship_blue", "player_ship_green",
+        "player_ship_yellow"};
+
     if (it == playerEntities.end()) {
-        // Nettoyer les anciennes références AVANT de créer la nouvelle entité
         cleanupServerEntity(serverEntity);
+
+        int nbOfPlayers = playerEntities.size();
+        std::string selectedSkin = shipSkins[nbOfPlayers % shipSkins.size()];
 
         Entity localEntity = _reg.createEntity();
         _reg.addComponent<Position>(localEntity, x, y);
         _reg.addComponent<Velocity>(localEntity, 0.f, 0.f);
-        _reg.addComponent<SpriteSheets>(
-            localEntity, std::string("textures/ships/player_ship.png"),
-            std::string("player_ship"), 120, 130, 1, 3, 0, true, false);
+
+        int sprW = 343; // fallback if config fails to load?
+        int sprH = 383;
+        // Try to get from config, defaults in class
+        // But header says _config is member.
+        sprW = (int)_config.getPlayerConfig().hitbox.sprite_width;
+        sprH = (int)_config.getPlayerConfig().hitbox.sprite_height;
+        if (sprW == 0)
+            sprW = 120; // safe defaults
+        if (sprH == 0)
+            sprH = 130;
+
+        _reg.addComponent<SpriteSheets>(localEntity, std::string(""),
+                                        selectedSkin, sprW, sprH, 1, 3, 0, true,
+                                        false);
         _reg.addComponent<Stats>(localEntity, 100, 100, 1, 0.f, 10, 1, 200);
 
         playerEntities[serverEntity] = localEntity;
@@ -501,6 +589,7 @@ void ClientGameHandler::handlePlayerPacket(const DecodedMessage &msg) {
         if (playerId == myPlayerId) {
             myEntity = localEntity;
             _input.setControlled(localEntity, _keybindsManager);
+            _reg.addComponent<Weapon>(localEntity, 10, 1, 0.5f);
             std::cout << "Created my player entity (serverId: " << serverEntity
                       << ", localId: " << localEntity << ") at (" << x << ", "
                       << y << ")" << std::endl;

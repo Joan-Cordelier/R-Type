@@ -27,11 +27,11 @@ sudo dnf install -y ninja-build
 sudo apt install autoconf autoconf-archive automake libtool
 
 Linux:
-cmake -B build -S . -DCMAKE_BUILD_TYPE=Release -DCMAKE_TOOLCHAIN_FILE=./vcpkg/scripts/buildsystems/vcpkg.cmake
-cmake --build build --config Release
+cmake -B build -S . -DCMAKE_BUILD_TYPE=Release -DCMAKE_TOOLCHAIN_FILE=/home/theo/vcpkg/scripts/buildsystems/vcpkg.cmake -DVCPKG_INSTALLED_DIR=./vcpkg_installed -G Ninja
+cmake --build build --config Release -j$(nproc)
 
 Windows (MSVC):
-cmake -B build -S . -G "Visual Studio 17 2022" -DCMAKE_TOOLCHAIN_FILE=.\vcpkg\scripts\buildsystems\vcpkg.cmake
+cmake -B build -S . -G "Visual Studio 17 2022" -DCMAKE_TOOLCHAIN_FILE=C:/vcpkg/scripts/buildsystems/vcpkg.cmake -DVCPKG_INSTALLED_DIR=./vcpkg_installed
 cmake --build build --config Release
 
 ]]

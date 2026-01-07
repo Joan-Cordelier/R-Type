@@ -14,6 +14,7 @@
 #include "input_system.hpp"
 #include "../common/ecs/components/velocity.hpp"
 #include "../common/ecs/components/label.hpp"
+#include "../common/ecs/components/weapon.hpp"
 #include <SDL2/SDL.h>
 #include <cmath>
 
@@ -30,7 +31,7 @@ void InputSystem::setControlled(Entity e, KeybindsManager& kbManager) {
     keybindsManager = &kbManager;
 }
 
-void InputSystem::update(Registry& reg, SDL_Event& e, NetworkManager& networkManager) {
+void InputSystem::update(Registry& reg, SDL_Event& e, NetworkManager& networkManager, WeaponSystem &weaponsys) {
     if (!keybindsManager) return;
     
     if (keybindsManager->isWaitingForKeybind) {
@@ -62,13 +63,14 @@ void InputSystem::update(Registry& reg, SDL_Event& e, NetworkManager& networkMan
         if (ks[keybindsManager->shootKey]) {
             if (!reg.hasComponent<Stats>(controlled))
                 return;
-            auto &stats = reg.getComponent<Stats>(controlled);
-            if (!stats.canAttack())
+            if (!reg.hasComponent<Weapon>(controlled))
+                return;
+            if (!weaponsys.canAttack(controlled))
                 return;
             MessageFactory& factory = MessageFactory::getInstance();
             MessageData payload = factory.encodeMessageProjectile(0, controlled, std::string("player"));
             networkManager.sendUdp(factory.createMessage(OpCode::SHOOT, payload));
-            stats.cooldown = 1.f / static_cast<float>(stats.attack_speed);
+            weaponsys.fireWeapon(reg, controlled);
         }
     } else if (reg.hasComponent<Label>(controlled)) {
         if (e.type != 0) {

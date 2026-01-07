@@ -6,9 +6,18 @@
 */
 
 #include "ClientGameHandler.hpp"
+#include <string>
+#include <vector>
 
-int main()
+int main(int argc, char* argv[])
 {
-    ClientGameHandler gameHandler;
+    bool debugMode = false;
+    for (int i = 1; i < argc; ++i) {
+        if (std::string(argv[i]) == "--debug") {
+            debugMode = true;
+        }
+    }
+
+    ClientGameHandler gameHandler(debugMode);
     return gameHandler.run();
 }

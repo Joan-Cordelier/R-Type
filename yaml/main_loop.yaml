@@ -1,0 +1,124 @@
+# Configuration de la boucle de jeu principale
+game_loop:
+  # Nombre de ticks par seconde (fréquence de mise à jour)
+  tick_rate: 30
+  
+  # Nombre maximum de messages traités par frame
+  max_messages_per_frame: 100
+  
+  # Nombre minimum de joueurs pour démarrer la partie
+  min_players_to_start: 1
+
+# Configuration du spawn des ennemis (legacy / fallback)
+enemy_spawning:
+  enabled: true
+  initial_delay: 2.0  # Délai avant le premier spawn (secondes)
+  spawn_interval: 4.0  # Intervalle entre les spawns (secondes)
+  max_enemies: 10  # Nombre maximum d'ennemis simultanés
+
+# Configuration des types d'ennemis
+enemy_types:
+  basic_enemy:
+    sprite: "textures/ships/enemy_ship.png"
+    texture_id: "enemy_ship"
+    health: 50
+    damage: 10
+    speed: 100
+    score: 100
+    width: 50.0
+    height: 50.0
+    velocity_x: 0.0
+    velocity_y: 100.0
+    move_amplitude: 100.0
+    move_frequency: 0.5
+  
+  shooter_enemy:
+    sprite: "textures/ships/enemy_ship.png"  # Using same sprite for now
+    texture_id: "enemy_ship"
+    health: 80
+    damage: 20
+    speed: 80
+    score: 200
+    width: 60.0
+    height: 60.0
+    velocity_x: 0.0
+    velocity_y: 80.0
+
+# Configuration des niveaux
+levels:
+  - id: 1
+    name: "Zone 1"
+    background: "textures/backgrounds/level1.png"
+    music: "audio/music/level1.ogg"
+    waves:
+      - id: 1
+        start_delay: 2.0
+        groups:
+          - type: "basic_enemy"
+            count: 3
+            interval: 1.0
+      - id: 2
+        start_delay: 10.0
+        groups:
+          - type: "basic_enemy"
+            count: 5
+            interval: 0.5
+          - type: "shooter_enemy"
+            count: 2
+            interval: 2.0
+
+  - id: 2
+    name: "Zone 2"
+    background: "textures/backgrounds/level2.png"
+    music: "audio/music/level2.ogg"
+    waves:
+      - id: 1
+        start_delay: 2.0
+        groups:
+          - type: "basic_enemy"
+            count: 5
+            interval: 0.8
+          - type: "shooter_enemy"
+            count: 3
+            interval: 1.5
+
+# Configuration des joueurs
+player:
+  initial_position:
+    x: 100.0
+    y: 300.0
+  hitbox:
+    # Hitbox size (typically smaller than sprite for better gameplay)
+    width: 30.0
+    height: 30.0
+    # Offset from sprite top-left corner to center the hitbox
+    offset_x: 45.0  # (120 - 30) / 2 = 45
+    offset_y: 50.0  # Centered vertically around the ship's core
+    # Actual sprite display size
+    sprite_width: 120.0
+    sprite_height: 130.0
+  stats:
+    health: 100
+    max_health: 100
+    attack_damage: 10
+    attack_speed: 5
+    defense: 1
+    speed: 200
+
+# Configuration des projectiles
+projectiles:
+  player:
+    speed: 400.0
+    offset_x: 52.0
+    offset_y: 30.0
+  enemy:
+    speed: 200.0
+    offset_x: 18.0
+    offset_y: 50.0
+
+# Systèmes à activer dans la boucle de jeu
+systems:
+  movement: true
+  stats: true
+  enemy: true
+  collision: true

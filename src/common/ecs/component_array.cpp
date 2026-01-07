@@ -50,6 +50,7 @@ std::vector<Entity> ComponentArray<T>::entities() const {
 #include "components/enemy.hpp"
 #include "components/projectile.hpp"
 #include "components/slider.hpp"
+#include "components/weapon.hpp"
 
 template class ComponentArray<Position>;
 template class ComponentArray<Velocity>;
@@ -61,3 +62,4 @@ template class ComponentArray<SpriteSheets>;
 template class ComponentArray<Enemy>;
 template class ComponentArray<Projectile>;
 template class ComponentArray<Slider>;
+template class ComponentArray<Weapon>;
