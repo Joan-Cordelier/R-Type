@@ -23,6 +23,10 @@ class EnemySystem {
         void setMaxEnemies(int max) { _maxEnemies = max; }
         void setInitialDelay(float delay) { _initialDelay = delay; }
         void disableSpawning() { _spawningEnabled = false; }
+        void setProjectileOffsets(float offsetX, float offsetY) { 
+            _projectileOffsetX = offsetX; 
+            _projectileOffsetY = offsetY; 
+        }
     private:
         std::vector<Entity> enemyEntities;
         std::vector<std::pair<Entity, Entity>> newProjectileEntitiesWithParent;
@@ -37,6 +41,8 @@ class EnemySystem {
         int _maxEnemies = 10;
         float _initialDelay = 2.0f;
         bool _spawningEnabled = true;
+        float _projectileOffsetX = 18.0f;  // Default from config
+        float _projectileOffsetY = 50.0f;
 
         // Level System Data
         std::vector<LevelData> _levels;

@@ -44,6 +44,11 @@ GameHandler::GameHandler(SessionManager& session, std::atomic<bool>& running, co
     // Set level data
     enemySystem.setLevels(_config.getLevels());
     enemySystem.setEnemyTypes(_config.getEnemyTypes());
+    
+    // Configure enemy projectile offsets from config
+    auto& projConfig = _config.getProjectilesConfig().enemy;
+    enemySystem.setProjectileOffsets(projConfig.offset_x, projConfig.offset_y);
+    LOG_INFO("Enemy projectile offsets: X=" + std::to_string(projConfig.offset_x) + " Y=" + std::to_string(projConfig.offset_y));
 
     // Set up message handler callbacks
     _messageHandler.setOnPlayerConnect([this](const Player& player) {
@@ -397,8 +402,6 @@ void GameHandler::checkPlayerCollisions()
     float pH = _config.getPlayerConfig().hitbox.height;
     float offX = _config.getPlayerConfig().hitbox.offset_x;
     float offY = _config.getPlayerConfig().hitbox.offset_y;
-    float sW = _config.getPlayerConfig().hitbox.sprite_width;
-    float sH = _config.getPlayerConfig().hitbox.sprite_height;
 
     static int logCounter = 0;
     if (logCounter++ % 120 == 0) {
@@ -434,13 +437,21 @@ void GameHandler::checkPlayerCollisions()
             float targetX = playerPos.x + offX;
             float targetY = playerPos.y + offY;
             
-            // Projectile size ~10x10.
+            // Projectile size 16x16 (matching client sprite and debug visualization)
             // Client draws projectile at (projPos.x, projPos.y), so it is Top-Left anchored.
             
-            float projW = 10.0f;
-            float projH = 10.0f;
+            float projW = 16.0f;
+            float projH = 16.0f;
             float projLeft = projPos.x;
             float projTop = projPos.y;
+            
+            // Debug logging every 60 frames for first player
+            static int debugLogCounter = 0;
+            if (debugLogCounter++ % 60 == 0 && playerId == playerEntities.begin()->first) {
+                LOG_DEBUG("COLLISION DEBUG: PlayerPos(" + std::to_string(playerPos.x) + ", " + std::to_string(playerPos.y) + 
+                         ") -> Hitbox(" + std::to_string(targetX) + ", " + std::to_string(targetY) + ", " + 
+                         std::to_string(pW) + ", " + std::to_string(pH) + ")");
+            }
             
             bool collision = (projLeft < targetX + pW &&
                               projLeft + projW > targetX &&
@@ -448,6 +459,10 @@ void GameHandler::checkPlayerCollisions()
                               projTop + projH > targetY);
             
             if (collision) {
+                LOG_INFO("HIT! Projectile(" + std::to_string(projLeft) + ", " + std::to_string(projTop) + 
+                         ", " + std::to_string(projW) + ", " + std::to_string(projH) + 
+                         ") vs PlayerHitbox(" + std::to_string(targetX) + ", " + std::to_string(targetY) + 
+                         ", " + std::to_string(pW) + ", " + std::to_string(pH) + ")");
                 // Hit
                 playerStats.hp -= projectile.damage;
                 projectilesToRemove.push_back(projectileEntity);

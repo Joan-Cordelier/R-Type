@@ -35,7 +35,7 @@ void EnemySystem::update(Registry& reg, float dt) {
         // Shoot logic
         if (enemy.canAttack()) {
             Entity projectile = reg.createEntity();
-            reg.addComponent<Position>(projectile, position.x - 25.f, position.y - 50.f);
+            reg.addComponent<Position>(projectile, position.x + _projectileOffsetX, position.y + _projectileOffsetY);
             reg.addComponent<Velocity>(projectile, 0.f, 200.f);
             reg.addComponent<Projectile>(projectile, enemy.damage, (std::string)"enemy");
             newProjectileEntitiesWithParent.push_back(std::make_pair(e, projectile));
