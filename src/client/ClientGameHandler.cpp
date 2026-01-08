@@ -95,6 +95,24 @@ int ClientGameHandler::run()
 
         _movement.update(_reg, static_cast<float>(dt));
 
+        // Clean up out-of-bounds projectiles
+        for (auto it = projectileEntities.begin(); it != projectileEntities.end(); ) {
+            Entity localEntity = it->second;
+            if (_reg.hasComponent<Position>(localEntity)) {
+                Position& pos = _reg.getComponent<Position>(localEntity);
+                // Check if projectile is out of bounds
+                if (pos.x < -100 || pos.x > 1920 || pos.y < -100 || pos.y > 1080) {
+                    if (_debugMode) {
+                        std::cout << "Cleaning up out-of-bounds projectile (localId: " << localEntity << ")" << std::endl;
+                    }
+                    _reg.destroyEntity(localEntity);
+                    it = projectileEntities.erase(it);
+                    continue;
+                }
+            }
+            ++it;
+        }
+
         _buttonsys.update(_reg);
         _slidersys.update(_reg);
 
@@ -179,13 +197,6 @@ void ClientGameHandler::cleanupServerEntity(Entity serverEntity)
         std::cout << "Warning: Cleaning up old enemy entity with serverEntity " << serverEntity << std::endl;
         _reg.destroyEntity(itEnemy->second);
         enemyEntities.erase(itEnemy);
-    }
-    
-    auto itProj = projectileEntities.find(serverEntity);
-    if (itProj != projectileEntities.end()) {
-        std::cout << "Warning: Cleaning up old projectile entity with serverEntity " << serverEntity << std::endl;
-        _reg.destroyEntity(itProj->second);
-        projectileEntities.erase(itProj);
     }
 }
 
@@ -347,8 +358,8 @@ void ClientGameHandler::handleMessages()
                     } else if (ownerType == "enemy") {
                         auto it = enemyEntities.find(serverParentEntity);
                         if (it != enemyEntities.end()) {
-                            Entity localParent = it->second;
                             Entity projectile = _reg.createEntity();
+                            Entity localParent = it->second;
                             Position &pos = _reg.getComponent<Position>(localParent);
                             _reg.addComponent<Position>(projectile, pos.x + _config.getProjectilesConfig().enemy.offset_x, pos.y + _config.getProjectilesConfig().enemy.offset_y);
                             _reg.addComponent<Velocity>(projectile, 0.f, 200.f);
@@ -488,7 +499,8 @@ void ClientGameHandler::handlePlayerPacket(const DecodedMessage& msg)
         int sprH = (int)_config.getPlayerConfig().hitbox.sprite_height;
         _reg.addComponent<SpriteSheets>(localEntity, std::string(""), selectedSkin, sprW, sprH, 1, 3, 0, true, false);
         _reg.addComponent<Stats>(localEntity, 100, 100, 1, 0.f, 10, 1, 200);
-        _reg.addComponent<Weapon>(localEntity, 10, 1, 0.5f, false);
+        _reg.addComponent<Weapon>(localEntity, 10, 1, 0.5f);
+        _weaponsys.setWeaponType(_reg, localEntity, WeaponType::SHOTGUN);
                         
         playerEntities[serverEntity] = localEntity;
 
