@@ -4,6 +4,14 @@
 #include <map>
 #include <functional>
 
+#include "ecs/components/weapon.hpp"
+
+enum class WeaponType {
+    DEFAULT,
+    SHOTGUN,
+    MISSILE
+};
+
 class WeaponSystem {
 private:
     std::map<Entity, float> fireCooldowns;
@@ -27,6 +35,13 @@ public:
         auto it = fireCooldowns.find(entity);
         return it == fireCooldowns.end() || it->second <= 0.0f;
     }
+    void resetCooldown(Registry &reg, Entity entity) {
+        if (reg.hasComponent<Weapon>(entity)) {
+            Weapon weaponComp = reg.getComponent<Weapon>(entity);
+            fireCooldowns[entity] = weaponComp.fireRate;
+        }
+    }
+    void setWeaponType(Registry &reg, Entity entity, WeaponType type);
     void setIsServer(bool server) {
         isServer = server;
     }

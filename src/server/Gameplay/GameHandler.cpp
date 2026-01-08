@@ -144,7 +144,7 @@ void GameHandler::sendNewProjectilesToAllPlayers(Entity parentEntity, Entity pro
     PreparedMessage msg = MessageFactory::getInstance().createMessage(OpCode::SHOOT, payload);
     
     for (const auto& [playerId, entity] : playerEntities) {
-        _session.sendUdp(playerId, msg);
+        _session.sendTcp(playerId, msg);
     }
     
     LOG_DEBUG("Sent projectile " + std::to_string(projectileEntity) + " from parent " + std::to_string(parentEntity) + " to all players");
@@ -253,7 +253,7 @@ void GameHandler::onPlayerConnect(const Player& player)
     reg.addComponent<Position>(playerEntity, _config.getPlayerConfig().initial_x, _config.getPlayerConfig().initial_y);
     reg.addComponent<Velocity>(playerEntity, 0.f, 0.f);
     reg.addComponent<Stats>(playerEntity, 100, 100, 1, 0.f, 10, 1, 200);
-    reg.addComponent<Weapon>(playerEntity, 10, 1, 0.5f);
+    reg.addComponent<Weapon>(playerEntity, 10, 1, 0.5f, false);
     
     auto& factory = MessageFactory::getInstance();
     

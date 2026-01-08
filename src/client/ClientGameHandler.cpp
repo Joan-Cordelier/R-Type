@@ -331,6 +331,10 @@ void ClientGameHandler::handleMessages()
                         auto it = playerEntities.find(serverParentEntity);
                         if (it != playerEntities.end()) {
                             Entity localParent = it->second;
+                            
+                            // Sync cooldown with server confirmation
+                            _weaponsys.resetCooldown(_reg, localParent);
+                            
                             Entity projectile = _reg.createEntity();
                             Position &pos = _reg.getComponent<Position>(localParent);
                             _reg.addComponent<Position>(projectile, pos.x + _config.getProjectilesConfig().player.offset_x, pos.y + _config.getProjectilesConfig().player.offset_y);
@@ -484,13 +488,13 @@ void ClientGameHandler::handlePlayerPacket(const DecodedMessage& msg)
         int sprH = (int)_config.getPlayerConfig().hitbox.sprite_height;
         _reg.addComponent<SpriteSheets>(localEntity, std::string(""), selectedSkin, sprW, sprH, 1, 3, 0, true, false);
         _reg.addComponent<Stats>(localEntity, 100, 100, 1, 0.f, 10, 1, 200);
+        _reg.addComponent<Weapon>(localEntity, 10, 1, 0.5f, false);
                         
         playerEntities[serverEntity] = localEntity;
 
         if (playerId == myPlayerId) {
             myEntity = localEntity;
             _input.setControlled(localEntity, _keybindsManager);
-            _reg.addComponent<Weapon>(localEntity, 10, 1, 0.5f);
             std::cout << "Created my player entity (serverId: " << serverEntity << ", localId: " << localEntity << ") at (" << x << ", " << y << ")" << std::endl;
         } else {
             std::cout << "Created other player entity (serverId: " << serverEntity << ", localId: " << localEntity << ") at (" << x << ", " << y << ")" << std::endl;

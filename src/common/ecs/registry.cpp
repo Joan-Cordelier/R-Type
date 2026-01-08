@@ -130,7 +130,7 @@ template void Registry::addComponent<SpriteSheets, std::string, std::string, int
 template void Registry::addComponent<Enemy, std::string, int, int, float, float, float, int, float, float, float>(Entity, std::string, int, int, float, float, float, int, float, float, float);
 template void Registry::addComponent<Projectile, int, std::string>(Entity, int, std::string);
 template void Registry::addComponent<Slider, float, float, float, float, float, int, int, int, bool, bool, bool, std::string, Color, Color, Color>(Entity, float, float, float, float, float, int, int, int, bool, bool, bool, std::string, Color, Color, Color);
-template void Registry::addComponent<Weapon, int, int, float>(Entity, int, int, float);
+template void Registry::addComponent<Weapon, int, int, float, bool>(Entity, int, int, float, bool);
 
 template bool Registry::hasComponent<Position>(Entity) const;
 template bool Registry::hasComponent<Velocity>(Entity) const;
@@ -178,6 +178,7 @@ template std::vector<Entity> Registry::viewEntitiesWith<Label, Position>() const
 template std::vector<Entity> Registry::viewEntitiesWith<SpriteSheets>() const;
 template std::vector<Entity> Registry::viewEntitiesWith<SpriteSheets, Position>() const;
 template std::vector<Entity> Registry::viewEntitiesWith<Enemy>() const;
+template std::vector<Entity> Registry::viewEntitiesWith<Enemy, Position>() const;
 template std::vector<Entity> Registry::viewEntitiesWith<Enemy, Position, Velocity>() const;
 template std::vector<Entity> Registry::viewEntitiesWith<Projectile>() const;
 template std::vector<Entity> Registry::viewEntitiesWith<Projectile, Position, Velocity>() const;
