@@ -67,8 +67,17 @@ void InputSystem::update(Registry& reg, SDL_Event& e, NetworkManager& networkMan
                 return;
             if (!weaponsys.canAttack(controlled))
                 return;
+            
+            // Get current position
+            float x = 0.f, y = 0.f;
+            if (reg.hasComponent<Position>(controlled)) {
+                Position& pos = reg.getComponent<Position>(controlled);
+                x = pos.x;
+                y = pos.y;
+            }
+            
             MessageFactory& factory = MessageFactory::getInstance();
-            MessageData payload = factory.encodeMessageProjectile(0, controlled, std::string("player"));
+            MessageData payload = factory.encodeMessageProjectile(0, controlled, std::string("player"), x, y);
             networkManager.sendUdp(factory.createMessage(OpCode::SHOOT, payload));
             weaponsys.fireWeapon(reg, controlled);
         }

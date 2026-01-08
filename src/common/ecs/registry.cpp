@@ -178,6 +178,7 @@ template std::vector<Entity> Registry::viewEntitiesWith<Label, Position>() const
 template std::vector<Entity> Registry::viewEntitiesWith<SpriteSheets>() const;
 template std::vector<Entity> Registry::viewEntitiesWith<SpriteSheets, Position>() const;
 template std::vector<Entity> Registry::viewEntitiesWith<Enemy>() const;
+template std::vector<Entity> Registry::viewEntitiesWith<Enemy, Position>() const;
 template std::vector<Entity> Registry::viewEntitiesWith<Enemy, Position, Velocity>() const;
 template std::vector<Entity> Registry::viewEntitiesWith<Projectile>() const;
 template std::vector<Entity> Registry::viewEntitiesWith<Projectile, Position, Velocity>() const;

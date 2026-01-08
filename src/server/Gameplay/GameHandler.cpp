@@ -140,14 +140,22 @@ void GameHandler::sendNewProjectilesToAllPlayers(Entity parentEntity, Entity pro
         ownerType = reg.getComponent<Projectile>(projectileEntity).ownerType;
     }
     
-    MessageData payload = MessageFactory::getInstance().encodeMessageProjectile(projectileEntity, parentEntity, ownerType);
+    // Get projectile position and include it in the message
+    float x = 0.f, y = 0.f;
+    if (reg.hasComponent<Position>(projectileEntity)) {
+        Position& pos = reg.getComponent<Position>(projectileEntity);
+        x = pos.x;
+        y = pos.y;
+    }
+    
+    MessageData payload = MessageFactory::getInstance().encodeMessageProjectile(projectileEntity, parentEntity, ownerType, x, y);
     PreparedMessage msg = MessageFactory::getInstance().createMessage(OpCode::SHOOT, payload);
     
     for (const auto& [playerId, entity] : playerEntities) {
-        _session.sendUdp(playerId, msg);
+        _session.sendTcp(playerId, msg);
     }
     
-    LOG_DEBUG("Sent projectile " + std::to_string(projectileEntity) + " from parent " + std::to_string(parentEntity) + " to all players");
+    LOG_DEBUG("Sent projectile " + std::to_string(projectileEntity) + " from parent " + std::to_string(parentEntity) + " to all players at (" + std::to_string(x) + ", " + std::to_string(y) + ")");
 }
 
 /// @brief send cur position of all entity containing a vector to a player
@@ -254,6 +262,8 @@ void GameHandler::onPlayerConnect(const Player& player)
     reg.addComponent<Velocity>(playerEntity, 0.f, 0.f);
     reg.addComponent<Stats>(playerEntity, 100, 100, 1, 0.f, 10, 1, 200);
     reg.addComponent<Weapon>(playerEntity, 10, 1, 0.5f);
+
+    weaponSystem.setWeaponType(reg, playerEntity, WeaponType::DEFAULT);
     
     auto& factory = MessageFactory::getInstance();
     

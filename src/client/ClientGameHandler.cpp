@@ -1,6 +1,7 @@
 #include "ClientGameHandler.hpp"
 #include "../common/Data/EntityType.hpp"
 #include "../common/ecs/components/weapon.hpp"
+#include <cstring>
 
 ClientGameHandler::ClientGameHandler(bool debugMode) : _settingsMenu(_reg, _keybindsManager), _debugMode(debugMode)
 {
@@ -95,6 +96,24 @@ int ClientGameHandler::run()
 
         _movement.update(_reg, static_cast<float>(dt));
 
+        // Clean up out-of-bounds projectiles
+        for (auto it = projectileEntities.begin(); it != projectileEntities.end(); ) {
+            Entity localEntity = it->second;
+            if (_reg.hasComponent<Position>(localEntity)) {
+                Position& pos = _reg.getComponent<Position>(localEntity);
+                // Check if projectile is out of bounds
+                if (pos.x < -100 || pos.x > 1920 || pos.y < -100 || pos.y > 1080) {
+                    if (_debugMode) {
+                        std::cout << "Cleaning up out-of-bounds projectile (localId: " << localEntity << ")" << std::endl;
+                    }
+                    _reg.destroyEntity(localEntity);
+                    it = projectileEntities.erase(it);
+                    continue;
+                }
+            }
+            ++it;
+        }
+
         _buttonsys.update(_reg);
         _slidersys.update(_reg);
 
@@ -179,13 +198,6 @@ void ClientGameHandler::cleanupServerEntity(Entity serverEntity)
         std::cout << "Warning: Cleaning up old enemy entity with serverEntity " << serverEntity << std::endl;
         _reg.destroyEntity(itEnemy->second);
         enemyEntities.erase(itEnemy);
-    }
-    
-    auto itProj = projectileEntities.find(serverEntity);
-    if (itProj != projectileEntities.end()) {
-        std::cout << "Warning: Cleaning up old projectile entity with serverEntity " << serverEntity << std::endl;
-        _reg.destroyEntity(itProj->second);
-        projectileEntities.erase(itProj);
     }
 }
 
@@ -306,7 +318,7 @@ void ClientGameHandler::handleMessages()
             }
             case OpCode::SHOOT: {
                 std::cout << "Received SHOOT message, size=" << msg->data.size() << std::endl;
-                if (msg->data.size() >= 18) {
+                if (msg->data.size() >= 26) {
                     Entity serverProjectileEntity = 
                         (static_cast<Entity>(msg->data[0]) << 24) |
                         (static_cast<Entity>(msg->data[1]) << 16) |
@@ -325,33 +337,52 @@ void ClientGameHandler::handleMessages()
                     }
                     ownerType.erase(std::find(ownerType.begin(), ownerType.end(), '\0'), ownerType.end());
 
+                    // Decode x coordinate (bytes 18-21)
+                    uint32_t xInt =
+                        (static_cast<uint32_t>(msg->data[18]) << 24) |
+                        (static_cast<uint32_t>(msg->data[19]) << 16) |
+                        (static_cast<uint32_t>(msg->data[20]) << 8) |
+                        static_cast<uint32_t>(msg->data[21]);
+                    float x;
+                    std::memcpy(&x, &xInt, sizeof(float));
+                    
+                    // Decode y coordinate (bytes 22-25)
+                    uint32_t yInt =
+                        (static_cast<uint32_t>(msg->data[22]) << 24) |
+                        (static_cast<uint32_t>(msg->data[23]) << 16) |
+                        (static_cast<uint32_t>(msg->data[24]) << 8) |
+                        static_cast<uint32_t>(msg->data[25]);
+                    float y;
+                    std::memcpy(&y, &yInt, sizeof(float));
+
                     cleanupServerEntity(serverProjectileEntity);
 
                     if (ownerType == "player") {
                         auto it = playerEntities.find(serverParentEntity);
                         if (it != playerEntities.end()) {
                             Entity localParent = it->second;
+                            
+                            // Sync cooldown with server confirmation
+                            _weaponsys.resetCooldown(_reg, localParent);
+                            
                             Entity projectile = _reg.createEntity();
-                            Position &pos = _reg.getComponent<Position>(localParent);
-                            _reg.addComponent<Position>(projectile, pos.x + _config.getProjectilesConfig().player.offset_x, pos.y + _config.getProjectilesConfig().player.offset_y);
+                            _reg.addComponent<Position>(projectile, x, y);
                             _reg.addComponent<Velocity>(projectile, 0.f, -400.f);
-                            _reg.addComponent<SpriteSheets>(projectile, std::string("textures/projectiles/projectile_player.png"), std::string("projectile_player"), 16, 16, 0, 4, 0, true, true);
+                            _reg.addComponent<SpriteSheets>(projectile, std::string(""), std::string("projectile_player"), 16, 16, 0, 4, 0, true, true);
                             
                             projectileEntities[serverProjectileEntity] = projectile;
-                            std::cout << "Created player projectile (serverId: " << serverProjectileEntity << ", localId: " << projectile << ")" << std::endl;
+                            std::cout << "Created player projectile (serverId: " << serverProjectileEntity << ", localId: " << projectile << ") at (" << x << ", " << y << ")" << std::endl;
                         }
                     } else if (ownerType == "enemy") {
                         auto it = enemyEntities.find(serverParentEntity);
                         if (it != enemyEntities.end()) {
-                            Entity localParent = it->second;
                             Entity projectile = _reg.createEntity();
-                            Position &pos = _reg.getComponent<Position>(localParent);
-                            _reg.addComponent<Position>(projectile, pos.x + _config.getProjectilesConfig().enemy.offset_x, pos.y + _config.getProjectilesConfig().enemy.offset_y);
+                            _reg.addComponent<Position>(projectile, x, y);
                             _reg.addComponent<Velocity>(projectile, 0.f, 200.f);
-                            _reg.addComponent<SpriteSheets>(projectile, std::string("textures/projectiles/projectile_player.png"), std::string("projectile_player"), 16, 16, 0, 4, 0, true, true);
+                            _reg.addComponent<SpriteSheets>(projectile, std::string(""), std::string("projectile_player"), 16, 16, 0, 4, 0, true, true);
                             
                             projectileEntities[serverProjectileEntity] = projectile;
-                            std::cout << "Created enemy projectile (serverId: " << serverProjectileEntity << ", localId: " << projectile << ")" << std::endl;
+                            std::cout << "Created enemy projectile (serverId: " << serverProjectileEntity << ", localId: " << projectile << ") at (" << x << ", " << y << ")" << std::endl;
                         }
                     } else {
                         std::cout << "Invalid ownerType in SHOOT message: " << ownerType << std::endl;
@@ -484,13 +515,14 @@ void ClientGameHandler::handlePlayerPacket(const DecodedMessage& msg)
         int sprH = (int)_config.getPlayerConfig().hitbox.sprite_height;
         _reg.addComponent<SpriteSheets>(localEntity, std::string(""), selectedSkin, sprW, sprH, 1, 3, 0, true, false);
         _reg.addComponent<Stats>(localEntity, 100, 100, 1, 0.f, 10, 1, 200);
+        _reg.addComponent<Weapon>(localEntity, 10, 1, 0.5f);
+        _weaponsys.setWeaponType(_reg, localEntity, WeaponType::DEFAULT);
                         
         playerEntities[serverEntity] = localEntity;
 
         if (playerId == myPlayerId) {
             myEntity = localEntity;
             _input.setControlled(localEntity, _keybindsManager);
-            _reg.addComponent<Weapon>(localEntity, 10, 1, 0.5f);
             std::cout << "Created my player entity (serverId: " << serverEntity << ", localId: " << localEntity << ") at (" << x << ", " << y << ")" << std::endl;
         } else {
             std::cout << "Created other player entity (serverId: " << serverEntity << ", localId: " << localEntity << ") at (" << x << ", " << y << ")" << std::endl;
