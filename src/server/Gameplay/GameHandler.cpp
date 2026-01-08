@@ -148,7 +148,7 @@ void GameHandler::sendNewProjectilesToAllPlayers(Entity parentEntity, Entity pro
         y = pos.y;
     }
     
-    MessageData payload = MessageFactory::getInstance().encodeMessageProjectile(projectileEntity, parentEntity, ownerType);
+    MessageData payload = MessageFactory::getInstance().encodeMessageProjectile(projectileEntity, parentEntity, ownerType, x, y);
     PreparedMessage msg = MessageFactory::getInstance().createMessage(OpCode::SHOOT, payload);
     
     for (const auto& [playerId, entity] : playerEntities) {
@@ -263,7 +263,7 @@ void GameHandler::onPlayerConnect(const Player& player)
     reg.addComponent<Stats>(playerEntity, 100, 100, 1, 0.f, 10, 1, 200);
     reg.addComponent<Weapon>(playerEntity, 10, 1, 0.5f);
 
-    weaponSystem.setWeaponType(reg, playerEntity, WeaponType::SHOTGUN);
+    weaponSystem.setWeaponType(reg, playerEntity, WeaponType::DEFAULT);
     
     auto& factory = MessageFactory::getInstance();
     

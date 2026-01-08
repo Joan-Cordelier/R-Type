@@ -7,6 +7,7 @@
 
 #include "MessageFactory.hpp"
 #include "LinearBuffer.hpp"
+#include <cstring>
 
 MessageFactory::MessageFactory() : _messageTable(initMessageTable())
 {
@@ -22,7 +23,7 @@ std::array<MessageFactory::Message, 256> MessageFactory::initMessageTable()
     table[INCOMPLETE] = {0, Priority::ERROR};
     table[PARSING_ERROR] = {0, Priority::ERROR};
     table[DEATH] = {5, Priority::CRITICAL};
-    table[SHOOT] = {18, Priority::HIGH};
+    table[SHOOT] = {26, Priority::HIGH};
     table[MOVE_SYNC] = {13, Priority::LOW};
     table[MOVE_INPUT] = {12, Priority::LOW};
     table[CONNECT] = {0, Priority::CRITICAL};
@@ -169,7 +170,7 @@ MessageData MessageFactory::encodeMessagePlayer(Entity entity) const
     return data;
 }
 
-MessageData MessageFactory::encodeMessageProjectile(Entity projectileEntity, Entity parentEntity, const std::string& ownerType) const
+MessageData MessageFactory::encodeMessageProjectile(Entity projectileEntity, Entity parentEntity, const std::string& ownerType, float x, float y) const
 {
     MessageData data;
     
@@ -188,6 +189,22 @@ MessageData MessageFactory::encodeMessageProjectile(Entity projectileEntity, Ent
     for (char c : fixedOwnerType) {
         data.push_back(static_cast<uint8_t>(c));
     }
+    
+    // Encode x coordinate (4 bytes)
+    uint32_t xInt;
+    std::memcpy(&xInt, &x, sizeof(float));
+    data.push_back(static_cast<uint8_t>((xInt >> 24) & 0xFF));
+    data.push_back(static_cast<uint8_t>((xInt >> 16) & 0xFF));
+    data.push_back(static_cast<uint8_t>((xInt >> 8) & 0xFF));
+    data.push_back(static_cast<uint8_t>(xInt & 0xFF));
+    
+    // Encode y coordinate (4 bytes)
+    uint32_t yInt;
+    std::memcpy(&yInt, &y, sizeof(float));
+    data.push_back(static_cast<uint8_t>((yInt >> 24) & 0xFF));
+    data.push_back(static_cast<uint8_t>((yInt >> 16) & 0xFF));
+    data.push_back(static_cast<uint8_t>((yInt >> 8) & 0xFF));
+    data.push_back(static_cast<uint8_t>(yInt & 0xFF));
     
     return data;
 }

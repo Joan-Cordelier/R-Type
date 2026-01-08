@@ -106,7 +106,7 @@ class MessageFactory {
         MessageData encodeMessageMove(EntityType type, Entity entity, float x, float y) const;
         MessageData encodeMessageDeath(EntityType type, Entity entity) const;
         MessageData encodeMessageEnemy(Entity entity, float x, float y) const;
-        MessageData encodeMessageProjectile(Entity projectileEntity, Entity parentEntity, const std::string& ownerType) const;
+        MessageData encodeMessageProjectile(Entity projectileEntity, Entity parentEntity, const std::string& ownerType, float x, float y) const;
         MessageData encodeMessageMoveInput(Entity entity, float vx, float vy) const;
     
     private:

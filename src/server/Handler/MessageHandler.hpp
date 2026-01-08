@@ -21,6 +21,8 @@ struct MoveData {
 
 struct ShootData {
     uint32_t playerId;
+    float x;
+    float y;
 };
 
 class MessageHandler {
