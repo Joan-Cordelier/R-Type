@@ -1,0 +1,90 @@
+# Configuration des améliorations (Upgrades)
+# Cette liste contient toutes les améliorations disponibles qui peuvent apparaître sur les cartes
+# entre les manches. Le jeu en piochera 3 aléatoirement.
+
+upgrades:
+  # --- Mobilité ---
+  - id: "move_speed_1"
+    name: "Propulseurs Mk.I"
+    description: "Augmente la vitesse de déplacement de 15%."
+    type: "stat_boost"
+    target: "movement_speed"
+    value: 15.0
+    rarity: "common"
+    visuals:
+      icon_path: "textures/upgrades/icons/speed_1.png"
+      card_color: "blue"
+
+  - id: "move_speed_2"
+    name: "Post-Combustion"
+    description: "Augmente considérablement la vitesse de déplacement (+30%)."
+    type: "stat_boost"
+    target: "movement_speed"
+    value: 30.0
+    rarity: "rare"
+    visuals:
+      icon_path: "textures/upgrades/icons/speed_2.png"
+      card_color: "purple"
+
+  # --- Survie (Health/HP) ---
+  - id: "hull_reinforcement_1"
+    name: "Blindage Léger"
+    description: "Augmente les points de vie max (Max HP) de 25."
+    type: "stat_boost"
+    target: "max_health"
+    value: 25.0
+    rarity: "common"
+    visuals:
+      icon_path: "textures/upgrades/icons/health_1.png"
+      card_color: "green"
+
+  - id: "hull_repair_instant"
+    name: "Nano-Réparation"
+    description: "Restaure 50% de vos points de vie actuels et ajoute 10 Max HP."
+    type: "hybrid"
+    effects:
+      - target: "current_health_percent"
+        value: 50.0
+      - target: "max_health"
+        value: 10.0
+    rarity: "rare"
+    visuals:
+      icon_path: "textures/upgrades/icons/repair.png"
+      card_color: "green"
+
+  # --- Offensif (Dégâts) ---
+  - id: "damage_boost_1"
+    name: "Lentilles Laser"
+    description: "Augmente les dégâts de 20%."
+    type: "stat_boost"
+    target: "damage_multiplier"
+    value: 0.20
+    rarity: "common"
+    visuals:
+      icon_path: "textures/upgrades/icons/damage_1.png"
+      card_color: "red"
+
+  - id: "fire_rate_boost"
+    name: "Dissipateur Thermique"
+    description: "Augmente la cadence de tir de 25%."
+    type: "stat_boost"
+    target: "fire_rate"
+    value: 0.25
+    rarity: "common"
+    visuals:
+      icon_path: "textures/upgrades/icons/attack_speed.png"
+      card_color: "red"
+
+  - id: "projectile_size_up"
+    name: "Chargeur Plasma"
+    description: "Les projectiles sont plus gros et font 10% de dégâts en plus."
+    type: "hybrid"
+    effects:
+      - target: "projectile_scale"
+        value: 0.5
+      - target: "damage_multiplier"
+        value: 0.10
+    rarity: "epic"
+    visuals:
+      icon_path: "textures/upgrades/icons/big_shot.png"
+      card_color: "gold"
