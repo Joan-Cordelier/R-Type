@@ -2,6 +2,7 @@
 #include "../common/Data/EntityType.hpp"
 #include "../common/ecs/components/weapon.hpp"
 #include <cstring>
+#include <sstream>
 
 ClientGameHandler::ClientGameHandler(bool debugMode) : _settingsMenu(_reg, _keybindsManager), _debugMode(debugMode)
 {
@@ -9,6 +10,11 @@ ClientGameHandler::ClientGameHandler(bool debugMode) : _settingsMenu(_reg, _keyb
     if (!_config.loadFromFile("yaml/main_loop.yaml")) {
         // Only try parent directory if first attempt failed
         _config.loadFromFile("../yaml/main_loop.yaml");
+    }
+    
+    // Load upgrades
+    if (!_config.loadUpgradesFromFile("yaml/upgrades.yaml")) {
+        _config.loadUpgradesFromFile("../yaml/upgrades.yaml");
     }
 
     if (_debugMode) {
@@ -25,9 +31,12 @@ ClientGameHandler::ClientGameHandler(bool debugMode) : _settingsMenu(_reg, _keyb
     _renderer.loadSpriteSheet("textures/ships/player_ship_yellow.png", "player_ship_yellow", 343, 383);
 
     _renderer.loadTexture("textures/play_button/default.png", "play_button");
+    _renderer.loadTexture("textures/upgrades/border.png", "upgrade_border");
     _renderer.loadSpriteSheet("textures/projectiles/projectile_player.png", "projectile_player", 16, 16);
     _renderer.loadFont("font/josefin-sans/JosefinSans-Regular.ttf", 40, "default_font");
     _renderer.loadFont("font/josefin-sans/JosefinSans-Regular.ttf", 25, "default_font_small");
+    _renderer.loadFont("font/josefin-sans/JosefinSans-Regular.ttf", 14, "default_font_medium");
+    _renderer.loadFont("font/josefin-sans/JosefinSans-Regular.ttf", 15, "default_font_tiny");
     _renderer.loadTexture("textures/ships/enemy_ship.png", "enemy_ship");
     _renderer.loadSpriteSheet("textures/settingmenu/colorblindbtn.png", "daltonian_btn", 401, 108);
     _renderer.loadTexture("textures/settingmenu/bg.png", "settings_bg");
@@ -312,6 +321,15 @@ void ClientGameHandler::handleMessages()
                             }
                             break;
                         }
+                        case EntityType::COMPANION: {
+                            auto itComp = companionEntities.find(serverEntity);
+                            if (itComp != companionEntities.end()) {
+                                Entity localEntity = itComp->second;
+                                _reg.getComponent<Position>(localEntity).x = x;
+                                _reg.getComponent<Position>(localEntity).y = y;
+                            }
+                            break;
+                        }
                     }
                 }
                 break;
@@ -355,7 +373,19 @@ void ClientGameHandler::handleMessages()
                     float y;
                     std::memcpy(&y, &yInt, sizeof(float));
 
+                    float scale = 1.0f;
+                    if (msg->data.size() >= 30) {
+                        uint32_t scaleInt =
+                            (static_cast<uint32_t>(msg->data[26]) << 24) |
+                            (static_cast<uint32_t>(msg->data[27]) << 16) |
+                            (static_cast<uint32_t>(msg->data[28]) << 8) |
+                            static_cast<uint32_t>(msg->data[29]);
+                        std::memcpy(&scale, &scaleInt, sizeof(float));
+                    }
+
                     cleanupServerEntity(serverProjectileEntity);
+
+                    int size = static_cast<int>(16 * scale);
 
                     if (ownerType == "player") {
                         auto it = playerEntities.find(serverParentEntity);
@@ -368,10 +398,10 @@ void ClientGameHandler::handleMessages()
                             Entity projectile = _reg.createEntity();
                             _reg.addComponent<Position>(projectile, x, y);
                             _reg.addComponent<Velocity>(projectile, 0.f, -400.f);
-                            _reg.addComponent<SpriteSheets>(projectile, std::string(""), std::string("projectile_player"), 16, 16, 0, 4, 0, true, true);
+                            _reg.addComponent<SpriteSheets>(projectile, std::string(""), std::string("projectile_player"), size, size, 0, 4, 0, true, true);
                             
                             projectileEntities[serverProjectileEntity] = projectile;
-                            std::cout << "Created player projectile (serverId: " << serverProjectileEntity << ", localId: " << projectile << ") at (" << x << ", " << y << ")" << std::endl;
+                            std::cout << "Created player projectile (serverId: " << serverProjectileEntity << ", localId: " << projectile << ") at (" << x << ", " << y << ") scale: " << scale << std::endl;
                         }
                     } else if (ownerType == "enemy") {
                         auto it = enemyEntities.find(serverParentEntity);
@@ -379,10 +409,10 @@ void ClientGameHandler::handleMessages()
                             Entity projectile = _reg.createEntity();
                             _reg.addComponent<Position>(projectile, x, y);
                             _reg.addComponent<Velocity>(projectile, 0.f, 200.f);
-                            _reg.addComponent<SpriteSheets>(projectile, std::string(""), std::string("projectile_player"), 16, 16, 0, 4, 0, true, true);
+                            _reg.addComponent<SpriteSheets>(projectile, std::string(""), std::string("projectile_player"), size, size, 0, 4, 0, true, true);
                             
                             projectileEntities[serverProjectileEntity] = projectile;
-                            std::cout << "Created enemy projectile (serverId: " << serverProjectileEntity << ", localId: " << projectile << ") at (" << x << ", " << y << ")" << std::endl;
+                            std::cout << "Created enemy projectile (serverId: " << serverProjectileEntity << ", localId: " << projectile << ") at (" << x << ", " << y << ") scale: " << scale << std::endl;
                         }
                     } else {
                         std::cout << "Invalid ownerType in SHOOT message: " << ownerType << std::endl;
@@ -416,6 +446,46 @@ void ClientGameHandler::handleMessages()
                         Entity localEntity = it->second;
                         _reg.getComponent<Position>(localEntity).x = x;
                         _reg.getComponent<Position>(localEntity).y = y;
+                    }
+                }
+                break;
+            }
+            case OpCode::UPGRADE_OPTIONS: {
+                handleUpgradeOptions(*msg);
+                break;
+            }
+            case OpCode::UPDATE_WEAPON: {
+                handleUpdateWeapon(*msg);
+                break;
+            }
+            case OpCode::COMPANION: {
+                if (msg->data.size() >= 13) {
+                    Entity serverEntity = 
+                        (static_cast<Entity>(msg->data[0]) << 24) |
+                        (static_cast<Entity>(msg->data[1]) << 16) |
+                        (static_cast<Entity>(msg->data[2]) << 8) |
+                        static_cast<Entity>(msg->data[3]);
+                    
+                    float x = *reinterpret_cast<const float*>(&msg->data[4]);
+                    float y = *reinterpret_cast<const float*>(&msg->data[8]);
+                    uint8_t type = msg->data[12];
+
+                    auto it = companionEntities.find(serverEntity);
+                    if (it == companionEntities.end()) {
+                        
+                        Entity localEntity = _reg.createEntity();
+                        _reg.addComponent<Position>(localEntity, x, y);
+                        _reg.addComponent<Velocity>(localEntity, 0.f, 0.f);
+                        
+                        std::string texture = "player_ship";
+                        if (type == 0) texture = "player_ship_blue";
+                        else if (type == 1) texture = "player_ship_green"; // Missile
+
+                        // Use 40x40 size for companion
+                        _reg.addComponent<SpriteSheets>(localEntity, std::string(""), texture, 40, 40, 1, 5, 0, true, true);
+                        
+                        companionEntities[serverEntity] = localEntity;
+                        std::cout << "Created Companion entity (serverId: " << serverEntity << ", localId: " << localEntity << ") at (" << x << ", " << y << ")" << std::endl;
                     }
                 }
                 break;
@@ -455,6 +525,15 @@ void ClientGameHandler::handleMessages()
                                 _reg.destroyEntity(itPlayer->second);
                                 playerEntities.erase(itPlayer);
                                 std::cout << "Player " << serverEntity << " destroyed" << std::endl;
+                            }
+                            break;
+                        }
+                        case EntityType::COMPANION: {
+                            auto it = companionEntities.find(serverEntity);
+                            if (it != companionEntities.end()) {
+                                _reg.destroyEntity(it->second);
+                                companionEntities.erase(it);
+                                std::cout << "Companion " << serverEntity << " destroyed" << std::endl;
                             }
                             break;
                         }
@@ -538,4 +617,222 @@ void ClientGameHandler::toggleSettingsMenu()
 {
     settingsMenuOpen = !settingsMenuOpen;
     _settingsMenu.toggle(_reg);
+}
+
+void ClientGameHandler::handleUpgradeOptions(const DecodedMessage& msg)
+{
+    // Parse message
+    if (msg.data.empty()) return;
+    
+    // Format: [Count] [Len1][Str1] [Len2][Str2] ...
+    uint8_t count = msg.data[0];
+    
+    std::vector<std::string> ids;
+    size_t offset = 1;
+    
+    for (int i = 0; i < count; ++i) {
+        if (offset >= msg.data.size()) break;
+        
+        uint8_t len = msg.data[offset];
+        offset++;
+        
+        if (offset + len > msg.data.size()) break;
+        
+        std::string id(msg.data.begin() + offset, msg.data.begin() + offset + len);
+        ids.push_back(id);
+        
+        offset += len;
+    }
+    
+    std::cout << "Received UPGRADE_OPTIONS (" << ids.size() << ")" << std::endl;
+    showUpgradeMenu(ids);
+}
+
+void ClientGameHandler::showUpgradeMenu(const std::vector<std::string>& ids)
+{
+    if (upgradeMenuOpen) return;
+    upgradeMenuOpen = true;
+    
+    // Position helpers
+    float startX = 200.0f;
+    float startY = 300.0f;
+    float gap = 250.0f;
+    
+    // Find upgrade data
+    const std::vector<UpgradeData>& allUpgrades = _config.getUpgrades();
+    
+    for (size_t i = 0; i < ids.size(); ++i) {
+        std::string id = ids[i];
+        
+        // Find data
+        auto it = std::find_if(allUpgrades.begin(), allUpgrades.end(), 
+            [&](const UpgradeData& u) { return u.id == id; });
+            
+        if (it != allUpgrades.end()) {
+            const UpgradeData& data = *it;
+            
+            float x = startX + (i * gap);
+            
+            // Create UI Entities
+            // 1. Background/Button (Invisible clickable area or Texture)
+            Entity btn = _reg.createEntity();
+            _reg.addComponent<Position>(btn, x, startY);
+            // Upgrade card background
+            _reg.addComponent<Sprite>(btn, (std::string)"textures/upgrades/border.png", (std::string)"upgrade_border", 220, 300, 0, true);
+            
+            std::string btnId = "upgrade_" + std::to_string(i);
+            _reg.addComponent<Button>(btn, btnId, 1, true);
+            
+            upgradeMenuEntities.push_back(btn);
+            
+            // 2. Name
+            Entity nameLbl = _reg.createEntity();
+            // Padding added (x+35, y+40)
+            _reg.addComponent<Position>(nameLbl, x + 35, startY + 40);
+            _reg.addComponent<Label>(nameLbl, data.name, (std::string)"font/josefin-sans/JosefinSans-Regular.ttf", (std::string)"default_font_medium", Color(255, 255, 255), 0, true);
+            upgradeMenuEntities.push_back(nameLbl);
+            
+            // 3. Description (Multi-line word wrap)
+            std::istringstream iss(data.description);
+            std::string word;
+            std::string currentLine;
+            // Approx chars per line for font size 15 in width ~150px
+            size_t maxLineChars = 15; 
+            std::vector<std::string> lines;
+            
+            while (iss >> word) {
+                if (currentLine.length() + word.length() + 1 > maxLineChars) {
+                    lines.push_back(currentLine);
+                    currentLine = word;
+                } else {
+                    if (!currentLine.empty()) currentLine += " ";
+                    currentLine += word;
+                }
+            }
+            if (!currentLine.empty()) lines.push_back(currentLine);
+            
+            float descY = startY + 80;
+            for (const auto& line : lines) {
+                Entity lineLbl = _reg.createEntity();
+                _reg.addComponent<Position>(lineLbl, x + 35, descY);
+                _reg.addComponent<Label>(lineLbl, line, (std::string)"font/josefin-sans/JosefinSans-Regular.ttf", (std::string)"default_font_tiny", Color(200, 200, 200), 0, true);
+                upgradeMenuEntities.push_back(lineLbl);
+                descY += 20;
+            }
+            
+            // 4. Rarity
+            Color rarityColor(255, 255, 255);
+            std::string rLower = data.rarity;
+            
+            if (rLower == "common") rarityColor = Color(200, 200, 200);       // Gray
+            else if (rLower == "rare") rarityColor = Color(30, 144, 255);     // Blue
+            else if (rLower == "epic") rarityColor = Color(186, 85, 211);     // Purple
+            else if (rLower == "legendary") rarityColor = Color(255, 215, 0); // Gold
+            
+            // Uppercase first letter
+            std::string displayRarity = rLower;
+            if (!displayRarity.empty()) displayRarity[0] = std::toupper(displayRarity[0]);
+
+            Entity rarityLbl = _reg.createEntity();
+            // Bottom (300 height) - 60 padding = 240
+            _reg.addComponent<Position>(rarityLbl, x + 35, startY + 240);
+            _reg.addComponent<Label>(rarityLbl, displayRarity, (std::string)"font/josefin-sans/JosefinSans-Regular.ttf", (std::string)"default_font_tiny", rarityColor, 0, true);
+            upgradeMenuEntities.push_back(rarityLbl);
+             
+            _buttonsys.registerHandler(btnId, [this, i](Registry& r, Entity e) {
+                (void)r;
+                (void)e;
+                this->selectUpgrade(i);
+            });
+        } else {
+            std::cout << "Upgrade ID not found in config: " << id << std::endl;
+        }
+    }
+}
+
+void ClientGameHandler::selectUpgrade(int index)
+{
+    if (!upgradeMenuOpen) return;
+    
+    std::cout << "Selected Upgrade Index: " << index << std::endl;
+    
+    // Cleanup UI
+    for (auto e : upgradeMenuEntities) {
+        _reg.destroyEntity(e);
+    }
+    upgradeMenuEntities.clear();
+    upgradeMenuOpen = false;
+    
+    // Send choice to server
+    MessageFactory& factory = MessageFactory::getInstance();
+    PreparedMessage msg = factory.createMessage(OpCode::UPGRADE_SELECT, factory.encodeMessageUpgradeSelect(index));
+    // Usually commands are UDP, but selection is critical state.
+    // If we use UDP we might lose it. If we use TCP it's safe.
+    // Assuming NetworkManager supports sendTcp on Client side?
+    // Let's check NetworkManager.
+    // _network.sendUdp(msg); // Default
+    // Using TCP if available or reliable UDP. 
+    // Client usually connects with UDP for gameplay. TCP for connection.
+    // Let's assume TCP socket is valid.
+    
+    // Note: Protocol might not have fully mapped TCP logic on client for sending?
+    // _network.sendTcp(msg); // Let's try this.
+    // Actually ClientGameHandler.cpp uses 
+    // Does NetworkManager have sendTcp?
+    
+    // Checking NetworkManager.hpp... (I recall reading it has sendUdp)
+    // If I can't check, I'll use UDP for now as START/CONNECT use UDP/TCP mixed.
+    // Safe bet: UDP with ACK? No ACK system here.
+    // But  sets UPGRADE_SELECT priority to HIGH.
+    // NetworkManager probably sends HIGH via UDP. 
+    
+    // Let's use sendUdp for now as it's the primary channel.
+    _network.sendUdp(msg);
+}
+
+
+
+void ClientGameHandler::handleUpdateWeapon(const DecodedMessage& msg)
+{
+    if (msg.data.size() < 16) return;
+    
+    // Entity (4)
+    Entity serverEntity = 
+        (static_cast<Entity>(msg.data[0]) << 24) |
+        (static_cast<Entity>(msg.data[1]) << 16) |
+        (static_cast<Entity>(msg.data[2]) << 8) |
+        static_cast<Entity>(msg.data[3]);
+        
+    // Damage (4)
+    int damage = 
+        (static_cast<int>(msg.data[4]) << 24) |
+        (static_cast<int>(msg.data[5]) << 16) |
+        (static_cast<int>(msg.data[6]) << 8) |
+        static_cast<int>(msg.data[7]);
+        
+    // NbBullets (4)
+    int nbBullets = 
+        (static_cast<int>(msg.data[8]) << 24) |
+        (static_cast<int>(msg.data[9]) << 16) |
+        (static_cast<int>(msg.data[10]) << 8) |
+        static_cast<int>(msg.data[11]);
+        
+    // FireRate (4)
+    float fireRate = *reinterpret_cast<const float*>(&msg.data[12]);
+    
+    // Find local entity (Player)
+    auto itPlayer = playerEntities.find(serverEntity);
+    if (itPlayer != playerEntities.end()) {
+        Entity localEntity = itPlayer->second;
+        if (_reg.hasComponent<Weapon>(localEntity)) {
+             auto& w = _reg.getComponent<Weapon>(localEntity);
+             w.damage = damage;
+             w.nbOfBullets = nbBullets;
+             w.fireRate = fireRate;
+             std::cout << "Updated Weapon for player " << serverEntity << " (local " << localEntity << "): FR=" << fireRate << " DMG=" << damage << std::endl;
+        } else {
+             _reg.addComponent<Weapon>(localEntity, damage, nbBullets, fireRate);
+             std::cout << "Added Weapon for player " << serverEntity << " (local " << localEntity << ")" << std::endl;
+        }
+    }
 }

@@ -1,9 +1,12 @@
 #include "GameHandler.hpp"
 #include "../Logs/Logger.hpp"
 #include "../../common/Data/EntityType.hpp"
+#include "../../common/ecs/components/parent.hpp"
 
 #include <chrono>
 #include <thread>
+#include <algorithm>
+#include <random>
 
 GameHandler::GameHandler(SessionManager& session, std::atomic<bool>& running, const std::string& configPath)
     : _running(running)
@@ -50,6 +53,17 @@ GameHandler::GameHandler(SessionManager& session, std::atomic<bool>& running, co
     enemySystem.setProjectileOffsets(projConfig.offset_x, projConfig.offset_y);
     LOG_INFO("Enemy projectile offsets: X=" + std::to_string(projConfig.offset_x) + " Y=" + std::to_string(projConfig.offset_y));
 
+    // Load upgrades configuration
+    if (!_config.loadUpgradesFromFile("yaml/upgrades.yaml")) {
+        if (!_config.loadUpgradesFromFile("../yaml/upgrades.yaml")) {
+            LOG_WARN("Could not load upgrades from yaml/upgrades.yaml");
+        } else {
+             LOG_INFO("Loaded upgrades from ../yaml/upgrades.yaml");
+        }
+    } else {
+        LOG_INFO("Loaded upgrades from yaml/upgrades.yaml");
+    }
+
     // Set up message handler callbacks
     _messageHandler.setOnPlayerConnect([this](const Player& player) {
         onPlayerConnect(player);
@@ -65,6 +79,10 @@ GameHandler::GameHandler(SessionManager& session, std::atomic<bool>& running, co
     
     _messageHandler.setOnPlayerLink([this](uint32_t playerId) {
         onPlayerLinked(playerId);
+    });
+    
+    _messageHandler.setOnUpgradeSelect([this](uint32_t playerId, uint8_t index) {
+        onUpgradeSelect(playerId, index);
     });
     
     // Set up session manager callback for disconnections
@@ -136,8 +154,11 @@ void GameHandler::sendUpdatedPositionToAllPlayers()
 void GameHandler::sendNewProjectilesToAllPlayers(Entity parentEntity, Entity projectileEntity)
 {
     std::string ownerType = "player";
+    float scale = 1.0f;
     if (reg.hasComponent<Projectile>(projectileEntity)) {
-        ownerType = reg.getComponent<Projectile>(projectileEntity).ownerType;
+        auto& proj = reg.getComponent<Projectile>(projectileEntity);
+        ownerType = proj.ownerType;
+        scale = proj.scale;
     }
     
     // Get projectile position and include it in the message
@@ -148,14 +169,14 @@ void GameHandler::sendNewProjectilesToAllPlayers(Entity parentEntity, Entity pro
         y = pos.y;
     }
     
-    MessageData payload = MessageFactory::getInstance().encodeMessageProjectile(projectileEntity, parentEntity, ownerType, x, y);
+    MessageData payload = MessageFactory::getInstance().encodeMessageProjectile(projectileEntity, parentEntity, ownerType, x, y, scale);
     PreparedMessage msg = MessageFactory::getInstance().createMessage(OpCode::SHOOT, payload);
     
     for (const auto& [playerId, entity] : playerEntities) {
         _session.sendTcp(playerId, msg);
     }
     
-    LOG_DEBUG("Sent projectile " + std::to_string(projectileEntity) + " from parent " + std::to_string(parentEntity) + " to all players at (" + std::to_string(x) + ", " + std::to_string(y) + ")");
+    LOG_DEBUG("Sent projectile " + std::to_string(projectileEntity) + " from parent " + std::to_string(parentEntity) + " to all players at (" + std::to_string(x) + ", " + std::to_string(y) + ") scale:" + std::to_string(scale));
 }
 
 /// @brief send cur position of all entity containing a vector to a player
@@ -179,6 +200,15 @@ void GameHandler::sendUpdatedPositionToPlayer(uint32_t playerId)
             _session.sendUdp(playerId, msg);
         }
     }
+
+    // Send companion positions
+    for (auto entity : reg.viewEntitiesWith<Parent, Position>()) {
+         if (!reg.hasComponent<Parent>(entity)) continue;
+         Position& pos = reg.getComponent<Position>(entity);
+         MessageData payload = factory.encodeMessageMove(EntityType::COMPANION, entity, pos.x, pos.y);
+         PreparedMessage msg = factory.createMessage(OpCode::MOVE_SYNC, payload);
+         _session.sendUdp(playerId, msg);
+    }
 }
 
 void GameHandler::processMessages()
@@ -194,7 +224,70 @@ void GameHandler::processMessages()
 
 void GameHandler::updateGame(float deltaTime)
 {
+    if (_waitingForUpgrades) {
+        return;
+    }
+
+    // Update companions positions
+    for (auto entity : reg.viewEntitiesWith<Parent, Position>()) {
+        if (!reg.hasComponent<Parent>(entity)) continue;
+        auto& parent = reg.getComponent<Parent>(entity);
+        auto& pos = reg.getComponent<Position>(entity);
+        
+        if (reg.hasComponent<Position>(parent.entity)) {
+            auto& parentPos = reg.getComponent<Position>(parent.entity);
+            pos.x = parentPos.x + parent.offsetX;
+            pos.y = parentPos.y + parent.offsetY;
+        }
+    }
+
     enemySystem.update(reg, deltaTime);
+    
+    // Check for wave completion to trigger upgrades
+    if (enemySystem.isWaveFinished()) {
+        enemySystem.acknowledgeWaveFinished();
+        enemySystem.setWavePaused(true);
+        _waitingForUpgrades = true;
+        
+        LOG_INFO("Wave Finished! Select an upgrade:");
+        
+        const auto& allUpgrades = _config.getUpgrades();
+        if (allUpgrades.size() >= 3) {
+            // Pick 3 random upgrades
+            std::vector<UpgradeData> candidates = allUpgrades;
+            std::random_device rd;
+            std::mt19937 g(rd());
+            std::shuffle(candidates.begin(), candidates.end(), g);
+            
+            _offeredUpgrades.clear();
+            std::vector<std::string> upgradeIds;
+            for(size_t i=0; i<3 && i<candidates.size(); ++i) {
+                _offeredUpgrades.push_back(candidates[i]);
+                upgradeIds.push_back(candidates[i].id);
+                LOG_INFO("[" + std::to_string(i) + "] " + candidates[i].name + " " + candidates[i].id);
+            }
+            
+            // Send options to all connected players (TCP likely better for reliable UI data, but protocol seems mix)
+            // Existing sends use sendTcp or sendUdp dependent on OpCode priority and msg type.
+            // UPGRADE_OPTIONS is MEDIUM? I set it to MEDIUM. It should probably be reliable.
+            // Let's use sendTcp for reliable delivery of this game state change.
+            
+            auto& factory = MessageFactory::getInstance();
+            MessageData payload = factory.encodeMessageUpgradeOptions(upgradeIds);
+            PreparedMessage msg = factory.createMessage(OpCode::UPGRADE_OPTIONS, payload);
+            
+            for (const auto& [playerId, entity] : playerEntities) {
+                // Using TCP for reliability of the menu opening
+                _session.sendTcp(playerId, msg);
+            }
+            LOG_INFO("Sent upgrade options to all players.");
+            
+        } else {
+            LOG_WARN("Not enough upgrades configured. Skipping phase.");
+            _waitingForUpgrades = false;
+            enemySystem.setWavePaused(false);
+        }
+    }
     
     for (const auto& [enemy, projectile] : enemySystem.getNewProjectileEntitiesWithParent()) {
         sendNewProjectilesToAllPlayers(enemy, projectile);
@@ -349,6 +442,15 @@ void GameHandler::onPlayerShoot(const ShootData& shootData)
     }
 
     weaponSystem.fireWeapon(reg, entity);
+    
+    // Fire companion weapons
+    for (auto companionEntity : reg.viewEntitiesWith<Parent, Weapon>()) {
+        if (!reg.hasComponent<Parent>(companionEntity)) continue;
+        auto& parent = reg.getComponent<Parent>(companionEntity);
+        if (parent.entity == entity) {
+             weaponSystem.fireWeapon(reg, companionEntity);
+        }
+    }
 }
 
 void GameHandler::initNewEnemyEntities(const std::vector<Entity>& newEnemyEntities)
@@ -400,6 +502,23 @@ void GameHandler::onPlayerLinked(uint32_t playerId)
         _session.sendUdp(playerId, msg);
         LOG_DEBUG("Sent existing enemy " + std::to_string(enemyEntity) + " to newly linked player " + std::to_string(playerId));
     }
+
+    // Send existing companions
+    for (Entity companion : reg.viewEntitiesWith<Parent, Position>()) {
+        if (!reg.hasComponent<Parent>(companion)) continue;
+        Position& pos = reg.getComponent<Position>(companion);
+        
+        uint8_t type = 0;
+        if (reg.hasComponent<Weapon>(companion)) {
+            Weapon& w = reg.getComponent<Weapon>(companion);
+            if (w.damage > 20) type = 1; // Missile
+        }
+        
+        MessageData payload = factory.encodeMessageCompanion(companion, pos.x, pos.y, type);
+        PreparedMessage msg = factory.createMessage(OpCode::COMPANION, payload);
+        _session.sendUdp(playerId, msg);
+        LOG_DEBUG("Sent existing companion " + std::to_string(companion) + " to newly linked player " + std::to_string(playerId));
+    }
 }
 
 void GameHandler::checkPlayerCollisions()
@@ -450,8 +569,8 @@ void GameHandler::checkPlayerCollisions()
             // Projectile size 16x16 (matching client sprite and debug visualization)
             // Client draws projectile at (projPos.x, projPos.y), so it is Top-Left anchored.
             
-            float projW = 16.0f;
-            float projH = 16.0f;
+            float projW = 16.0f * projectile.scale;
+            float projH = 16.0f * projectile.scale;
             float projLeft = projPos.x;
             float projTop = projPos.y;
             
@@ -505,4 +624,120 @@ void GameHandler::checkPlayerCollisions()
         // Reset position or something? 
         // For now just notify death.
     }
+}
+
+void GameHandler::onUpgradeSelect(uint32_t playerId, uint8_t index)
+{
+    if (!_waitingForUpgrades) return;
+    if (index >= _offeredUpgrades.size()) return;
+    
+    // Apply upgrade
+    const auto& upgrade = _offeredUpgrades[index];
+    LOG_INFO("Player " + std::to_string(playerId) + " selected upgrade: " + upgrade.name);
+    
+    MessageFactory& factory = MessageFactory::getInstance();
+
+    // Apply effects to ALL players
+    for (auto& [pid, entity] : playerEntities) {
+        if (!reg.hasComponent<Stats>(entity)) continue;
+        Stats& stats = reg.getComponent<Stats>(entity);
+        
+        bool weaponUpdated = false;
+        Weapon* weapon = nullptr;
+        if (reg.hasComponent<Weapon>(entity)) {
+            weapon = &reg.getComponent<Weapon>(entity);
+        }
+        
+        for (const auto& effect : upgrade.effects) {
+            if (effect.target == "max_health") {
+                stats.maxHp += (int)effect.value;
+                stats.hp += (int)effect.value; 
+            } else if (effect.target == "movement_speed") {
+                 stats.movement_speed = (int)(stats.movement_speed * (1.0f + effect.value / 100.0f));
+            } else if (effect.target == "damage_multiplier") {
+                stats.attack_damage = (int)(stats.attack_damage * (1.0f + effect.value));
+                 if (weapon) {
+                     weapon->damage = (int)(weapon->damage * (1.0f + effect.value));
+                     weaponUpdated = true;
+                 }
+            } else if (effect.target == "fire_rate") {
+                stats.attack_speed = (int)(stats.attack_speed * (1.0f + effect.value));
+                if (weapon) {
+                    // Increase fire rate means decrease delay
+                    if (effect.value > -1.0f) { // Prevent division by zero or negative
+                        weapon->fireRate /= (1.0f + effect.value);
+                        weaponUpdated = true;
+                    }
+                }
+            } else if (effect.target == "projectile_scale") {
+                if (weapon) {
+                    weapon->projectileScale += effect.value;
+                    weaponUpdated = true;
+                }
+            } else if (effect.target == "add_weapon_shotgun") {
+                spawnCompanion(entity, WeaponType::SHOTGUN);
+            } else if (effect.target == "add_weapon_missile") {
+                spawnCompanion(entity, WeaponType::MISSILE);
+            } else if (effect.target == "current_health_percent") {
+                 stats.hp += (int)(stats.maxHp * (effect.value / 100.0f));
+                 if (stats.hp > stats.maxHp) stats.hp = stats.maxHp;
+            }
+        }
+
+        if (weaponUpdated && weapon) {
+             MessageData payload = factory.encodeMessageUpdateWeapon(entity, weapon->damage, weapon->nbOfBullets, weapon->fireRate);
+             PreparedMessage msg = factory.createMessage(OpCode::UPDATE_WEAPON, payload);
+             
+             // Broadcast to all
+             for (const auto& [targetPid, _] : playerEntities) {
+                 _session.sendUdp(targetPid, msg);
+             }
+        }
+    }
+    
+    // Resume game
+    _waitingForUpgrades = false;
+    _offeredUpgrades.clear();
+    enemySystem.setWavePaused(false);
+    
+    LOG_INFO("Upgrade applied. Resuming wave.");
+}
+
+void GameHandler::spawnCompanion(Entity parent, WeaponType weaponType)
+{
+    if (!reg.hasComponent<Position>(parent)) return;
+    auto& pos = reg.getComponent<Position>(parent);
+
+    // Count existing companions
+    int companionCount = 0;
+    for (auto ent : reg.viewEntitiesWith<Parent>()) {
+        if (!reg.hasComponent<Parent>(ent)) continue;
+        if (reg.getComponent<Parent>(ent).entity == parent) companionCount++;
+    }
+
+    float offX = -30.0f;
+    float offY = (companionCount % 2 == 0) ? -50.0f : 50.0f;
+    if (companionCount >= 2) offY *= (1.0f + (companionCount/2) * 0.5f);
+
+    float startX = pos.x + offX;
+    float startY = pos.y + offY;
+
+    Entity drone = reg.createEntity();
+    reg.addComponent<Position>(drone, startX, startY);
+    reg.addComponent<Parent>(drone, parent, offX, offY);
+    reg.addComponent<Velocity>(drone, 0.f, 0.f); 
+
+    weaponSystem.setWeaponType(reg, drone, weaponType);
+
+    // Notify clients of new companion
+    uint8_t type = (weaponType == WeaponType::SHOTGUN) ? 0 : 1; 
+
+    MessageData payload = MessageFactory::getInstance().encodeMessageCompanion(drone, startX, startY, type);
+    PreparedMessage msg = MessageFactory::getInstance().createMessage(OpCode::COMPANION, payload);
+
+    for (const auto& [pid, _] : playerEntities) {
+        _session.sendTcp(pid, msg);
+    }
+    
+    LOG_INFO("Spawned companion " + std::to_string(drone) + " for player " + std::to_string(parent));
 }

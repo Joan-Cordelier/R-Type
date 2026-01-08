@@ -28,7 +28,7 @@ void WeaponSystem::fireWeapon(Registry &reg, Entity entity) {
     reg.getComponent<Position>(projectile).y = pos.y + projOffsetY;
     reg.getComponent<Position>(projectile).x = pos.x + projOffsetX;
     reg.addComponent<Velocity>(projectile, 0.f, -projSpeed);
-    reg.addComponent<Projectile>(projectile, weaponComp.damage, std::string("player"));
+    reg.addComponent<Projectile>(projectile, weaponComp.damage, std::string("player"), weaponComp.projectileScale);
 
     if (projNotifier) {
         projNotifier(entity, projectile);
@@ -41,11 +41,11 @@ void WeaponSystem::fireWeapon(Registry &reg, Entity entity) {
             Entity projLeft = reg.createEntity();
             reg.addComponent<Position>(projLeft, pos.x + projOffsetX - (offsetPerBullet * (i + 1)), pos.y + projOffsetY);
             reg.addComponent<Velocity>(projLeft, 0.0f, -projSpeed);
-            reg.addComponent<Projectile>(projLeft, weaponComp.damage, std::string("player"));
+            reg.addComponent<Projectile>(projLeft, weaponComp.damage, std::string("player"), weaponComp.projectileScale);
             Entity projRight = reg.createEntity();
             reg.addComponent<Position>(projRight, pos.x + projOffsetX + (offsetPerBullet * (i + 1)), pos.y + projOffsetY);
             reg.addComponent<Velocity>(projRight, 0.0f, -projSpeed);
-            reg.addComponent<Projectile>(projRight, weaponComp.damage, std::string("player"));
+            reg.addComponent<Projectile>(projRight, weaponComp.damage, std::string("player"), weaponComp.projectileScale);
             if (projNotifier) {
                 projNotifier(entity, projRight);
                 projNotifier(entity, projLeft);

@@ -77,7 +77,7 @@ void InputSystem::update(Registry& reg, SDL_Event& e, NetworkManager& networkMan
             }
             
             MessageFactory& factory = MessageFactory::getInstance();
-            MessageData payload = factory.encodeMessageProjectile(0, controlled, std::string("player"), x, y);
+            MessageData payload = factory.encodeMessageProjectile(0, controlled, std::string("player"), x, y, 1.0f);
             networkManager.sendUdp(factory.createMessage(OpCode::SHOOT, payload));
             weaponsys.fireWeapon(reg, controlled);
         }

@@ -66,7 +66,7 @@ void EnemySystem::update(Registry& reg, float dt) {
     }
     
     // Spawn Logic
-    if (!_levels.empty()) {
+    if (canSpawn && !_levels.empty()) {
         if (_currentLevelIndex < (int)_levels.size()) {
             LevelData& level = _levels[_currentLevelIndex];
             
@@ -74,9 +74,10 @@ void EnemySystem::update(Registry& reg, float dt) {
             if (_currentWaveIndex < (int)level.waves.size()) {
                 WaveData& wave = level.waves[_currentWaveIndex];
                 
-                _waveTime += dt;
-                
-                if (_waveTime >= wave.start_delay) {
+                if (!_isWavePaused) {
+                    _waveTime += dt;
+                    
+                    if (_waveTime >= wave.start_delay) {
                     // Process groups
                     if (_currentGroupIndex < (int)wave.groups.size()) {
                         EnemyWaveGroupData& group = wave.groups[_currentGroupIndex];
@@ -148,28 +149,17 @@ void EnemySystem::update(Registry& reg, float dt) {
                              _currentWaveIndex++;
                              _currentGroupIndex = 0;
                              _waveTime = 0.0f;
+                             _waveFinished = true;
                         }
                     }
-                }
+                } // End if (_waveTime >= wave.start_delay) inside !paused
+                } // End if (!_isWavePaused)
             } else {
                 // all waves done
                 _currentLevelIndex++;
                 _currentWaveIndex = 0;
                 // Maybe loop or end?
             }
-        }
-    } else if (enemiesAlive <= 0 && canSpawn && _spawningEnabled) {
-        // Legacy Wave System
-        wave++;
-        enemiesAlive = wave;
-        for (int i = 0; i < enemiesAlive; ++i) {
-            Entity enemyEntity = reg.createEntity();
-            reg.addComponent<Position>(enemyEntity, static_cast<float>(rand() % 800), -50.f);
-            reg.addComponent<Velocity>(enemyEntity, 0.f, 50.f);
-            // Legacy fallback needs to match new constructor signature
-            reg.addComponent<Enemy>(enemyEntity, (std::string)"basic", 100, 10, 50.f, 3.0f, 0.0f, (50 + rand() % 150), 0.0f, 0.0f, 0.0f);
-            enemyEntities.push_back(enemyEntity);
-            newEnemyEntities.push_back(enemyEntity);
         }
     }
 }

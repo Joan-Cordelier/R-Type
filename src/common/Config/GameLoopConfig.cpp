@@ -177,3 +177,57 @@ bool GameLoopConfig::loadFromFile(const std::string& filepath)
         return false;
     }
 }
+bool GameLoopConfig::loadUpgradesFromFile(const std::string& filepath)
+{
+    try {
+        std::ifstream file(filepath);
+        if (!file.is_open()) {
+            std::cerr << "Could not open upgrades config file: " << filepath << std::endl;
+            return false;
+        }
+
+        YAML::Node config = YAML::LoadFile(filepath);
+        
+        if (config["upgrades"]) {
+            auto upgradesNode = config["upgrades"];
+            for (const auto& upgradeNode : upgradesNode) {
+                UpgradeData upgrade;
+                if (upgradeNode["id"]) upgrade.id = upgradeNode["id"].as<std::string>();
+                if (upgradeNode["name"]) upgrade.name = upgradeNode["name"].as<std::string>();
+                if (upgradeNode["description"]) upgrade.description = upgradeNode["description"].as<std::string>();
+                if (upgradeNode["type"]) upgrade.type = upgradeNode["type"].as<std::string>();
+                if (upgradeNode["rarity"]) upgrade.rarity = upgradeNode["rarity"].as<std::string>();
+                
+                // Visuals
+                if (upgradeNode["visuals"]) {
+                    auto vis = upgradeNode["visuals"];
+                    if (vis["icon_path"]) upgrade.icon_path = vis["icon_path"].as<std::string>();
+                    if (vis["card_color"]) upgrade.card_color = vis["card_color"].as<std::string>();
+                }
+
+                // Handle simple stat boost
+                if (upgrade.type == "stat_boost") {
+                    UpgradeEffect effect;
+                    if (upgradeNode["target"]) effect.target = upgradeNode["target"].as<std::string>();
+                    if (upgradeNode["value"]) effect.value = upgradeNode["value"].as<float>();
+                    upgrade.effects.push_back(effect);
+                }
+                // Handle hybrid/complex effects
+                else if (upgrade.type == "hybrid" && upgradeNode["effects"]) {
+                    for (const auto& effectNode : upgradeNode["effects"]) {
+                        UpgradeEffect effect;
+                        if (effectNode["target"]) effect.target = effectNode["target"].as<std::string>();
+                        if (effectNode["value"]) effect.value = effectNode["value"].as<float>();
+                        upgrade.effects.push_back(effect);
+                    }
+                }
+                
+                _upgrades.push_back(upgrade);
+            }
+        }
+        return true;
+    } catch (const YAML::Exception& e) {
+        std::cerr << "Failed to parse upgrades config file: " << e.what() << std::endl;
+        return false;
+    }
+}

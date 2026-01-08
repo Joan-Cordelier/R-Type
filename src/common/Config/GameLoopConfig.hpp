@@ -4,6 +4,23 @@
 #include <string>
 #include <yaml-cpp/yaml.h>
 #include "../../common/Data/LevelData.hpp"
+#include <vector>
+
+struct UpgradeEffect {
+    std::string target; // "max_health", "movement_speed", etc.
+    float value;
+};
+
+struct UpgradeData {
+    std::string id;
+    std::string name;
+    std::string description;
+    std::string type; // "stat_boost", "hybrid"
+    std::string rarity;
+    std::vector<UpgradeEffect> effects;
+    std::string icon_path;
+    std::string card_color;
+};
 
 struct PlayerStatsConfig {
     int health = 100;
@@ -72,6 +89,7 @@ public:
     ~GameLoopConfig() = default;
     
     bool loadFromFile(const std::string& filepath);
+    bool loadUpgradesFromFile(const std::string& filepath);
     
     // Getters
     const GameLoopSettings& getGameLoopSettings() const { return _gameLoop; }
@@ -81,6 +99,7 @@ public:
     const SystemsConfig& getSystemsConfig() const { return _systems; }
     const std::map<std::string, EnemyTypeConfig>& getEnemyTypes() const { return _enemyTypes; }
     const std::vector<LevelConfig>& getLevels() const { return _levels; }
+    const std::vector<UpgradeData>& getUpgrades() const { return _upgrades; }
     
     // Convenience methods
     float getTargetFrameTime() const { return 1.0f / static_cast<float>(_gameLoop.tick_rate); }
@@ -97,6 +116,7 @@ private:
     SystemsConfig _systems;
     std::map<std::string, EnemyTypeConfig> _enemyTypes;
     std::vector<LevelConfig> _levels;
+    std::vector<UpgradeData> _upgrades;
 };
 
 #endif // GAME_LOOP_CONFIG_HPP

@@ -49,6 +49,9 @@ private:
     std::map<Entity, bool> wasMoving;
     Entity ScoreEntity;
     int score = 0;
+    
+    bool _waitingForUpgrades = false;
+    std::vector<UpgradeData> _offeredUpgrades;
 
 public:
     GameHandler(SessionManager& session, std::atomic<bool>& running, const std::string& configPath);
@@ -72,4 +75,7 @@ private:
     void sendDestroyedEnemyToAllPlayers(Entity enemy);
     void sendDestroyedPlayerToAllPlayers(Entity player);
     void checkPlayerCollisions();
+    
+    void onUpgradeSelect(uint32_t playerId, uint8_t index);
+    void spawnCompanion(Entity parent, WeaponType weaponType);
 };

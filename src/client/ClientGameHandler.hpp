@@ -45,6 +45,7 @@ private:
     std::map<Entity, Entity> playerEntities;
     std::map<Entity, Entity> enemyEntities;
     std::map<Entity, Entity> projectileEntities;
+    std::map<Entity, Entity> companionEntities;
     std::vector<DecodedMessage> pendingPlayerPackets;
 
     double animationClock = 0.0;
@@ -70,4 +71,12 @@ public:
     ClientGameHandler(bool debugMode = false);
     ~ClientGameHandler() = default;
     int run();
+    
+    // Upgrades
+    bool upgradeMenuOpen = false;
+    std::vector<Entity> upgradeMenuEntities;
+    void handleUpgradeOptions(const DecodedMessage& msg);
+    void handleUpdateWeapon(const DecodedMessage& msg);
+    void showUpgradeMenu(const std::vector<std::string>& ids);
+    void selectUpgrade(int index);
 };

@@ -12,7 +12,6 @@ upgrades:
     value: 15.0
     rarity: "common"
     visuals:
-      icon_path: "textures/upgrades/icons/speed_1.png"
       card_color: "blue"
 
   - id: "move_speed_2"
@@ -23,7 +22,6 @@ upgrades:
     value: 30.0
     rarity: "rare"
     visuals:
-      icon_path: "textures/upgrades/icons/speed_2.png"
       card_color: "purple"
 
   # --- Survie (Health/HP) ---
@@ -35,7 +33,6 @@ upgrades:
     value: 25.0
     rarity: "common"
     visuals:
-      icon_path: "textures/upgrades/icons/health_1.png"
       card_color: "green"
 
   - id: "hull_repair_instant"
@@ -49,7 +46,6 @@ upgrades:
         value: 10.0
     rarity: "rare"
     visuals:
-      icon_path: "textures/upgrades/icons/repair.png"
       card_color: "green"
 
   # --- Offensif (Dégâts) ---
@@ -61,7 +57,6 @@ upgrades:
     value: 0.20
     rarity: "common"
     visuals:
-      icon_path: "textures/upgrades/icons/damage_1.png"
       card_color: "red"
 
   - id: "fire_rate_boost"
@@ -72,7 +67,6 @@ upgrades:
     value: 0.25
     rarity: "common"
     visuals:
-      icon_path: "textures/upgrades/icons/attack_speed.png"
       card_color: "red"
 
   - id: "projectile_size_up"
@@ -86,5 +80,25 @@ upgrades:
         value: 0.10
     rarity: "epic"
     visuals:
-      icon_path: "textures/upgrades/icons/big_shot.png"
+      card_color: "gold"
+
+  # --- Legendary Weapons ---
+  - id: "add_drone_shotgun"
+    name: "Drone Shotgun"
+    description: "Ajoute un drone de soutien équipe d'un Shotgun."
+    type: "add_weapon"
+    target: "add_weapon_shotgun"
+    value: 1.0
+    rarity: "legendary"
+    visuals:
+      card_color: "gold"
+
+  - id: "add_drone_missile"
+    name: "Drone Missile"
+    description: "Ajoute un drone de soutien équipe d'un Lance-Missiles."
+    type: "add_weapon"
+    target: "add_weapon_missile"
+    value: 1.0
+    rarity: "legendary"
+    visuals:
       card_color: "gold"

@@ -6,7 +6,8 @@
 enum class EntityType : uint8_t {
     PLAYER = 0,
     ENEMY = 1,
-    PROJECTILE = 2
+    PROJECTILE = 2,
+    COMPANION = 3
 };
 
 #endif

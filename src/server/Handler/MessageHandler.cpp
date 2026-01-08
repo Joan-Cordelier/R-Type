@@ -93,6 +93,9 @@ void MessageHandler::dispatchMessage(DecodedMessage msg)
         case SHOOT:
             handleShoot(msg);
             break;
+        case UPGRADE_SELECT:
+            handleUpgradeSelect(msg);
+            break;
         default:
             LOG_WARN("Unknown OpCode: " + std::to_string(msg.opCode));
             break;
@@ -249,5 +252,16 @@ void MessageHandler::handleShoot(const DecodedMessage& msg)
     if (_onPlayerShoot) {
         ShootData shootData{msg.playerId, x, y};
         _onPlayerShoot(shootData);
+    }
+}
+
+void MessageHandler::handleUpgradeSelect(const DecodedMessage& msg)
+{
+    if (msg.data.empty()) return;
+    uint8_t index = msg.data[0];
+    uint32_t playerId = msg.playerId;
+    
+    if (_onUpgradeSelect) {
+        _onUpgradeSelect(playerId, index);
     }
 }

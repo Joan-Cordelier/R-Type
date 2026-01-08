@@ -27,6 +27,12 @@ class EnemySystem {
             _projectileOffsetX = offsetX; 
             _projectileOffsetY = offsetY; 
         }
+        
+        bool isWaveFinished() const { return _waveFinished; }
+        void acknowledgeWaveFinished() { _waveFinished = false; }
+        
+        void setWavePaused(bool paused) { _isWavePaused = paused; }
+
     private:
         std::vector<Entity> enemyEntities;
         std::vector<std::pair<Entity, Entity>> newProjectileEntitiesWithParent;
@@ -48,6 +54,10 @@ class EnemySystem {
         std::vector<LevelData> _levels;
         std::map<std::string, EnemyTypeData> _enemyTypes;
         int _currentLevelIndex = 0;
+        
+        bool _waveFinished = false;
+        bool _isWavePaused = false;
+        
         int _currentWaveIndex = 0;
         int _currentGroupIndex = 0;
         float _levelTime = 0.0f;
