@@ -1,0 +1,97 @@
+# Boss Configuration File
+# Type: Boss (Complex Enemy)
+enemies:
+  - id: "dobkeratops"
+    name: "Dobkeratops"
+    type: "boss"
+    description: "Premier boss classique, une créature bio-mécanique géante."
+    
+    stats:
+      health: 2000
+      max_health: 2000
+      speed: 0.0
+      collision_damage: 50
+      score_value: 5000
+    
+    visuals:
+      texture_path: "textures/enemies/bosses/dobkeratops.png"
+      default_scale: {x: 3.0, y: 3.0}
+      
+      # Multi-part definition specific to bosses
+      parts:
+        - name: "head"
+          collider_box: {width: 60, height: 80, offset_x: 20, offset_y: -40}
+          is_weak_point: true
+          damage_multiplier: 1.5
+        - name: "body"
+          collider_box: {width: 100, height: 200, offset_x: 0, offset_y: 0}
+          is_weak_point: false
+          damage_multiplier: 0.1
+          
+      animations:
+        idle:
+          start_x: 0
+          start_y: 0
+          width: 128
+          height: 128
+          frame_count: 4
+          frame_duration: 0.4
+          loop: true
+        attack_charge:
+          start_x: 512
+          start_y: 0
+          width: 128
+          height: 128
+          frame_count: 3
+          frame_duration: 0.2
+          loop: false
+          
+    behavior:
+      phases:
+        - id: 1
+          name: "Intro"
+          trigger_health_percentage: 100
+          patterns:
+            - "enter_screen"
+        
+        - id: 2
+          name: "Combat_Normal"
+          trigger_health_percentage: 99
+          loop_patterns: true
+          patterns:
+            - "spit_projectiles"
+            - "wait_short"
+            - "tail_whip"
+            - "wait_long"
+            
+        - id: 3
+          name: "Enrage"
+          trigger_health_percentage: 30
+          visual_effect: "turn_red"
+          loop_patterns: true
+          patterns:
+            - "spit_projectiles_rapid"
+            - "charge_attack"
+            
+      attack_patterns:
+        - id: "spit_projectiles"
+          type: "projectile_spread"
+          projectile_id: "boss_acid_spit"
+          count: 5
+          spread_angle: 45
+          duration: 2.0
+          animation_trigger: "attack_charge"
+          
+        - id: "tail_whip"
+          type: "melee_sweep"
+          hitbox: {width: 200, height: 50}
+          damage: 40
+          duration: 1.0
+          warning_time: 0.5
+          
+        - id: "charge_attack"
+          type: "charge"
+          speed: 15.0
+          target_player: true
+          duration: 3.0
+          cooldown: 5.0
