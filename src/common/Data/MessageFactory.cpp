@@ -38,6 +38,7 @@ std::array<MessageFactory::Message, 256> MessageFactory::initMessageTable()
     table[UPGRADE_SELECT] = {1, Priority::MEDIUM};
     table[UPDATE_WEAPON] = {16, Priority::HIGH};
     table[COMPANION] = {13, Priority::HIGH};
+    table[UPDATE_STATS] = {16, Priority::HIGH};
 
     return table;
 }
@@ -434,6 +435,37 @@ MessageData MessageFactory::encodeMessageCompanion(Entity entity, float x, float
 
     // Type (1 byte)
     data.push_back(type);
+    
+    return data;
+}
+
+MessageData MessageFactory::encodeMessageUpdateStats(Entity entity, int hp, int maxHp, int speed) const
+{
+    MessageData data;
+    
+    // Entity ID (4 bytes)
+    data.push_back(static_cast<uint8_t>((entity >> 24) & 0xFF));
+    data.push_back(static_cast<uint8_t>((entity >> 16) & 0xFF));
+    data.push_back(static_cast<uint8_t>((entity >> 8) & 0xFF));
+    data.push_back(static_cast<uint8_t>(entity & 0xFF));
+    
+    // HP (4 bytes)
+    data.push_back(static_cast<uint8_t>((hp >> 24) & 0xFF));
+    data.push_back(static_cast<uint8_t>((hp >> 16) & 0xFF));
+    data.push_back(static_cast<uint8_t>((hp >> 8) & 0xFF));
+    data.push_back(static_cast<uint8_t>(hp & 0xFF));
+
+    // MaxHP (4 bytes)
+    data.push_back(static_cast<uint8_t>((maxHp >> 24) & 0xFF));
+    data.push_back(static_cast<uint8_t>((maxHp >> 16) & 0xFF));
+    data.push_back(static_cast<uint8_t>((maxHp >> 8) & 0xFF));
+    data.push_back(static_cast<uint8_t>(maxHp & 0xFF));
+    
+    // Speed (4 bytes)
+    data.push_back(static_cast<uint8_t>((speed >> 24) & 0xFF));
+    data.push_back(static_cast<uint8_t>((speed >> 16) & 0xFF));
+    data.push_back(static_cast<uint8_t>((speed >> 8) & 0xFF));
+    data.push_back(static_cast<uint8_t>(speed & 0xFF));
     
     return data;
 }

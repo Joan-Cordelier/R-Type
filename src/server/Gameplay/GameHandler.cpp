@@ -350,13 +350,32 @@ void GameHandler::sendDestroyedPlayerToAllPlayers(Entity player)
 
 void GameHandler::onPlayerConnect(const Player& player)
 {
+    const auto& pStats = _config.getPlayerConfig().stats;
     Entity playerEntity = reg.createEntity();
     reg.addComponent<Position>(playerEntity, _config.getPlayerConfig().initial_x, _config.getPlayerConfig().initial_y);
     reg.addComponent<Velocity>(playerEntity, 0.f, 0.f);
-    reg.addComponent<Stats>(playerEntity, 100, 100, 1, 0.f, 10, 1, 200);
-    reg.addComponent<Weapon>(playerEntity, 10, 1, 0.5f);
-
+    
+    // Initialize Stats from Config
+    reg.addComponent<Stats>(playerEntity, 
+        pStats.health, 
+        pStats.max_health, 
+        pStats.attack_speed, 
+        0.f, 
+        pStats.attack_damage, 
+        1, 
+        pStats.speed
+    );
+    
     weaponSystem.setWeaponType(reg, playerEntity, WeaponType::DEFAULT);
+
+    // Override with config stats
+    if (reg.hasComponent<Weapon>(playerEntity)) {
+        auto& w = reg.getComponent<Weapon>(playerEntity);
+        w.damage = pStats.attack_damage;
+        if (pStats.attack_speed > 0) {
+            w.fireRate = 5.0f / (float)pStats.attack_speed;
+        }
+    }
     
     auto& factory = MessageFactory::getInstance();
     
@@ -385,6 +404,24 @@ void GameHandler::onPlayerConnect(const Player& player)
     for (const auto& [existingPlayerId, existingEntity] : playerEntities) {
         _session.sendTcp(existingPlayerId, msg);
         LOG_DEBUG("Sent new player " + std::to_string(player.id) + " info to player " + std::to_string(existingPlayerId));
+    }
+
+    // Sync Stats and Weapon to all players for the new player
+    if (reg.hasComponent<Stats>(playerEntity)) {
+        auto& s = reg.getComponent<Stats>(playerEntity);
+        MessageData statsPayload = factory.encodeMessageUpdateStats(playerEntity, s.hp, s.maxHp, s.movement_speed);
+        PreparedMessage statsMsg = factory.createMessage(OpCode::UPDATE_STATS, statsPayload);
+        for (const auto& [pid, _] : playerEntities) {
+            _session.sendTcp(pid, statsMsg);
+        }
+    }
+    if (reg.hasComponent<Weapon>(playerEntity)) {
+        auto& w = reg.getComponent<Weapon>(playerEntity);
+        MessageData weaponPayload = factory.encodeMessageUpdateWeapon(playerEntity, w.damage, w.nbOfBullets, w.fireRate);
+        PreparedMessage weaponMsg = factory.createMessage(OpCode::UPDATE_WEAPON, weaponPayload);
+        for (const auto& [pid, _] : playerEntities) {
+            _session.sendTcp(pid, weaponMsg);
+        }
     }
     
     LOG_INFO("Player " + std::to_string(player.id) + " entity created and synced with " + std::to_string(playerEntities.size() - 1) + " other players");
@@ -690,8 +727,15 @@ void GameHandler::onUpgradeSelect(uint32_t playerId, uint8_t index)
              
              // Broadcast to all
              for (const auto& [targetPid, _] : playerEntities) {
-                 _session.sendUdp(targetPid, msg);
+                 _session.sendTcp(targetPid, msg);
              }
+        }
+
+        // Send Stats Update
+        MessageData statsPayload = factory.encodeMessageUpdateStats(entity, stats.hp, stats.maxHp, stats.movement_speed);
+        PreparedMessage statsMsg = factory.createMessage(OpCode::UPDATE_STATS, statsPayload);
+        for (const auto& [targetPid, _] : playerEntities) {
+            _session.sendTcp(targetPid, statsMsg);
         }
     }
     

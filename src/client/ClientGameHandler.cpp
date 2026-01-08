@@ -41,6 +41,7 @@ ClientGameHandler::ClientGameHandler(bool debugMode) : _settingsMenu(_reg, _keyb
     _renderer.loadSpriteSheet("textures/settingmenu/colorblindbtn.png", "daltonian_btn", 401, 108);
     _renderer.loadTexture("textures/settingmenu/bg.png", "settings_bg");
     _renderer.loadSpriteSheet("textures/settingmenu/Keybinds.png", "keybinds", 16, 16);
+    _renderer.loadTexture("textures/vaisseau.png", "drone");
 
     // Set up entities
     _reg.addComponent<Position>(start_button, 400.f, 300.f);
@@ -458,6 +459,46 @@ void ClientGameHandler::handleMessages()
                 handleUpdateWeapon(*msg);
                 break;
             }
+            case OpCode::UPDATE_STATS: {
+                if (msg->data.size() >= 16) {
+                     Entity serverEntity = 
+                        (static_cast<Entity>(msg->data[0]) << 24) |
+                        (static_cast<Entity>(msg->data[1]) << 16) |
+                        (static_cast<Entity>(msg->data[2]) << 8) |
+                        static_cast<Entity>(msg->data[3]);
+                    
+                    int hp = 
+                        (static_cast<int>(msg->data[4]) << 24) |
+                        (static_cast<int>(msg->data[5]) << 16) |
+                        (static_cast<int>(msg->data[6]) << 8) |
+                        static_cast<int>(msg->data[7]);
+
+                    int maxHp = 
+                        (static_cast<int>(msg->data[8]) << 24) |
+                        (static_cast<int>(msg->data[9]) << 16) |
+                        (static_cast<int>(msg->data[10]) << 8) |
+                        static_cast<int>(msg->data[11]);
+                        
+                    int speed = 
+                        (static_cast<int>(msg->data[12]) << 24) |
+                        (static_cast<int>(msg->data[13]) << 16) |
+                        (static_cast<int>(msg->data[14]) << 8) |
+                        static_cast<int>(msg->data[15]);
+
+                    auto it = playerEntities.find(serverEntity);
+                    if (it != playerEntities.end()) {
+                        Entity localEntity = it->second;
+                        if (_reg.hasComponent<Stats>(localEntity)) {
+                            auto& stats = _reg.getComponent<Stats>(localEntity);
+                            stats.hp = hp;
+                            stats.maxHp = maxHp;
+                            stats.movement_speed = speed;
+                            std::cout << "Updated Stats for player " << serverEntity << ": HP=" << hp << "/" << maxHp << " Speed=" << speed << std::endl;
+                        }
+                    }
+                }
+                break;
+            }
             case OpCode::COMPANION: {
                 if (msg->data.size() >= 13) {
                     Entity serverEntity = 
@@ -468,7 +509,7 @@ void ClientGameHandler::handleMessages()
                     
                     float x = *reinterpret_cast<const float*>(&msg->data[4]);
                     float y = *reinterpret_cast<const float*>(&msg->data[8]);
-                    uint8_t type = msg->data[12];
+                    // uint8_t type = msg->data[12];
 
                     auto it = companionEntities.find(serverEntity);
                     if (it == companionEntities.end()) {
@@ -476,13 +517,11 @@ void ClientGameHandler::handleMessages()
                         Entity localEntity = _reg.createEntity();
                         _reg.addComponent<Position>(localEntity, x, y);
                         _reg.addComponent<Velocity>(localEntity, 0.f, 0.f);
-                        
-                        std::string texture = "player_ship";
-                        if (type == 0) texture = "player_ship_blue";
-                        else if (type == 1) texture = "player_ship_green"; // Missile
 
+                        _renderer.loadTexture("textures/vaisseau.png", "drone");
+                        
                         // Use 40x40 size for companion
-                        _reg.addComponent<SpriteSheets>(localEntity, std::string(""), texture, 40, 40, 1, 5, 0, true, true);
+                        _reg.addComponent<Sprite>(localEntity, std::string("textures/vaisseau.png"), std::string("drone"), 40, 40, 5, true);
                         
                         companionEntities[serverEntity] = localEntity;
                         std::cout << "Created Companion entity (serverId: " << serverEntity << ", localId: " << localEntity << ") at (" << x << ", " << y << ")" << std::endl;
@@ -592,10 +631,29 @@ void ClientGameHandler::handlePlayerPacket(const DecodedMessage& msg)
         // Use config for sprite dimensions
         int sprW = (int)_config.getPlayerConfig().hitbox.sprite_width;
         int sprH = (int)_config.getPlayerConfig().hitbox.sprite_height;
+        auto& pStats = _config.getPlayerConfig().stats;
+
         _reg.addComponent<SpriteSheets>(localEntity, std::string(""), selectedSkin, sprW, sprH, 1, 3, 0, true, false);
-        _reg.addComponent<Stats>(localEntity, 100, 100, 1, 0.f, 10, 1, 200);
-        _reg.addComponent<Weapon>(localEntity, 10, 1, 0.5f);
+        _reg.addComponent<Stats>(localEntity, 
+            pStats.health, 
+            pStats.max_health, 
+            pStats.attack_speed, 
+            0.f, 
+            pStats.attack_damage, 
+            1, 
+            pStats.speed
+        );
+        _reg.addComponent<Weapon>(localEntity, pStats.attack_damage, 1, 0.5f);
         _weaponsys.setWeaponType(_reg, localEntity, WeaponType::DEFAULT);
+
+        // Override with config stats
+        if (_reg.hasComponent<Weapon>(localEntity)) {
+            auto& w = _reg.getComponent<Weapon>(localEntity);
+            w.damage = pStats.attack_damage;
+            if (pStats.attack_speed > 0) {
+                w.fireRate = 5.0f / (float)pStats.attack_speed;
+            }
+        }
                         
         playerEntities[serverEntity] = localEntity;
 

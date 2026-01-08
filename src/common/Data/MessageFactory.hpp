@@ -44,6 +44,7 @@ enum OpCode : uint8_t {
     UPGRADE_SELECT = 0x10,
     UPDATE_WEAPON = 0x11,
     COMPANION = 0x12,
+    UPDATE_STATS = 0x13,
 };
 
 using MessageData = std::vector<uint8_t>;
@@ -116,6 +117,7 @@ class MessageFactory {
         MessageData encodeMessageUpgradeOptions(const std::vector<std::string>& upgradeIds) const;
         MessageData encodeMessageUpgradeSelect(uint8_t index) const;
         MessageData encodeMessageCompanion(Entity entity, float x, float y, uint8_t type) const;
+        MessageData encodeMessageUpdateStats(Entity entity, int hp, int maxHp, int speed) const;
     
     private:
         MessageFactory();
