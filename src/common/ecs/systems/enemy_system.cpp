@@ -53,7 +53,7 @@ void EnemySystem::update(Registry& reg, float dt) {
             // Also lifetime?
             if (enemy.time_alive > 5.0f + warningTime) { // Duration from config?
                  deadEnemyEntities.push_back(e);
-                 reg.destroyEntity(e);
+                 // Deferred destruction
             }
             
             continue;
@@ -83,7 +83,9 @@ void EnemySystem::update(Registry& reg, float dt) {
         }
         
         // Collision logic
+        bool isDead = false;
         for (auto& entity : reg.viewEntitiesWith<Projectile, Position, Velocity>()) {
+            if (isDead) break;
             if (reg.getComponent<Projectile>(entity).ownerType == "player") {
                 Position& projPos = reg.getComponent<Position>(entity);
                 if (projPos.x >= position.x && projPos.x <= position.x + 50 &&
@@ -95,12 +97,20 @@ void EnemySystem::update(Registry& reg, float dt) {
                     if (enemy.health <= 0) {
                         deadEnemyEntities.push_back(e);
                         enemyEntities.erase(std::remove(enemyEntities.begin(), enemyEntities.end(), e), enemyEntities.end());
-                        reg.destroyEntity(e);
                         enemiesAlive--;
+                        isDead = true;
                     }
                 }
             }
         }
+    }
+
+    // Cleanup dead entities
+    std::sort(deadEnemyEntities.begin(), deadEnemyEntities.end());
+    deadEnemyEntities.erase(std::unique(deadEnemyEntities.begin(), deadEnemyEntities.end()), deadEnemyEntities.end());
+
+    for (auto e : deadEnemyEntities) {
+        reg.destroyEntity(e);
     }
     
     // Spawn Logic
