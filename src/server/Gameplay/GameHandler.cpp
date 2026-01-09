@@ -648,6 +648,14 @@ void GameHandler::checkPlayerCollisions()
                 
                 LOG_DEBUG("Player " + std::to_string(playerId) + " hit by projectile " + std::to_string(projectileEntity) + ", hp: " + std::to_string(playerStats.hp));
 
+                // Send Stats Update
+                MessageFactory& factory = MessageFactory::getInstance();
+                MessageData statsPayload = factory.encodeMessageUpdateStats(playerEntity, playerStats.hp, playerStats.maxHp, playerStats.movement_speed);
+                PreparedMessage statsMsg = factory.createMessage(OpCode::UPDATE_STATS, statsPayload);
+                for (const auto& [pid, _] : playerEntities) {
+                    _session.sendTcp(pid, statsMsg);
+                }
+
                 if (playerStats.hp <= 0) {
                      playersToKill.push_back(playerEntity);
                 }

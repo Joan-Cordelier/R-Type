@@ -188,6 +188,23 @@ int ClientGameHandler::run()
 
         _slidersys.render(_reg, _renderer);
 
+        // Draw Player Life Bar
+        if (_reg.hasComponent<Stats>(myEntity)) {
+            const auto& stats = _reg.getComponent<Stats>(myEntity);
+            if (stats.maxHp > 0) {
+                float healthPct = static_cast<float>(stats.hp) / static_cast<float>(stats.maxHp);
+                if (healthPct < 0.0f) healthPct = 0.0f;
+                if (healthPct > 1.0f) healthPct = 1.0f;
+
+                int windowWidth = 1080;
+                int windowHeight = 720;
+                int barHeight = 20;
+                int barWidth = static_cast<int>(windowWidth * healthPct);
+
+                _renderer.drawRect(Rect{0, windowHeight - barHeight, barWidth, barHeight}, Color{255, 0, 0, 255}, RenderLayer::OVERLAY, 200, true);
+            }
+        }
+
         _renderer.render();
     }
 

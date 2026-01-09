@@ -1,12 +1,12 @@
-# Configuration des améliorations (Upgrades)
-# Cette liste contient toutes les améliorations disponibles qui peuvent apparaître sur les cartes
-# entre les manches. Le jeu en piochera 3 aléatoirement.
+# Configuration des ameliorations (Upgrades)
+# Cette liste contient toutes les ameliorations disponibles qui peuvent apparaitre sur les cartes
+# entre les manches. Le jeu en piochera 3 aleatoirement.
 
 upgrades:
-  # --- Mobilité ---
+  # --- Mobilite ---
   - id: "move_speed_1"
     name: "Propulseurs Mk.I"
-    description: "Augmente la vitesse de déplacement de 15%."
+    description: "Augmente la vitesse de deplacement de 15%."
     type: "stat_boost"
     target: "movement_speed"
     value: 15.0
@@ -16,7 +16,7 @@ upgrades:
 
   - id: "move_speed_2"
     name: "Post-Combustion"
-    description: "Augmente considérablement la vitesse de déplacement (+30%)."
+    description: "Augmente considerablement la vitesse de deplacement (+30%)."
     type: "stat_boost"
     target: "movement_speed"
     value: 30.0
@@ -26,7 +26,7 @@ upgrades:
 
   # --- Survie (Health/HP) ---
   - id: "hull_reinforcement_1"
-    name: "Blindage Léger"
+    name: "Blindage Leger"
     description: "Augmente les points de vie max (Max HP) de 25."
     type: "stat_boost"
     target: "max_health"
@@ -36,7 +36,7 @@ upgrades:
       card_color: "green"
 
   - id: "hull_repair_instant"
-    name: "Nano-Réparation"
+    name: "Nano-Reparation"
     description: "Restaure 50% de vos points de vie actuels et ajoute 10 Max HP."
     type: "hybrid"
     effects:
@@ -48,10 +48,10 @@ upgrades:
     visuals:
       card_color: "green"
 
-  # --- Offensif (Dégâts) ---
+  # --- Offensif (Degats) ---
   - id: "damage_boost_1"
     name: "Lentilles Laser"
-    description: "Augmente les dégâts de 20%."
+    description: "Augmente les degats de 20%."
     type: "stat_boost"
     target: "damage_multiplier"
     value: 0.20
@@ -71,7 +71,7 @@ upgrades:
 
   - id: "projectile_size_up"
     name: "Chargeur Plasma"
-    description: "Les projectiles sont plus gros et font 10% de dégâts en plus."
+    description: "Les projectiles sont plus gros et font 10% de degats en plus."
     type: "hybrid"
     effects:
       - target: "projectile_scale"
@@ -85,7 +85,7 @@ upgrades:
   # --- Legendary Weapons ---
   - id: "add_drone_shotgun"
     name: "Drone Shotgun"
-    description: "Ajoute un drone de soutien équipe d'un Shotgun."
+    description: "Ajoute un drone de soutien equipe d'un Shotgun."
     type: "add_weapon"
     target: "add_weapon_shotgun"
     value: 1.0
@@ -95,7 +95,7 @@ upgrades:
 
   - id: "add_drone_missile"
     name: "Drone Missile"
-    description: "Ajoute un drone de soutien équipe d'un Lance-Missiles."
+    description: "Ajoute un drone de soutien equipe d'un Lance-Missiles."
     type: "add_weapon"
     target: "add_weapon_missile"
     value: 1.0
