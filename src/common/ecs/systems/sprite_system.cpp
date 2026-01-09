@@ -18,6 +18,9 @@ void SpriteSystem::render(Registry& reg, std::function<void(const TextureId&, in
             x = p.x; y = p.y;
         }
 
+        x += sp.offset_x;
+        y += sp.offset_y;
+
         drawCallback(sp.textureIndex, sp.width, sp.height, x, y, sp.z);
     }
 }

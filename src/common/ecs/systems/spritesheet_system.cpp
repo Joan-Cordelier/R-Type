@@ -18,6 +18,9 @@ void SpriteSheetSystem::render(Registry& reg, std::function<void(const TextureId
             x = p.x; y = p.y;
         }
 
+        x += sp.offset_x;
+        y += sp.offset_y;
+
         if (animationClock >= 0.2) {
             if (sp.loop)
                 sp.frameIndex = (sp.frameIndex + 1) % sp.maxFrames;

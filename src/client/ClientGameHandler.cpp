@@ -3,6 +3,9 @@
 #include "../common/ecs/components/weapon.hpp"
 #include <cstring>
 #include <sstream>
+#include <map>
+#include <set>
+#include <cmath>
 
 ClientGameHandler::ClientGameHandler(bool debugMode) : _settingsMenu(_reg, _keybindsManager), _debugMode(debugMode)
 {
@@ -17,6 +20,12 @@ ClientGameHandler::ClientGameHandler(bool debugMode) : _settingsMenu(_reg, _keyb
         _config.loadUpgradesFromFile("../yaml/upgrades.yaml");
     }
 
+    // Load boss configurations
+    std::string bossDir = "yaml/enemies";
+    if (!_config.loadBossesFromDirectory(bossDir)) {
+         _config.loadBossesFromDirectory("../" + bossDir);
+    }
+    
     if (_debugMode) {
         auto& hb = _config.getPlayerConfig().hitbox;
         std::cout << "[DEBUG] Loaded Hitbox Config: " 
@@ -38,6 +47,28 @@ ClientGameHandler::ClientGameHandler(bool debugMode) : _settingsMenu(_reg, _keyb
     _renderer.loadFont("font/josefin-sans/JosefinSans-Regular.ttf", 14, "default_font_medium");
     _renderer.loadFont("font/josefin-sans/JosefinSans-Regular.ttf", 15, "default_font_tiny");
     _renderer.loadTexture("textures/ships/enemy_ship.png", "enemy_ship");
+    // Dynamic Boss Loading
+    const auto& bosses = _config.getBosses();
+    if (bosses.empty()) {
+         std::cout << "[WARNING] No boss configurations loaded for client." << std::endl;
+         // Fallback just in case
+         _renderer.loadSpriteSheet("textures/ships/bosses/Obelisk.png", "Ancient Obelisk", 240, 160);
+    } else {
+        for (const auto& [id, config] : bosses) {
+             std::string texturePath = config.visuals.texture_path;
+             int w = (int)config.visuals.width;
+             int h = (int)config.visuals.height;
+             
+             if (config.visuals.animations.count("idle")) {
+                 w = config.visuals.animations.at("idle").width;
+                 h = config.visuals.animations.at("idle").height;
+             }
+             std::cout << "[INFO] Loading Boss Sprite: " << config.name << " (" << texturePath << ") " << w << "x" << h << std::endl;
+             // Ensure texture path is relative to what renderer expects if needed
+             _renderer.loadSpriteSheet(texturePath, config.name, w, h);
+        }
+    }
+    
     _renderer.loadSpriteSheet("textures/settingmenu/colorblindbtn.png", "daltonian_btn", 401, 108);
     _renderer.loadTexture("textures/settingmenu/bg.png", "settings_bg");
     _renderer.loadSpriteSheet("textures/settingmenu/Keybinds.png", "keybinds", 16, 16);
@@ -45,7 +76,7 @@ ClientGameHandler::ClientGameHandler(bool debugMode) : _settingsMenu(_reg, _keyb
 
     // Set up entities
     _reg.addComponent<Position>(start_button, 400.f, 300.f);
-    _reg.addComponent<Sprite>(start_button, (std::string)"textures/play_button/default.png", (std::string)"play_button", 300, 150, 0, true);
+    _reg.addComponent<Sprite>(start_button, (std::string)"textures/play_button/default.png", (std::string)"play_button", 300, 150, 0, 0.f, 0.f, true);
     _reg.addComponent<Button>(start_button, (std::string)"start_game", 1, true);
 
     _reg.addComponent<Position>(label_input, 400.f, 200.f);
@@ -78,6 +109,7 @@ ClientGameHandler::ClientGameHandler(bool debugMode) : _settingsMenu(_reg, _keyb
 
 int ClientGameHandler::run()
 {
+    std::map<Entity, float> voidZoneTimers;
     Uint64 last = SDL_GetPerformanceCounter();
     _input.setControlled(label_input, _keybindsManager);
 
@@ -164,11 +196,24 @@ int ClientGameHandler::run()
             
             // Draw hitboxes for enemies
             for (auto const& [serverEntity, localEntity] : enemyEntities) {
-                if (_reg.hasComponent<Position>(localEntity) && _reg.hasComponent<Sprite>(localEntity)) {
+                if (_reg.hasComponent<Position>(localEntity)) {
                     Position& pos = _reg.getComponent<Position>(localEntity);
-                    Sprite& sprite = _reg.getComponent<Sprite>(localEntity);
-                    // Enemies usually have 50x50 or 60x60 depending on type, but for simple visualization using sprite size + red box
-                    _renderer.drawRect(Rect{(int)pos.x, (int)pos.y, sprite.width, sprite.height}, Color{255, 0, 0, 255}, RenderLayer::OVERLAY, 100);
+                    if (_reg.hasComponent<Sprite>(localEntity)) {
+                        Sprite& sprite = _reg.getComponent<Sprite>(localEntity);
+                        // Enemies usually have 50x50 or 60x60 depending on type, but for simple visualization using sprite size + red box
+                        _renderer.drawRect(Rect{(int)pos.x, (int)pos.y, sprite.width, sprite.height}, Color{255, 0, 0, 255}, RenderLayer::OVERLAY, 100);
+                    } else if (_reg.hasComponent<SpriteSheets>(localEntity)) {
+                         SpriteSheets& sprite = _reg.getComponent<SpriteSheets>(localEntity);
+                         // Boss or animated enemy
+                         // Check config for hitbox? For now rely on sprite dims
+                         // Add offset logic if needed
+                         float hx = pos.x + sprite.offset_x; // Wait, sprite offset is for VISUALS. Hitbox is usually separate?
+                         // But here we draw "Hitbox based on sprite".
+                         // For Boss, Hitbox is config based, but we don't have easy access to that config per-entity here without lookup.
+                         // Let's iterate bosses to find match? Too slow.
+                         // Just draw visual box for now.
+                         _renderer.drawRect(Rect{(int)pos.x, (int)pos.y, sprite.width, sprite.height}, Color{255, 0, 0, 255}, RenderLayer::OVERLAY, 100);
+                    }
                 }
             }
 
@@ -187,6 +232,57 @@ int ClientGameHandler::run()
         });
 
         _slidersys.render(_reg, _renderer);
+        
+        // Custom render for Void Zones
+        std::set<Entity> currentVoidZones;
+        auto spriteArr = _reg.componentArray<Sprite>();
+        auto posArr = _reg.componentArray<Position>();
+        
+        if (spriteArr && posArr) {
+            for (auto e : spriteArr->entities()) {
+                if (!spriteArr->has(e)) continue;
+                
+                Sprite& sp = spriteArr->get(e);
+                if (sp.textureIndex == "obelisk_void") {
+                    currentVoidZones.insert(e);
+                    
+                    if (voidZoneTimers.find(e) == voidZoneTimers.end()) {
+                        voidZoneTimers[e] = 0.0f;
+                    }
+                    voidZoneTimers[e] += static_cast<float>(dt);
+                    
+                    if (posArr->has(e)) {
+                         Position& p = posArr->get(e);
+                         
+                         float t = voidZoneTimers[e];
+                         float maxTime = 1.5f;
+                         float ratio = t / maxTime;
+                         if (ratio > 1.0f) ratio = 1.0f;
+                         
+                         uint8_t alpha = static_cast<uint8_t>(50 + ratio * 150);
+                         
+                         if (t > 1.5f) {
+                             float flash = std::abs(std::sin((t - 1.5f) * 10.0f));
+                             alpha = 200 + static_cast<uint8_t>(flash * 55); 
+                         }
+                         
+                         _renderer.drawCircle((int)p.x, (int)p.y, 50, Color(255, 0, 0, alpha), RenderLayer::GAME, 10, true);
+                         _renderer.drawCircle((int)p.x, (int)p.y, 50, Color(255, 0, 0, 255), RenderLayer::GAME, 11, false);
+                         
+                         sp.visible = false;
+                    }
+                }
+            }
+        }
+        
+        // Cleanup timers
+        for (auto it = voidZoneTimers.begin(); it != voidZoneTimers.end(); ) {
+            if (currentVoidZones.find(it->first) == currentVoidZones.end()) {
+                it = voidZoneTimers.erase(it);
+            } else {
+                ++it;
+            }
+        }
 
         // Draw Player Life Bar
         if (_reg.hasComponent<Stats>(myEntity)) {
@@ -418,7 +514,7 @@ void ClientGameHandler::handleMessages()
                             Entity projectile = _reg.createEntity();
                             _reg.addComponent<Position>(projectile, x, y);
                             _reg.addComponent<Velocity>(projectile, 0.f, -400.f);
-                            _reg.addComponent<SpriteSheets>(projectile, std::string(""), std::string("projectile_player"), size, size, 0, 4, 0, true, true);
+                            _reg.addComponent<SpriteSheets>(projectile, std::string(""), std::string("projectile_player"), size, size, 0, 4, 0, 0.f, 0.f, true, true);
                             
                             projectileEntities[serverProjectileEntity] = projectile;
                             std::cout << "Created player projectile (serverId: " << serverProjectileEntity << ", localId: " << projectile << ") at (" << x << ", " << y << ") scale: " << scale << std::endl;
@@ -426,7 +522,7 @@ void ClientGameHandler::handleMessages()
                             Entity projectile = _reg.createEntity();
                             _reg.addComponent<Position>(projectile, x, y);
                             _reg.addComponent<Velocity>(projectile, 0.f, -400.f);
-                            _reg.addComponent<SpriteSheets>(projectile, std::string(""), std::string("projectile_player"), size, size, 0, 4, 0, true, true);
+                            _reg.addComponent<SpriteSheets>(projectile, std::string(""), std::string("projectile_player"), size, size, 0, 4, 0, 0.f, 0.f, true, true);
                             
                             projectileEntities[serverProjectileEntity] = projectile;
                             std::cout << "Created companion projectile (serverId: " << serverProjectileEntity << ", localId: " << projectile << ") at (" << x << ", " << y << ") scale: " << scale << std::endl;
@@ -439,11 +535,28 @@ void ClientGameHandler::handleMessages()
                             Entity projectile = _reg.createEntity();
                             _reg.addComponent<Position>(projectile, x, y);
                             _reg.addComponent<Velocity>(projectile, 0.f, 200.f);
-                            _reg.addComponent<SpriteSheets>(projectile, std::string(""), std::string("projectile_player"), size, size, 0, 4, 0, true, true);
+                            _reg.addComponent<SpriteSheets>(projectile, std::string(""), std::string("projectile_player"), size, size, 0, 4, 0, 0.f, 0.f, true, true);
                             
                             projectileEntities[serverProjectileEntity] = projectile;
                             std::cout << "Created enemy projectile (serverId: " << serverProjectileEntity << ", localId: " << projectile << ") at (" << x << ", " << y << ") scale: " << scale << std::endl;
                         }
+                    } else if (ownerType == "boss_orb") {
+                        Entity projectile = _reg.createEntity();
+                        _reg.addComponent<Position>(projectile, x, y);
+                        _reg.addComponent<Velocity>(projectile, 0.f, 200.f);
+                        
+                        // Use a simple sprite for boss orb, or fallback to player projectile if texture missing
+                        // We try to load a distinctive texture
+                        _renderer.loadTexture("textures/projectiles/boss_orb.png", "boss_orb");
+                        // If file missing, renderer usually logs error and returns empty or fallback. 
+                        // But let's assume if it fails we can't easily check without helper.
+                        // We will use Sprite, assuming boss_orb.png exists or we use enemy_ship as fallback visual?
+                        // Let's rely on standard projectile_player sprite sheet but maybe frame index? 
+                        // No, let's just make it a Sprite.
+                        _reg.addComponent<Sprite>(projectile, std::string("textures/projectiles/boss_orb.png"), std::string("boss_orb"), size, size, 10, 0.f, 0.f, true);
+                        
+                        projectileEntities[serverProjectileEntity] = projectile;
+                        
                     } else {
                         std::cout << "Invalid ownerType in SHOOT message: " << ownerType << std::endl;
                     }
@@ -451,7 +564,7 @@ void ClientGameHandler::handleMessages()
                 break;
             }
             case OpCode::ENEMY: {
-                if (msg->data.size() >= 12) {
+                if (msg->data.size() >= 28) {
                     Entity serverEntity = 
                         (static_cast<Entity>(msg->data[0]) << 24) |
                         (static_cast<Entity>(msg->data[1]) << 16) |
@@ -461,6 +574,17 @@ void ClientGameHandler::handleMessages()
                     float x = *reinterpret_cast<const float*>(&msg->data[4]);
                     float y = *reinterpret_cast<const float*>(&msg->data[8]);
 
+                    char typeBuf[17];
+                    std::memcpy(typeBuf, &msg->data[12], 16);
+                    typeBuf[16] = '\0';
+                    std::string typeStr = typeBuf;
+
+                    // Clean nulls if any
+                    size_t firstNull = typeStr.find('\0');
+                    if (firstNull != std::string::npos) {
+                        typeStr = typeStr.substr(0, firstNull);
+                    }
+
                     auto it = enemyEntities.find(serverEntity);
                     if (it == enemyEntities.end()) {
                         cleanupServerEntity(serverEntity);
@@ -468,10 +592,47 @@ void ClientGameHandler::handleMessages()
                         Entity localEntity = _reg.createEntity();
                         _reg.addComponent<Position>(localEntity, x, y);
                         _reg.addComponent<Velocity>(localEntity, 0.f, 0.f);
-                        _reg.addComponent<Sprite>(localEntity, std::string("textures/ships/enemy_ship.png"), std::string("enemy_ship"), 50, 50, 0, true);
+
+                        // Check for Boss Config
+                        bool loadedFromConfig = false;
+                        const auto& bosses = _config.getBosses();
+                        for (const auto& [id, config] : bosses) {
+                            if (config.name == typeStr) {
+                                int w = (int)config.visuals.width;
+                                int h = (int)config.visuals.height;
+                                int frames = 1;
+                                
+                                if (config.visuals.animations.count("idle")) {
+                                    const auto& anim = config.visuals.animations.at("idle");
+                                    w = anim.width;
+                                    h = anim.height;
+                                    frames = anim.frame_count;
+                                }
+                                
+                                _reg.addComponent<SpriteSheets>(localEntity, config.visuals.texture_path, config.name, w, h, 0, frames, 4, config.visuals.offset_x, config.visuals.offset_y, true, true);
+                                std::cout << "Created BOSS entity (serverId: " << serverEntity << ") via Config: " << config.name << " Frames: " << frames << std::endl;
+                                loadedFromConfig = true;
+                                break;
+                            }
+                        }
+
+                        if (!loadedFromConfig) {
+                            if (typeStr == "Ancient Obelisk") {
+                                // Boss Fallback (should be covered by config now)
+                                _reg.addComponent<SpriteSheets>(localEntity, std::string("textures/ships/bosses/Obelisk.png"), std::string("Ancient Obelisk"), 240, 160, 0, 14, 4, 0.f, 0.f, true, true);
+                                 std::cout << "Created BOSS entity (serverId: " << serverEntity << ") type: " << typeStr << " (Fallback)" << std::endl;
+                            } else if (typeStr == "void_zone") {
+                                _renderer.loadTexture("textures/ships/bosses/Obelisk_effects.png", "obelisk_void");
+                                _reg.addComponent<Sprite>(localEntity, std::string("textures/ships/bosses/Obelisk_effects.png"), std::string("obelisk_void"), 100, 100, 5, 0.f, 0.f, true);
+                                std::cout << "Created VOID ZONE entity (serverId: " << serverEntity << ")" << std::endl;
+                            } else {
+                                // Default Enemy
+                                _reg.addComponent<Sprite>(localEntity, std::string("textures/ships/enemy_ship.png"), std::string("enemy_ship"), 50, 50, 0, 0.f, 0.f, true);
+                                 std::cout << "Created enemy entity (serverId: " << serverEntity << ") type: " << typeStr << std::endl;
+                            }
+                        }
 
                         enemyEntities[serverEntity] = localEntity;
-                        std::cout << "Created enemy entity (serverId: " << serverEntity << ", localId: " << localEntity << ") at (" << x << ", " << y << ")" << std::endl;
                     } else {
                         Entity localEntity = it->second;
                         _reg.getComponent<Position>(localEntity).x = x;
@@ -559,10 +720,11 @@ void ClientGameHandler::handleMessages()
                              std::cerr << "[ERROR] Failed to load 'textures/vaisseau.png'. Using player_ship." << std::endl;
                              texId = "player_ship"; 
                              _renderer.loadTexture("textures/ships/player_ship.png", "drone_fallback");
-                             _reg.addComponent<Sprite>(localEntity, std::string("textures/ships/player_ship.png"), std::string("drone_fallback"), 40, 40, 10, true);
+                             _reg.addComponent<Sprite>(localEntity, std::string("textures/ships/player_ship.png"), std::string("drone_fallback"), 40, 40, 10, 0.f, 0.f, true);
                         } else {
                              std::cout << "[DEBUG] Loaded 'textures/vaisseau.png' as " << texId << std::endl;
-                             _reg.addComponent<Sprite>(localEntity, std::string("textures/vaisseau.png"), std::string("drone"), 40, 40, 10, true);
+                             _reg.addComponent<Sprite>(localEntity, std::string("textures/vaisseau.png"), std::string("drone"), 40, 40, 10, 0.f, 0.f, true);
+                             std::cout << "Created COMPANION entity (serverId: " << serverEntity << ")" << std::endl;
                         }
                         
                         companionEntities[serverEntity] = localEntity;
@@ -676,7 +838,7 @@ void ClientGameHandler::handlePlayerPacket(const DecodedMessage& msg)
         int sprH = (int)_config.getPlayerConfig().hitbox.sprite_height;
         auto& pStats = _config.getPlayerConfig().stats;
 
-        _reg.addComponent<SpriteSheets>(localEntity, std::string(""), selectedSkin, sprW, sprH, 1, 3, 0, true, false);
+        _reg.addComponent<SpriteSheets>(localEntity, std::string(""), selectedSkin, sprW, sprH, 1, 3, 0, 0.f, 0.f, true, false);
         _reg.addComponent<Stats>(localEntity, 
             pStats.health, 
             pStats.max_health, 
@@ -778,8 +940,8 @@ void ClientGameHandler::showUpgradeMenu(const std::vector<std::string>& ids)
             // 1. Background/Button (Invisible clickable area or Texture)
             Entity btn = _reg.createEntity();
             _reg.addComponent<Position>(btn, x, startY);
-            // Upgrade card background
-            _reg.addComponent<Sprite>(btn, (std::string)"textures/upgrades/border.png", (std::string)"upgrade_border", 220, 300, 0, true);
+            // Upgrade card background - Z Index 20
+            _reg.addComponent<Sprite>(btn, (std::string)"textures/upgrades/border.png", (std::string)"upgrade_border", 220, 300, 20, 0.f, 0.f, true);
             
             std::string btnId = "upgrade_" + std::to_string(i);
             _reg.addComponent<Button>(btn, btnId, 1, true);
@@ -790,7 +952,7 @@ void ClientGameHandler::showUpgradeMenu(const std::vector<std::string>& ids)
             Entity nameLbl = _reg.createEntity();
             // Padding added (x+35, y+40)
             _reg.addComponent<Position>(nameLbl, x + 35, startY + 40);
-            _reg.addComponent<Label>(nameLbl, data.name, (std::string)"font/josefin-sans/JosefinSans-Regular.ttf", (std::string)"default_font_medium", Color(255, 255, 255), 0, true);
+            _reg.addComponent<Label>(nameLbl, data.name, (std::string)"font/josefin-sans/JosefinSans-Regular.ttf", (std::string)"default_font_medium", Color(255, 255, 255), 21, true);
             upgradeMenuEntities.push_back(nameLbl);
             
             // 3. Description (Multi-line word wrap)
@@ -816,7 +978,7 @@ void ClientGameHandler::showUpgradeMenu(const std::vector<std::string>& ids)
             for (const auto& line : lines) {
                 Entity lineLbl = _reg.createEntity();
                 _reg.addComponent<Position>(lineLbl, x + 35, descY);
-                _reg.addComponent<Label>(lineLbl, line, (std::string)"font/josefin-sans/JosefinSans-Regular.ttf", (std::string)"default_font_tiny", Color(200, 200, 200), 0, true);
+                _reg.addComponent<Label>(lineLbl, line, (std::string)"font/josefin-sans/JosefinSans-Regular.ttf", (std::string)"default_font_tiny", Color(200, 200, 200), 21, true);
                 upgradeMenuEntities.push_back(lineLbl);
                 descY += 20;
             }
@@ -837,7 +999,7 @@ void ClientGameHandler::showUpgradeMenu(const std::vector<std::string>& ids)
             Entity rarityLbl = _reg.createEntity();
             // Bottom (300 height) - 60 padding = 240
             _reg.addComponent<Position>(rarityLbl, x + 35, startY + 240);
-            _reg.addComponent<Label>(rarityLbl, displayRarity, (std::string)"font/josefin-sans/JosefinSans-Regular.ttf", (std::string)"default_font_tiny", rarityColor, 0, true);
+            _reg.addComponent<Label>(rarityLbl, displayRarity, (std::string)"font/josefin-sans/JosefinSans-Regular.ttf", (std::string)"default_font_tiny", rarityColor, 21, true);
             upgradeMenuEntities.push_back(rarityLbl);
              
             _buttonsys.registerHandler(btnId, [this, i](Registry& r, Entity e) {

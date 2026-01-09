@@ -108,9 +108,10 @@ class MessageFactory {
         MessageData encodeMessageMovementPlayer(Entity entity, float x, float y) const;
         MessageData encodePlayerInfo(uint32_t playerId, Entity entity, float x, float y) const;
         MessageData encodeMessageServer(std::string type, Entity entity, Entity entity_changes) const;
+        MessageData encodeMessageEnemy(Entity entity, float x, float y, const std::string& type) const;
         MessageData encodeMessageMove(EntityType type, Entity entity, float x, float y) const;
+
         MessageData encodeMessageDeath(EntityType type, Entity entity) const;
-        MessageData encodeMessageEnemy(Entity entity, float x, float y) const;
         MessageData encodeMessageProjectile(Entity projectileEntity, Entity parentEntity, const std::string& ownerType, float x, float y, float scale) const;
         MessageData encodeMessageUpdateWeapon(Entity entity, int damage, int nbBullets, float fireRate) const;
         MessageData encodeMessageMoveInput(Entity entity, float vx, float vy) const;

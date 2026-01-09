@@ -33,7 +33,7 @@ std::array<MessageFactory::Message, 256> MessageFactory::initMessageTable()
     table[CRASH] = {1, Priority::CRITICAL}; 
     table[PLAYER] = {16, Priority::CRITICAL};
     table[LINK] = {4, Priority::CRITICAL};
-    table[ENEMY] = {12, Priority::HIGH};
+    table[ENEMY] = {28, Priority::HIGH};
     table[UPGRADE_OPTIONS] = {VARIABLE_LEN, Priority::MEDIUM};
     table[UPGRADE_SELECT] = {1, Priority::MEDIUM};
     table[UPDATE_WEAPON] = {16, Priority::HIGH};
@@ -276,7 +276,7 @@ MessageData MessageFactory::encodeMessageMoveInput(Entity entity, float vx, floa
     return data;
 }
 
-MessageData MessageFactory::encodeMessageEnemy(Entity entity, float x, float y) const
+MessageData MessageFactory::encodeMessageEnemy(Entity entity, float x, float y, const std::string& type) const
 {
     MessageData data;
     
@@ -290,6 +290,12 @@ MessageData MessageFactory::encodeMessageEnemy(Entity entity, float x, float y) 
     
     const uint8_t* py = reinterpret_cast<const uint8_t*>(&y);
     data.insert(data.end(), py, py + sizeof(float));
+
+    std::string fixedType = type;
+    fixedType.resize(16, '\0');
+    for (char c : fixedType) {
+        data.push_back(static_cast<uint8_t>(c));
+    }
     
     return data;
 }

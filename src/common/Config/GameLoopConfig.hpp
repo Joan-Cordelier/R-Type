@@ -83,6 +83,60 @@ struct GameLoopSettings {
     int min_players_to_start = 1;
 };
 
+struct BossPhase {
+    int id;
+    std::string name;
+    int trigger_health_percentage;
+    std::vector<std::string> patterns;
+    bool loop_patterns = false;
+    std::string visual_effect;
+};
+
+struct BossAttackPattern {
+    std::string id;
+    std::string type;
+    std::string projectile_id;
+    int count;
+    float spread_angle;
+    float duration;
+    float damage;
+    float speed;
+    float warning_time;
+    std::string animation_trigger;
+    std::string texture_override;
+};
+
+struct BossAnimation {
+    int start_x;
+    int start_y;
+    int width;
+    int height;
+    int frame_count;
+    float frame_duration;
+    bool loop;
+};
+
+struct BossVisuals {
+    std::string texture_path;
+    float scale = 1.0f;
+    float width = 100.0f;
+    float height = 100.0f;
+    float offset_x = 0.0f;
+    float offset_y = 0.0f;
+    std::map<std::string, BossAnimation> animations;
+};
+
+struct BossConfig {
+    std::string id;
+    std::string name;
+    int health;
+    int max_health;
+    float speed;
+    BossVisuals visuals;
+    std::vector<BossPhase> phases;
+    std::vector<BossAttackPattern> patterns;
+};
+
 class GameLoopConfig {
 public:
     GameLoopConfig();
@@ -90,6 +144,7 @@ public:
     
     bool loadFromFile(const std::string& filepath);
     bool loadUpgradesFromFile(const std::string& filepath);
+    bool loadBossesFromDirectory(const std::string& dirPath);
     
     // Getters
     const GameLoopSettings& getGameLoopSettings() const { return _gameLoop; }
@@ -98,6 +153,7 @@ public:
     const ProjectilesConfig& getProjectilesConfig() const { return _projectiles; }
     const SystemsConfig& getSystemsConfig() const { return _systems; }
     const std::map<std::string, EnemyTypeConfig>& getEnemyTypes() const { return _enemyTypes; }
+    const std::map<std::string, BossConfig>& getBosses() const { return _bosses; }
     const std::vector<LevelConfig>& getLevels() const { return _levels; }
     const std::vector<UpgradeData>& getUpgrades() const { return _upgrades; }
     
@@ -115,6 +171,7 @@ private:
     ProjectilesConfig _projectiles;
     SystemsConfig _systems;
     std::map<std::string, EnemyTypeConfig> _enemyTypes;
+    std::map<std::string, BossConfig> _bosses;
     std::vector<LevelConfig> _levels;
     std::vector<UpgradeData> _upgrades;
 };

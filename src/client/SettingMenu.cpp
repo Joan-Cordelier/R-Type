@@ -19,34 +19,34 @@ SettingMenu::SettingMenu(Registry& reg, KeybindsManager& kbManager) : keybindsMa
     reg.addComponent<Position>(DaltonianSlider, 300.0f, 170.0f);
 
     reg.addComponent<Position>(DaltonianMode, 275.0f, 100.0f);
-    reg.addComponent<SpriteSheets>(DaltonianMode, std::string(""), std::string("daltonian_btn"), 200, 50, 0, 3, 0, false, false);
-    reg.addComponent<Sprite>(DaltonianMode, std::string("textures/colorblind_btn/colorblindbtn.png"), std::string("daltonian_btn"), 200, 50, 0, false); //only for button system to work
+    reg.addComponent<SpriteSheets>(DaltonianMode, std::string(""), std::string("daltonian_btn"), 200, 50, 0, 3, 0, 0.f, 0.f, false, false);
+    reg.addComponent<Sprite>(DaltonianMode, std::string("textures/colorblind_btn/colorblindbtn.png"), std::string("daltonian_btn"), 200, 50, 0, 0.f, 0.f, false); //only for button system to work
     reg.addComponent<Button>(DaltonianMode, std::string("DaltonianModeButton"), 1, false);
 
     reg.addComponent<Position>(MoveUpKeybindBtn, 1000.0f, 170.0f);
-    reg.addComponent<SpriteSheets>(MoveUpKeybindBtn, std::string(""), std::string("keybinds"), 50, 50, 38, 111, 0, false, false);
-    reg.addComponent<Sprite>(MoveUpKeybindBtn, std::string("textures/keybinds_btn/colorblindbtn.png"), std::string("daltonian_btn"), 50, 50, 0, false); //only for button system to work
+    reg.addComponent<SpriteSheets>(MoveUpKeybindBtn, std::string(""), std::string("keybinds"), 50, 50, 38, 111, 0, 0.f, 0.f, false, false);
+    reg.addComponent<Sprite>(MoveUpKeybindBtn, std::string("textures/keybinds_btn/colorblindbtn.png"), std::string("daltonian_btn"), 50, 50, 0, 0.f, 0.f, false); //only for button system to work
     reg.addComponent<Button>(MoveUpKeybindBtn, std::string("MoveUpKeybindButton"), 1, false);
     reg.addComponent<Position>(MoveUpLabel, 860.0f, 180.0f);
     reg.addComponent<Label>(MoveUpLabel, std::string("Move Up"), std::string(""), std::string("default_font_small"), Color(255, 255, 255), 1, false);
 
     reg.addComponent<Position>(MoveDownKeybindBtn, 1000.0f, 240.0f);
-    reg.addComponent<SpriteSheets>(MoveDownKeybindBtn, std::string(""), std::string("keybinds"), 50, 50, 34, 111, 0, false, false);
-    reg.addComponent<Sprite>(MoveDownKeybindBtn, std::string("textures/keybinds_btn/colorblindbtn.png"), std::string("daltonian_btn"), 50, 50, 0, false); //only for button system to work
+    reg.addComponent<SpriteSheets>(MoveDownKeybindBtn, std::string(""), std::string("keybinds"), 50, 50, 34, 111, 0, 0.f, 0.f, false, false);
+    reg.addComponent<Sprite>(MoveDownKeybindBtn, std::string("textures/keybinds_btn/colorblindbtn.png"), std::string("daltonian_btn"), 50, 50, 0, 0.f, 0.f, false); //only for button system to work
     reg.addComponent<Button>(MoveDownKeybindBtn, std::string("MoveDownKeybindButton"), 1, false);
     reg.addComponent<Position>(MoveDownLabel, 860.0f, 250.0f);
     reg.addComponent<Label>(MoveDownLabel, std::string("Move Down"), std::string(""), std::string("default_font_small"), Color(255, 255, 255), 1, false);
 
     reg.addComponent<Position>(MoveLeftKeybindBtn, 1000.0f, 310.0f);
-    reg.addComponent<SpriteSheets>(MoveLeftKeybindBtn, std::string(""), std::string("keybinds"), 50, 50, 16, 111, 0, false, false);
-    reg.addComponent<Sprite>(MoveLeftKeybindBtn, std::string("textures/keybinds_btn/colorblindbtn.png"), std::string("daltonian_btn"), 50, 50, 0, false); //only for button system to work
+    reg.addComponent<SpriteSheets>(MoveLeftKeybindBtn, std::string(""), std::string("keybinds"), 50, 50, 16, 111, 0, 0.f, 0.f, false, false);
+    reg.addComponent<Sprite>(MoveLeftKeybindBtn, std::string("textures/keybinds_btn/colorblindbtn.png"), std::string("daltonian_btn"), 50, 50, 0, 0.f, 0.f, false); //only for button system to work
     reg.addComponent<Button>(MoveLeftKeybindBtn, std::string("MoveLeftKeybindButton"), 1, false);
     reg.addComponent<Position>(MoveLeftLabel, 860.0f, 320.0f);
     reg.addComponent<Label>(MoveLeftLabel, std::string("Move Left"), std::string(""), std::string("default_font_small"), Color(255, 255, 255), 1, false);
 
     reg.addComponent<Position>(MoveRightKeybindBtn, 1000.0f, 380.0f);
-    reg.addComponent<SpriteSheets>(MoveRightKeybindBtn, std::string(""), std::string("keybinds"), 50, 50, 19, 111, 0, false, false);
-    reg.addComponent<Sprite>(MoveRightKeybindBtn, std::string("textures/keybinds_btn/colorblindbtn.png"), std::string("daltonian_btn"), 50, 50, 0, false); //only for button system to work
+    reg.addComponent<SpriteSheets>(MoveRightKeybindBtn, std::string(""), std::string("keybinds"), 50, 50, 19, 111, 0, 0.f, 0.f, false, false);
+    reg.addComponent<Sprite>(MoveRightKeybindBtn, std::string("textures/keybinds_btn/colorblindbtn.png"), std::string("daltonian_btn"), 50, 50, 0, 0.f, 0.f, false); //only for button system to work
     reg.addComponent<Button>(MoveRightKeybindBtn, std::string("MoveRightKeybindButton"), 1, false);
     reg.addComponent<Position>(MoveRightLabel, 860.0f, 390.0f);
     reg.addComponent<Label>(MoveRightLabel, std::string("Move Right"), std::string(""), std::string("default_font_small"), Color(255, 255, 255), 1, false);

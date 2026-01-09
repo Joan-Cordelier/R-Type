@@ -64,6 +64,15 @@ GameHandler::GameHandler(SessionManager& session, std::atomic<bool>& running, co
         LOG_INFO("Loaded upgrades from yaml/upgrades.yaml");
     }
 
+    // Load Bosses configuration
+    std::string bossDir = "yaml/enemies";
+    if (!_config.loadBossesFromDirectory(bossDir)) {
+        if (!_config.loadBossesFromDirectory("../" + bossDir)) {
+             LOG_WARN("Could not load bosses from " + bossDir);
+        }
+    }
+    enemySystem.setBosses(_config.getBosses());
+
     // Set up message handler callbacks
     _messageHandler.setOnPlayerConnect([this](const Player& player) {
         onPlayerConnect(player);
@@ -509,12 +518,17 @@ void GameHandler::initNewEnemyEntities(const std::vector<Entity>& newEnemyEntiti
         if (!reg.hasComponent<Position>(enemyEntity)) continue;
         
         Position& pos = reg.getComponent<Position>(enemyEntity);
-        MessageData payload = MessageFactory::getInstance().encodeMessageEnemy(enemyEntity, pos.x, pos.y);
+        std::string type = "basic_enemy";
+        if (reg.hasComponent<Enemy>(enemyEntity)) {
+            type = reg.getComponent<Enemy>(enemyEntity).type;
+        }
+
+        MessageData payload = MessageFactory::getInstance().encodeMessageEnemy(enemyEntity, pos.x, pos.y, type);
         PreparedMessage msg = MessageFactory::getInstance().createMessage(OpCode::ENEMY, payload);
         
         for (const auto& [playerId, playerEntity] : playerEntities) {
             _session.sendUdp(playerId, msg);
-            LOG_DEBUG("Sent new enemy entity " + std::to_string(enemyEntity) + " to player " + std::to_string(playerId));
+            LOG_DEBUG("Sent new enemy entity " + std::to_string(enemyEntity) + " (" + type + ") to player " + std::to_string(playerId));
         }
     }
 }
@@ -547,7 +561,12 @@ void GameHandler::onPlayerLinked(uint32_t playerId)
         if (!reg.hasComponent<Position>(enemyEntity)) continue;
         
         Position& pos = reg.getComponent<Position>(enemyEntity);
-        MessageData payload = factory.encodeMessageEnemy(enemyEntity, pos.x, pos.y);
+        std::string type = "basic_enemy";
+        if (reg.hasComponent<Enemy>(enemyEntity)) {
+            type = reg.getComponent<Enemy>(enemyEntity).type;
+        }
+
+        MessageData payload = factory.encodeMessageEnemy(enemyEntity, pos.x, pos.y, type);
         PreparedMessage msg = factory.createMessage(OpCode::ENEMY, payload);
         _session.sendUdp(playerId, msg);
         LOG_DEBUG("Sent existing enemy " + std::to_string(enemyEntity) + " to newly linked player " + std::to_string(playerId));
@@ -678,10 +697,33 @@ void GameHandler::checkPlayerCollisions()
     // Notify deaths
     for (auto player : playersToKill) {
         sendDestroyedPlayerToAllPlayers(player);
-        // Do NOT destroy player entity here to allow respawn or game over handling
+        // Do NOT destroy player entity here to allow respawn or game over handling (kept for tracking disconnected/dead state)
+
+        // Find and remove companions associated with this player
+        // Since we don't have a direct reverse lookup for parents easily without iterating, we iterate all parents.
+        // Or if we track companions in a map, we could use that. ClientGameHandler has it, Server might not.
+        // We will iterate view.
+        
+        std::vector<Entity> companionsToRemove;
+        for (auto e : reg.viewEntitiesWith<Parent>()) {
+             if (reg.getComponent<Parent>(e).entity == player) {
+                 companionsToRemove.push_back(e);
+             }
+        }
+        
+        auto& factory = MessageFactory::getInstance();
+        for (auto companion : companionsToRemove) {
+             // Send death message for companion
+             MessageData payload = factory.encodeMessageDeath(EntityType::COMPANION, companion);
+             PreparedMessage msg = factory.createMessage(OpCode::DEATH, payload);
+             for (const auto& [pid, entity] : playerEntities) {
+                 _session.sendUdp(pid, msg);
+             }
+             reg.destroyEntity(companion);
+        }
+    }
         // Reset position or something? 
         // For now just notify death.
-    }
 }
 
 void GameHandler::onUpgradeSelect(uint32_t playerId, uint8_t index)

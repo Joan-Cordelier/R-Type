@@ -1,6 +1,8 @@
 #include "GameLoopConfig.hpp"
 #include <fstream>
 #include <iostream>
+#include <dirent.h>
+#include <sys/types.h>
 
 GameLoopConfig::GameLoopConfig()
 {
@@ -93,6 +95,7 @@ bool GameLoopConfig::loadFromFile(const std::string& filepath)
                         WaveConfig wave;
                         if (waveNode["id"]) wave.id = waveNode["id"].as<int>();
                         if (waveNode["start_delay"]) wave.start_delay = waveNode["start_delay"].as<float>();
+                        if (waveNode["boss"]) wave.boss_id = waveNode["boss"].as<std::string>();
                         
                         if (waveNode["groups"]) {
                             auto groupsNode = waveNode["groups"];
@@ -228,6 +231,117 @@ bool GameLoopConfig::loadUpgradesFromFile(const std::string& filepath)
         return true;
     } catch (const YAML::Exception& e) {
         std::cerr << "Failed to parse upgrades config file: " << e.what() << std::endl;
+        return false;
+    }
+}
+
+bool GameLoopConfig::loadBossesFromDirectory(const std::string& dirPath)
+{
+    DIR* dir;
+    struct dirent* ent;
+    
+    if ((dir = opendir(dirPath.c_str())) != NULL) {
+        while ((ent = readdir(dir)) != NULL) {
+            std::string filename = ent->d_name;
+            if (filename.length() > 5 && filename.substr(filename.length() - 5) == ".yaml") {
+                std::string filepath = dirPath + "/" + filename;
+                try {
+                    YAML::Node config = YAML::LoadFile(filepath);
+                    if (config["enemies"]) {
+                        auto enemies = config["enemies"];
+                        for (const auto& enemy : enemies) {
+                            if (enemy["type"] && enemy["type"].as<std::string>() == "boss") {
+                                BossConfig boss;
+                                if (enemy["id"]) boss.id = enemy["id"].as<std::string>();
+                                if (enemy["name"]) boss.name = enemy["name"].as<std::string>();
+                                if (enemy["stats"]) {
+                                    if (enemy["stats"]["health"]) boss.health = enemy["stats"]["health"].as<int>();
+                                    if (enemy["stats"]["max_health"]) boss.max_health = enemy["stats"]["max_health"].as<int>();
+                                    if (enemy["stats"]["speed"]) boss.speed = enemy["stats"]["speed"].as<float>();
+                                }
+                                
+                                if (enemy["visuals"]) {
+                                    auto visuals = enemy["visuals"];
+                                    if (visuals["texture_path"]) boss.visuals.texture_path = visuals["texture_path"].as<std::string>();
+                                    if (visuals["scale"]) boss.visuals.scale = visuals["scale"].as<float>();
+                                    if (visuals["offset_x"]) boss.visuals.offset_x = visuals["offset_x"].as<float>();
+                                    if (visuals["offset_y"]) boss.visuals.offset_y = visuals["offset_y"].as<float>();
+
+                                    if (visuals["collider_box"]) {
+                                        auto collider = visuals["collider_box"];
+                                        if (collider["width"]) boss.visuals.width = collider["width"].as<float>();
+                                        if (collider["height"]) boss.visuals.height = collider["height"].as<float>();
+                                    }
+                                    
+                                    if (visuals["animations"]) {
+                                        auto anims = visuals["animations"];
+                                        for (YAML::const_iterator it = anims.begin(); it != anims.end(); ++it) {
+                                            std::string key = it->first.as<std::string>();
+                                            YAML::Node animNode = it->second;
+                                            BossAnimation anim;
+                                            if (animNode["start_x"]) anim.start_x = animNode["start_x"].as<int>();
+                                            if (animNode["start_y"]) anim.start_y = animNode["start_y"].as<int>();
+                                            if (animNode["width"]) anim.width = animNode["width"].as<int>();
+                                            if (animNode["height"]) anim.height = animNode["height"].as<int>();
+                                            if (animNode["frame_count"]) anim.frame_count = animNode["frame_count"].as<int>();
+                                            if (animNode["frame_duration"]) anim.frame_duration = animNode["frame_duration"].as<float>();
+                                            if (animNode["loop"]) anim.loop = animNode["loop"].as<bool>();
+                                            boss.visuals.animations[key] = anim;
+                                        }
+                                    }
+                                }
+                                
+                                if (enemy["behavior"]) {
+                                    auto behaviors = enemy["behavior"];
+                                    if (behaviors["phases"]) {
+                                        for (const auto& phaseNode : behaviors["phases"]) {
+                                            BossPhase phase;
+                                            if (phaseNode["id"]) phase.id = phaseNode["id"].as<int>();
+                                            if (phaseNode["name"]) phase.name = phaseNode["name"].as<std::string>();
+                                            if (phaseNode["trigger_health_percentage"]) phase.trigger_health_percentage = phaseNode["trigger_health_percentage"].as<int>();
+                                            if (phaseNode["visual_effect"]) phase.visual_effect = phaseNode["visual_effect"].as<std::string>();
+                                            if (phaseNode["loop_patterns"]) phase.loop_patterns = phaseNode["loop_patterns"].as<bool>();
+                                            
+                                            if (phaseNode["patterns"]) {
+                                                for (const auto& pat : phaseNode["patterns"]) {
+                                                    phase.patterns.push_back(pat.as<std::string>());
+                                                }
+                                            }
+                                            boss.phases.push_back(phase);
+                                        }
+                                    }
+                                    if (behaviors["attack_patterns"]) {
+                                        for (const auto& patNode : behaviors["attack_patterns"]) {
+                                            BossAttackPattern pattern;
+                                            if (patNode["id"]) pattern.id = patNode["id"].as<std::string>();
+                                            if (patNode["type"]) pattern.type = patNode["type"].as<std::string>();
+                                            if (patNode["projectile_id"]) pattern.projectile_id = patNode["projectile_id"].as<std::string>();
+                                            if (patNode["count"]) pattern.count = patNode["count"].as<int>();
+                                            if (patNode["duration"]) pattern.duration = patNode["duration"].as<float>();
+                                            if (patNode["damage"]) pattern.damage = patNode["damage"].as<float>();
+                                            if (patNode["speed"]) pattern.speed = patNode["speed"].as<float>();
+                                            if (patNode["warning_time"]) pattern.warning_time = patNode["warning_time"].as<float>();
+                                            if (patNode["animation_trigger"]) pattern.animation_trigger = patNode["animation_trigger"].as<std::string>();
+                                            
+                                            boss.patterns.push_back(pattern);
+                                        }
+                                    }
+                                }
+                                
+                                _bosses[boss.id] = boss;
+                                std::cout << "Loaded boss: " << boss.name << " (" << boss.id << ")" << std::endl;
+                            }
+                        }
+                    }
+                } catch (const YAML::Exception& e) {
+                    std::cerr << "Failed to parse boss config file: " << filepath << " " << e.what() << std::endl;
+                }
+            }
+        }
+        closedir(dir);
+        return true;
+    } else {
+        std::cerr << "Could not open directory: " << dirPath << std::endl;
         return false;
     }
 }
