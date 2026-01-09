@@ -30,6 +30,8 @@
 #include <map>
 #include <set>
 #include <atomic>
+#include <mutex>
+#include <vector>
 
 class GameHandler {
 
@@ -54,6 +56,10 @@ private:
     bool _waitingForUpgrades = false;
     std::vector<UpgradeData> _offeredUpgrades;
     std::set<uint32_t> _playersSelectedUpgrade;
+    
+    std::mutex _disconnectionMutex;
+    std::vector<uint32_t> _pendingDisconnections;
+    std::vector<Player> _pendingPlayers;
 
 public:
     GameHandler(SessionManager& session, std::atomic<bool>& running, const std::string& configPath);
@@ -67,7 +73,7 @@ private:
     void processMessages();
     void updateGame(float deltaTime);
     void onPlayerConnect(const Player& player);
-    void onPlayerDisconnect(const Player& player);
+    void onPlayerDisconnect(uint32_t playerId);
     void onPlayerMove(const MoveData& moveData);
     void onPlayerShoot(const ShootData& shootData);
     void updateEnemyPosition(const std::vector<Entity>& enemyEntities);

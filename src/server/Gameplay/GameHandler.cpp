@@ -128,7 +128,8 @@ GameHandler::GameHandler(SessionManager& session, std::atomic<bool>& running, co
     
     // Set up session manager callback for disconnections
     _session.setOnPlayerDisconnect([this](const Player& player) {
-        onPlayerDisconnect(player);
+        std::lock_guard<std::mutex> lock(_disconnectionMutex);
+        _pendingDisconnections.push_back(player.id);
     });
     
     ScoreEntity = reg.createEntity();
@@ -254,6 +255,15 @@ void GameHandler::sendUpdatedPositionToPlayer(uint32_t playerId)
 
 void GameHandler::processMessages()
 {
+    // Process pending disconnections
+    {
+        std::lock_guard<std::mutex> lock(_disconnectionMutex);
+        for (uint32_t pid : _pendingDisconnections) {
+            onPlayerDisconnect(pid);
+        }
+        _pendingDisconnections.clear();
+    }
+
     // Process up to a maximum number of messages per frame to avoid starvation
     constexpr int maxMessagesPerFrame = 100;
     int processed = 0;
@@ -405,6 +415,12 @@ void GameHandler::sendDestroyedPlayerToAllPlayers(Entity player)
 
 void GameHandler::onPlayerConnect(const Player& player)
 {
+    if (_waitingForUpgrades) {
+        LOG_INFO("Player " + std::to_string(player.id) + " connected during upgrade phase. Added to pending list.");
+        _pendingPlayers.push_back(player);
+        return;
+    }
+
     const auto& pStats = _config.getPlayerConfig().stats;
     Entity playerEntity = reg.createEntity();
     reg.addComponent<Position>(playerEntity, _config.getPlayerConfig().initial_x, _config.getPlayerConfig().initial_y);
@@ -482,9 +498,9 @@ void GameHandler::onPlayerConnect(const Player& player)
     LOG_INFO("Player " + std::to_string(player.id) + " entity created and synced with " + std::to_string(playerEntities.size() - 1) + " other players");
 }
 
-void GameHandler::onPlayerDisconnect(const Player& player)
+void GameHandler::onPlayerDisconnect(uint32_t playerId)
 {
-    auto it = playerEntities.find(player.id);
+    auto it = playerEntities.find(playerId);
     if (it != playerEntities.end()) {
         Entity playerEntity = it->second;
 
@@ -500,7 +516,7 @@ void GameHandler::onPlayerDisconnect(const Player& player)
              MessageData payload = factory.encodeMessageDeath(EntityType::COMPANION, companion);
              PreparedMessage msg = factory.createMessage(OpCode::DEATH, payload);
              for (const auto& [pid, entity] : playerEntities) {
-                 if (pid != player.id) {
+                 if (pid != playerId) {
                      _session.sendUdp(pid, msg);
                  }
              }
@@ -509,15 +525,21 @@ void GameHandler::onPlayerDisconnect(const Player& player)
 
         reg.destroyEntity(playerEntity);
         playerEntities.erase(it);
-        LOG_INFO("Player " + std::to_string(player.id) + " entity destroyed");
+        LOG_INFO("Player " + std::to_string(playerId) + " entity destroyed");
 
         if (_waitingForUpgrades) {
-            _playersSelectedUpgrade.erase(player.id);
+            _playersSelectedUpgrade.erase(playerId);
             if (playerEntities.empty() || _playersSelectedUpgrade.size() >= playerEntities.size()) {
                 _waitingForUpgrades = false;
                 _offeredUpgrades.clear();
                 enemySystem.setWavePaused(false);
                 LOG_INFO("All remaining players selected upgrades. Resuming wave.");
+
+                // Process pending players
+                for (const auto& pending : _pendingPlayers) {
+                    onPlayerConnect(pending);
+                }
+                _pendingPlayers.clear();
             }
         }
     }
@@ -883,6 +905,12 @@ void GameHandler::onUpgradeSelect(uint32_t playerId, uint8_t index)
         _offeredUpgrades.clear();
         enemySystem.setWavePaused(false);
         LOG_INFO("All players selected upgrades. Resuming wave.");
+
+        // Process pending players
+        for (const auto& pending : _pendingPlayers) {
+            onPlayerConnect(pending);
+        }
+        _pendingPlayers.clear();
     } else {
         LOG_INFO("Waiting for " + std::to_string(playerEntities.size() - _playersSelectedUpgrade.size()) + " more players.");
     }

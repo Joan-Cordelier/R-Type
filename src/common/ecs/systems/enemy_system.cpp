@@ -311,6 +311,12 @@ void EnemySystem::updateBoss(Registry& reg, float dt)
         }
     }
     
+    // If boss died during collision check, stop updating
+    if (!reg.hasComponent<Enemy>(_currentBossEntity)) {
+        _bossActive = false;
+        return;
+    }
+
     if (_currentBossPhaseIndex < (int)config.phases.size()) {
          if (_currentBossPhaseIndex + 1 < (int)config.phases.size()) {
              if (hpPercent <= config.phases[_currentBossPhaseIndex + 1].trigger_health_percentage) {
