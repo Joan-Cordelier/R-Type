@@ -267,10 +267,19 @@ bool GameLoopConfig::loadBossesFromDirectory(const std::string& dirPath)
                                     if (visuals["offset_x"]) boss.visuals.offset_x = visuals["offset_x"].as<float>();
                                     if (visuals["offset_y"]) boss.visuals.offset_y = visuals["offset_y"].as<float>();
 
+                                    // Explicit visual dimensions
+                                    if (visuals["width"]) boss.visuals.width = visuals["width"].as<float>();
+                                    if (visuals["height"]) boss.visuals.height = visuals["height"].as<float>();
+
                                     if (visuals["collider_box"]) {
                                         auto collider = visuals["collider_box"];
-                                        if (collider["width"]) boss.visuals.width = collider["width"].as<float>();
-                                        if (collider["height"]) boss.visuals.height = collider["height"].as<float>();
+                                        // Load collider dimensions
+                                        if (collider["width"]) boss.visuals.collider_width = collider["width"].as<float>();
+                                        if (collider["height"]) boss.visuals.collider_height = collider["height"].as<float>();
+                                        
+                                        // Fallback: Use collider dimensions if visual dimensions are missing
+                                        if (!visuals["width"] && collider["width"]) boss.visuals.width = boss.visuals.collider_width;
+                                        if (!visuals["height"] && collider["height"]) boss.visuals.height = boss.visuals.collider_height;
                                     }
                                     
                                     if (visuals["animations"]) {

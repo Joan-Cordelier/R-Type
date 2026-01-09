@@ -13,58 +13,37 @@ void EnemySystem::update(Registry& reg, float dt) {
     projectileColliding.clear();
     deadEnemyEntities.clear();
     
-    // Existing enemy logic (shooting, movement limits, collision)
     for (auto e : reg.viewEntitiesWith<Enemy, Position, Velocity>()) {
         if (_bossActive && e == _currentBossEntity) continue;
         
         Enemy& enemy = reg.getComponent<Enemy>(e);
         
-        // VOID ZONE LOGIC (Updated for circle drawing request)
         if (enemy.type == "void_zone") {
             enemy.time_alive += dt;
             
-            // Warning time hardcoded or derived? 
-            // In executePattern we didn't store it in component.
-            // Let's assume 1.5s warning (consistent with 'spawn_void_zones')
             float warningTime = 1.5f;
             
             if (enemy.time_alive < warningTime) {
-                // Warning phase - do nothing (client handles visual)
                 continue; 
             }
             
-            // After warning, it deals damage.
-            // Check collision with players
             Position& pos = reg.getComponent<Position>(e);
             
             for (auto playerEntity : reg.viewEntitiesWith<Stats, Position>()) {
                  Position& pPos = reg.getComponent<Position>(playerEntity);
-                 // Circle collision (Radius ~40?)
-                 float dx = pPos.x - pos.x; // pos is center for void_zone? Check executePattern
+                 float dx = pPos.x - pos.x;
                  float dy = pPos.y - pos.y;
                  float distSq = dx*dx + dy*dy;
                  
-                 // If radius is 50 (diameter 100), distSq < 2500
-                 // But pos from executePattern is random, and Render uses it as center?
-                 // executePattern sets X/Y.
-                 
                  if (distSq < 2500) { // Radius 50
-                     // Deal damage periodically?
-                     // enemy.timeSinceLastShot reused for damage tick
                      if (enemy.timeSinceLastShot >= 0.5f) { // Tick every 0.5s
                          auto& stats = reg.getComponent<Stats>(playerEntity);
-                         stats.hp -= enemy.damage; // Damage from component
+                         stats.hp -= enemy.damage;
                          enemy.timeSinceLastShot = 0.0f;
-                         
-                         // Notify damage (reuse projectile hit logic logic? Or just update stats)
-                         // Ideally we need to send stats update. 
-                         // But EnemySystem doesn't have reference to Session/Network directly easily without callback or stored refs.
-                         // BUT: GameHandler handles collision usually.
-                         // Here we are inside EnemySystem::update. GameHandler runs logic too...
-                         // Let's just modify HP. GameHandler will likely broadcast stats eventually or we need to mark it?
-                         // Actually GameHandler checks collisions. This internal collision check duplicates logic but "Void Zone" is special.
-                         // For now, let's assume GameHandler might not check Enemy-Player collision easily unless we add hitbox.
-                         // Since we don't return "Events", we rely on shared component modification.
+
+                         if (_statsUpdateCallback) {
+                             _statsUpdateCallback(playerEntity);
+                         }
                      } else {
                         enemy.timeSinceLastShot += dt;
                      }
@@ -86,14 +65,8 @@ void EnemySystem::update(Registry& reg, float dt) {
             velocity.vy = 0.f;
         }
 
-        // Horizontal Movement Logic (ZigZag / Sine Wave)
         if (enemy.move_amplitude > 0.0f) {
             enemy.time_alive += dt;
-            // v_x = A * w * cos(w * t)
-            // A = amplitude, w = frequency * 2 * PI (if freq is Hz) or just frequency if simple scaler
-            // Let's assume frequency is rad/s or scaler.
-            // If user puts "1.0", they might expect 1 cycle per second? 
-            // Let's stick to simple scaler first.
             velocity.vx = enemy.move_amplitude * enemy.move_frequency * cos(enemy.move_frequency * enemy.time_alive);
         }
         
@@ -233,13 +206,12 @@ void EnemySystem::update(Registry& reg, float dt) {
                              }
                         }
                     }
-                } // End if (_waveTime >= wave.start_delay) inside !paused
-                } // End if (!_isWavePaused)
+                }
+                }
             } else {
                 // all waves done
                 _currentLevelIndex++;
                 _currentWaveIndex = 0;
-                // Maybe loop or end?
             }
         }
     }
@@ -282,12 +254,9 @@ void EnemySystem::spawnBoss(Registry& reg, const std::string& bossId)
         0.0f, 0.0f, 0.0f
     );
     
-    // Boss specific marker or just treat as big enemy
-    // To distinguish boss for logic, we track _currentBossEntity
-    
     enemyEntities.push_back(_currentBossEntity);
     newEnemyEntities.push_back(_currentBossEntity); // To sync with clients
-    enemiesAlive++; // Boss counts as enemy
+    enemiesAlive++;
 }
 
 void EnemySystem::updateBoss(Registry& reg, float dt)
@@ -309,13 +278,8 @@ void EnemySystem::updateBoss(Registry& reg, float dt)
     float hpPercent = (float)enemyState.health / (float)config.max_health * 100.0f;
 
     // Boss Collision Logic
-    float bossW = config.visuals.width;
-    float bossH = config.visuals.height;
-    
-    // Apply scale if collider box wasn't explicitly providing world-space size?
-    // yaml: collider_box: {width: 190, height: 240...}
-    // yaml: scale: 1.5
-    // If width/height came from collider_box, we assume they are the final size.
+    float bossW = config.visuals.collider_width;
+    float bossH = config.visuals.collider_height;
     
     for (auto& projEntity : reg.viewEntitiesWith<Projectile, Position>()) {
         auto& proj = reg.getComponent<Projectile>(projEntity);
@@ -323,8 +287,6 @@ void EnemySystem::updateBoss(Registry& reg, float dt)
             auto& projPos = reg.getComponent<Position>(projEntity);
             
             // AABB Collision
-            // Boss Pos is Top-Left (usually)
-            // Check overlap
             if (projPos.x < pos.x + bossW &&
                 projPos.x + 16 > pos.x &&     // 16 is approx projectile size
                 projPos.y < pos.y + bossH &&
@@ -334,22 +296,6 @@ void EnemySystem::updateBoss(Registry& reg, float dt)
                 enemyState.health -= proj.damage;
                 projectileColliding.push_back(projEntity);
                 
-                // Destroy projectile immediately to prevent multi-hit in same frame if logic runs multiple times?
-                // Actually projectile check in 'update' does not destroy immediately, but adds to 'projectileColliding'?
-                // But in 'update', it does: reg.destroyEntity(e) if enemy dies?
-                // No, it adds to projectileColliding but does NOT destroy projectile in the loop?
-                // Wait, 'update' loop logic:
-                // projectileColliding.push_back(entity);
-                // But it DOES NOT satisfy the user request "les balles le traverse". 
-                // To stop traversing, we must destroy logic.
-                // The 'projectileColliding' list is likely used elsewhere to destroy them?
-                
-                // Checking update loop: replacement code earlier destroys enemy but what about projectile?
-                // The main loop does NOT destroy projectile. It just pushes to projectileColliding.
-                // WE MUST destroy projectile or mark it for destruction.
-                // The user says "les balles le traverse".
-                
-                // Ideally, we destroy it.
                 reg.destroyEntity(projEntity);
 
                 // Boss Death Logic

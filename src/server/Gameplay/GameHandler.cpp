@@ -73,6 +73,17 @@ GameHandler::GameHandler(SessionManager& session, std::atomic<bool>& running, co
     }
     enemySystem.setBosses(_config.getBosses());
 
+    enemySystem.setStatsUpdateCallback([this](Entity playerEntity) {
+        if (reg.hasComponent<Stats>(playerEntity)) {
+             auto& stats = reg.getComponent<Stats>(playerEntity);
+             MessageData statsPayload = MessageFactory::getInstance().encodeMessageUpdateStats(playerEntity, stats.hp, stats.maxHp, stats.movement_speed);
+             PreparedMessage statsMsg = MessageFactory::getInstance().createMessage(OpCode::UPDATE_STATS, statsPayload);
+             for (const auto& [pid, _] : playerEntities) {
+                 _session.sendTcp(pid, statsMsg);
+             }
+        }
+    });
+
     // Set up message handler callbacks
     _messageHandler.setOnPlayerConnect([this](const Player& player) {
         onPlayerConnect(player);

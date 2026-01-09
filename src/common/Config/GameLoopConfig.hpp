@@ -121,6 +121,8 @@ struct BossVisuals {
     float scale = 1.0f;
     float width = 100.0f;
     float height = 100.0f;
+    float collider_width = 100.0f;
+    float collider_height = 100.0f;
     float offset_x = 0.0f;
     float offset_y = 0.0f;
     std::map<std::string, BossAnimation> animations;

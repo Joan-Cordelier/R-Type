@@ -15,9 +15,11 @@ enemies:
     
     visuals:
       texture_path: "textures/ships/bosses/Obelisk.png"
-      scale: 1.5
-      offset_x: -70.0
-      offset_y: -80.0
+      scale: 2
+      width: 190
+      height: 240
+      offset_x: 0.0
+      offset_y: 0.0
       
       collider_box: {width: 190, height: 240, offset_x: 0, offset_y: 0}
           

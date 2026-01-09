@@ -6,6 +6,7 @@
 #include <vector>
 #include <random>
 #include <map>
+#include <functional>
 
 class EnemySystem {
     public:
@@ -35,11 +36,16 @@ class EnemySystem {
         
         void setWavePaused(bool paused) { _isWavePaused = paused; }
 
+        void setStatsUpdateCallback(std::function<void(Entity)> callback) {
+            _statsUpdateCallback = callback;
+        }
+
     private:
         void spawnBoss(Registry& reg, const std::string& bossId);
         void updateBoss(Registry& reg, float dt);
         void executePattern(Registry& reg, const BossAttackPattern& pattern, Entity bossEntity);
 
+        std::function<void(Entity)> _statsUpdateCallback;
         std::vector<Entity> enemyEntities;
         std::vector<std::pair<Entity, Entity>> newProjectileEntitiesWithParent;
         std::vector<Entity> newEnemyEntities;
