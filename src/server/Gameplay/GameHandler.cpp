@@ -97,7 +97,7 @@ GameHandler::GameHandler(SessionManager& session, std::atomic<bool>& running, co
                       MessageData payload = factory.encodeMessageDeath(EntityType::COMPANION, companion);
                       PreparedMessage msg = factory.createMessage(OpCode::DEATH, payload);
                       for (const auto& [pid, entity] : playerEntities) {
-                          _session.sendUdp(pid, msg);
+                          _session.sendTcp(pid, msg);
                       }
                       reg.destroyEntity(companion);
                  }
@@ -381,7 +381,7 @@ void GameHandler::sendDestroyedProjectileToAllPlayers(Entity projectile)
     PreparedMessage msg = factory.createMessage(OpCode::DEATH, payload);
     
     for (const auto& [playerId, entity] : playerEntities) {
-        _session.sendUdp(playerId, msg);
+        _session.sendTcp(playerId, msg);
     }
     
     LOG_DEBUG("Sent DEATH for projectile " + std::to_string(projectile) + " to all players");
@@ -394,7 +394,7 @@ void GameHandler::sendDestroyedEnemyToAllPlayers(Entity enemy)
     PreparedMessage msg = factory.createMessage(OpCode::DEATH, payload);
     
     for (const auto& [playerId, entity] : playerEntities) {
-        _session.sendUdp(playerId, msg);
+        _session.sendTcp(playerId, msg);
     }
     
     LOG_DEBUG("Sent DEATH for enemy " + std::to_string(enemy) + " to all players");
@@ -407,7 +407,7 @@ void GameHandler::sendDestroyedPlayerToAllPlayers(Entity player)
     PreparedMessage msg = factory.createMessage(OpCode::DEATH, payload);
     
     for (const auto& [playerId, entity] : playerEntities) {
-        _session.sendUdp(playerId, msg);
+        _session.sendTcp(playerId, msg);
     }
     
     LOG_DEBUG("Sent DEATH for player " + std::to_string(player) + " to all players");
@@ -517,7 +517,7 @@ void GameHandler::onPlayerDisconnect(uint32_t playerId)
              PreparedMessage msg = factory.createMessage(OpCode::DEATH, payload);
              for (const auto& [pid, entity] : playerEntities) {
                  if (pid != playerId) {
-                     _session.sendUdp(pid, msg);
+                     _session.sendTcp(pid, msg);
                  }
              }
              reg.destroyEntity(companion);
