@@ -485,7 +485,28 @@ void GameHandler::onPlayerDisconnect(const Player& player)
 {
     auto it = playerEntities.find(player.id);
     if (it != playerEntities.end()) {
-        reg.destroyEntity(it->second);
+        Entity playerEntity = it->second;
+
+        std::vector<Entity> companionsToRemove;
+        for (auto e : reg.viewEntitiesWith<Parent>()) {
+             if (reg.getComponent<Parent>(e).entity == playerEntity) {
+                 companionsToRemove.push_back(e);
+             }
+        }
+        
+        auto& factory = MessageFactory::getInstance();
+        for (auto companion : companionsToRemove) {
+             MessageData payload = factory.encodeMessageDeath(EntityType::COMPANION, companion);
+             PreparedMessage msg = factory.createMessage(OpCode::DEATH, payload);
+             for (const auto& [pid, entity] : playerEntities) {
+                 if (pid != player.id) {
+                     _session.sendUdp(pid, msg);
+                 }
+             }
+             reg.destroyEntity(companion);
+        }
+
+        reg.destroyEntity(playerEntity);
         playerEntities.erase(it);
         LOG_INFO("Player " + std::to_string(player.id) + " entity destroyed");
     }
