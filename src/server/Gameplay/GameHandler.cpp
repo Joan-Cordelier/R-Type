@@ -81,6 +81,27 @@ GameHandler::GameHandler(SessionManager& session, std::atomic<bool>& running, co
              for (const auto& [pid, _] : playerEntities) {
                  _session.sendTcp(pid, statsMsg);
              }
+
+             if (stats.hp <= 0) {
+                 sendDestroyedPlayerToAllPlayers(playerEntity);
+                 
+                 std::vector<Entity> companionsToRemove;
+                 for (auto e : reg.viewEntitiesWith<Parent>()) {
+                      if (reg.getComponent<Parent>(e).entity == playerEntity) {
+                          companionsToRemove.push_back(e);
+                      }
+                 }
+                 
+                 auto& factory = MessageFactory::getInstance();
+                 for (auto companion : companionsToRemove) {
+                      MessageData payload = factory.encodeMessageDeath(EntityType::COMPANION, companion);
+                      PreparedMessage msg = factory.createMessage(OpCode::DEATH, payload);
+                      for (const auto& [pid, entity] : playerEntities) {
+                          _session.sendUdp(pid, msg);
+                      }
+                      reg.destroyEntity(companion);
+                 }
+             }
         }
     });
 

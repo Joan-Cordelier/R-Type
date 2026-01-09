@@ -266,8 +266,8 @@ int ClientGameHandler::run()
                              alpha = 200 + static_cast<uint8_t>(flash * 55); 
                          }
                          
-                         _renderer.drawCircle((int)p.x, (int)p.y, 50, Color(255, 0, 0, alpha), RenderLayer::GAME, 10, true);
-                         _renderer.drawCircle((int)p.x, (int)p.y, 50, Color(255, 0, 0, 255), RenderLayer::GAME, 11, false);
+                         _renderer.drawCircle((int)p.x + 50, (int)p.y + 50, 50, Color(255, 0, 0, alpha), RenderLayer::GAME, 10, true);
+                         _renderer.drawCircle((int)p.x + 50, (int)p.y + 50, 50, Color(255, 0, 0, 255), RenderLayer::GAME, 11, false);
                          
                          sp.visible = false;
                     }
@@ -618,15 +618,13 @@ void ClientGameHandler::handleMessages()
 
                         if (!loadedFromConfig) {
                             if (typeStr == "Ancient Obelisk") {
-                                // Boss Fallback (should be covered by config now)
                                 _reg.addComponent<SpriteSheets>(localEntity, std::string("textures/ships/bosses/Obelisk.png"), std::string("Ancient Obelisk"), 240, 160, 0, 14, 4, 0.f, 0.f, true, true);
                                  std::cout << "Created BOSS entity (serverId: " << serverEntity << ") type: " << typeStr << " (Fallback)" << std::endl;
                             } else if (typeStr == "void_zone") {
                                 _renderer.loadTexture("textures/ships/bosses/Obelisk_effects.png", "obelisk_void");
-                                _reg.addComponent<Sprite>(localEntity, std::string("textures/ships/bosses/Obelisk_effects.png"), std::string("obelisk_void"), 100, 100, 5, 0.f, 0.f, true);
+                                _reg.addComponent<Sprite>(localEntity, std::string("textures/ships/bosses/Obelisk_effects.png"), std::string("obelisk_void"), 100, 100, 5, -50.f, -50.f, true);
                                 std::cout << "Created VOID ZONE entity (serverId: " << serverEntity << ")" << std::endl;
                             } else {
-                                // Default Enemy
                                 _reg.addComponent<Sprite>(localEntity, std::string("textures/ships/enemy_ship.png"), std::string("enemy_ship"), 50, 50, 0, 0.f, 0.f, true);
                                  std::cout << "Created enemy entity (serverId: " << serverEntity << ") type: " << typeStr << std::endl;
                             }
