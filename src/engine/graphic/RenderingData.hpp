@@ -53,7 +53,6 @@ struct DrawCommand {
     Rect destRect;
     int zIndex;
     DrawType type = DrawType::Texture;
-    Color color; // Ensure Color is present
     PrimitiveData primitiveData = {};
 };
 

@@ -152,7 +152,7 @@ void Renderer::drawFont(const std::string &id, const std::string &text, int x, i
     Rect destRect = {x, y, surface->w, surface->h};
     SDL_FreeSurface(surface);
     
-    DrawCommand cmd = {{}, texture, {}, destRect, z, DrawType::Texture, {255, 255, 255, 255}, {}};
+    DrawCommand cmd = {{}, texture, {}, destRect, z, DrawType::Texture, {}};
     drawCommands[layer].push_back(cmd);
 }
 
@@ -171,7 +171,7 @@ void Renderer::drawFontAndCache(const std::string &id, const std::string &text,
     auto it = textCache.find(cacheKey);
     if (it != textCache.end()) {
         Rect destRect = {x, y, it->second.width, it->second.height};
-        DrawCommand cmd = {{}, it->second.texture, {}, destRect, z, DrawType::Texture, {255, 255, 255, 255}, {}};
+        DrawCommand cmd = {{}, it->second.texture, {}, destRect, z, DrawType::Texture, {}};
         drawCommands[layer].push_back(cmd);
         return;
     }
@@ -195,7 +195,7 @@ void Renderer::drawFontAndCache(const std::string &id, const std::string &text,
     Rect destRect = {x, y, surface->w, surface->h};
     SDL_FreeSurface(surface);
     
-    DrawCommand cmd = {{}, texture, {}, destRect, z, DrawType::Texture, {255, 255, 255, 255}, {}};
+    DrawCommand cmd = {{}, texture, {}, destRect, z, DrawType::Texture, {}};
     drawCommands[layer].push_back(cmd);
 }
 
@@ -224,7 +224,7 @@ void Renderer::drawTexture(const std::string &id, RenderLayer layer, int z, Rect
         return;
     }
 
-    DrawCommand cmd = {options, texture, {}, rect, z, DrawType::Texture, {255, 255, 255, 255}, {}};
+    DrawCommand cmd = {options, texture, {}, rect, z, DrawType::Texture, {}};
     drawCommands[layer].push_back({cmd});
 }
 
@@ -255,7 +255,7 @@ void Renderer::drawTextureRegion(const std::string &id, RenderLayer layer, int z
         return;
     }
 
-    DrawCommand cmd = {options, texture, srcRect, rect, z, DrawType::Texture, {255, 255, 255, 255}, {}};
+    DrawCommand cmd = {options, texture, srcRect, rect, z, DrawType::Texture, {}};
     drawCommands[layer].push_back({cmd});
 }
 
@@ -294,20 +294,19 @@ void Renderer::drawFrame(const std::string &id, int frameIndex, RenderLayer laye
         sheet.frameHeight
     };
 
-    DrawCommand cmd = {options, texture, srcRect, rect, z, DrawType::Texture, {255, 255, 255, 255}, {}};
+    DrawCommand cmd = {options, texture, srcRect, rect, z, DrawType::Texture, {}};
     drawCommands[layer].push_back(cmd);
 }
 
 void Renderer::drawLine(int x1, int y1, int x2, int y2, Color color, RenderLayer layer, int z)
 {
-    DrawCommand cmd = {{.tint = color}, nullptr, {}, {}, z, DrawType::Line, color, {x1, y1, x2, y2, 0, false}};
+    DrawCommand cmd = {{.tint = color}, nullptr, {}, {}, z, DrawType::Line, {x1, y1, x2, y2, 0, false}};
     drawCommands[layer].push_back(cmd);
 }
 
 void Renderer::drawRect(Rect rect, Color color, RenderLayer layer, int z, bool filled)
 {
-    PrimitiveData prim = {rect.x, rect.y, rect.w, rect.h, 0, filled};
-    DrawCommand cmd = {{}, nullptr, {}, rect, z, DrawType::Rect, color, prim};
+    DrawCommand cmd = {{.tint = color}, nullptr, {}, {}, z, DrawType::Rect, {rect.x, rect.y, rect.w, rect.h, 0, filled}};
     drawCommands[layer].push_back(cmd);
 }
 
@@ -315,7 +314,7 @@ void Renderer::drawCircle(int x, int y, int radius, Color color, RenderLayer lay
 {
     PrimitiveData prim = {x, y, 0, 0, radius, filled};
     Rect dummyRect = {x - radius, y - radius, radius * 2, radius * 2};
-    DrawCommand cmd = {{}, nullptr, {}, dummyRect, z, DrawType::Circle, color, prim};
+    DrawCommand cmd = {{.tint = color}, nullptr, {}, dummyRect, z, DrawType::Circle, prim};
     drawCommands[layer].push_back(cmd);
 }
 
@@ -578,7 +577,7 @@ Color Renderer::applyDaltonianFilter(const Color& color) const {
 void Renderer::renderCircle(const DrawCommand& cmd)
 {
     const PrimitiveData& prim = cmd.primitiveData;
-    Color c = applyDaltonianFilter(cmd.color);
+    Color c = applyDaltonianFilter(cmd.option.tint);
     SDL_SetRenderDrawColor(window.renderer, c.r, c.g, c.b, c.a);
     SDL_SetRenderDrawBlendMode(window.renderer, (c.a < 255) ? SDL_BLENDMODE_BLEND : SDL_BLENDMODE_NONE);
     
