@@ -289,6 +289,7 @@ void GameHandler::updateGame(float deltaTime)
         enemySystem.acknowledgeWaveFinished();
         enemySystem.setWavePaused(true);
         _waitingForUpgrades = true;
+        _playersSelectedUpgrade.clear();
         
         LOG_INFO("Wave Finished! Select an upgrade:");
         
@@ -509,6 +510,16 @@ void GameHandler::onPlayerDisconnect(const Player& player)
         reg.destroyEntity(playerEntity);
         playerEntities.erase(it);
         LOG_INFO("Player " + std::to_string(player.id) + " entity destroyed");
+
+        if (_waitingForUpgrades) {
+            _playersSelectedUpgrade.erase(player.id);
+            if (playerEntities.empty() || _playersSelectedUpgrade.size() >= playerEntities.size()) {
+                _waitingForUpgrades = false;
+                _offeredUpgrades.clear();
+                enemySystem.setWavePaused(false);
+                LOG_INFO("All remaining players selected upgrades. Resuming wave.");
+            }
+        }
     }
 }
 
@@ -784,85 +795,97 @@ void GameHandler::onUpgradeSelect(uint32_t playerId, uint8_t index)
     if (!_waitingForUpgrades) return;
     if (index >= _offeredUpgrades.size()) return;
     
+    if (_playersSelectedUpgrade.find(playerId) != _playersSelectedUpgrade.end()) {
+        return;
+    }
+
     // Apply upgrade
     const auto& upgrade = _offeredUpgrades[index];
     LOG_INFO("Player " + std::to_string(playerId) + " selected upgrade: " + upgrade.name);
     
+    _playersSelectedUpgrade.insert(playerId);
+
     MessageFactory& factory = MessageFactory::getInstance();
 
-    // Apply effects to ALL players
-    for (auto& [pid, entity] : playerEntities) {
-        if (!reg.hasComponent<Stats>(entity)) continue;
-        Stats& stats = reg.getComponent<Stats>(entity);
+    auto it = playerEntities.find(playerId);
+    if (it != playerEntities.end()) {
+        Entity entity = it->second;
         
-        bool weaponUpdated = false;
-        Weapon* weapon = nullptr;
-        if (reg.hasComponent<Weapon>(entity)) {
-            weapon = &reg.getComponent<Weapon>(entity);
-        }
-        
-        for (const auto& effect : upgrade.effects) {
-            if (effect.target == "max_health") {
-                stats.maxHp += (int)effect.value;
-                stats.hp += (int)effect.value; 
-            } else if (effect.target == "movement_speed") {
-                 stats.movement_speed = (int)(stats.movement_speed * (1.0f + effect.value / 100.0f));
-            } else if (effect.target == "damage_multiplier") {
-                stats.attack_damage = (int)(stats.attack_damage * (1.0f + effect.value));
-                 if (weapon) {
-                     weapon->damage = (int)(weapon->damage * (1.0f + effect.value));
-                     weaponUpdated = true;
-                 }
-            } else if (effect.target == "fire_rate") {
-                stats.attack_speed = (int)(stats.attack_speed * (1.0f + effect.value));
-                if (weapon) {
-                    // Increase fire rate means decrease delay
-                    if (effect.value > -1.0f) { // Prevent division by zero or negative
-                        weapon->fireRate /= (1.0f + effect.value);
+        if (reg.hasComponent<Stats>(entity)) {
+            Stats& stats = reg.getComponent<Stats>(entity);
+            
+            bool weaponUpdated = false;
+            Weapon* weapon = nullptr;
+            if (reg.hasComponent<Weapon>(entity)) {
+                weapon = &reg.getComponent<Weapon>(entity);
+            }
+            
+            for (const auto& effect : upgrade.effects) {
+                if (effect.target == "max_health") {
+                    stats.maxHp += (int)effect.value;
+                    stats.hp += (int)effect.value; 
+                } else if (effect.target == "movement_speed") {
+                     stats.movement_speed = (int)(stats.movement_speed * (1.0f + effect.value / 100.0f));
+                } else if (effect.target == "damage_multiplier") {
+                    stats.attack_damage = (int)(stats.attack_damage * (1.0f + effect.value));
+                     if (weapon) {
+                         weapon->damage = (int)(weapon->damage * (1.0f + effect.value));
+                         weaponUpdated = true;
+                     }
+                } else if (effect.target == "fire_rate") {
+                    stats.attack_speed = (int)(stats.attack_speed * (1.0f + effect.value));
+                    if (weapon) {
+                        // Increase fire rate means decrease delay
+                        if (effect.value > -1.0f) { // Prevent division by zero or negative
+                            weapon->fireRate /= (1.0f + effect.value);
+                            weaponUpdated = true;
+                        }
+                    }
+                } else if (effect.target == "projectile_scale") {
+                    if (weapon) {
+                        weapon->projectileScale += effect.value;
                         weaponUpdated = true;
                     }
+                } else if (effect.target == "add_weapon_shotgun") {
+                    LOG_INFO("Spawning SHOTGUN companion for player " + std::to_string(playerId));
+                    spawnCompanion(entity, WeaponType::SHOTGUN);
+                } else if (effect.target == "add_weapon_missile") {
+                    LOG_INFO("Spawning MISSILE companion for player " + std::to_string(playerId));
+                    spawnCompanion(entity, WeaponType::MISSILE);
+                } else if (effect.target == "current_health_percent") {
+                     stats.hp += (int)(stats.maxHp * (effect.value / 100.0f));
+                     if (stats.hp > stats.maxHp) stats.hp = stats.maxHp;
                 }
-            } else if (effect.target == "projectile_scale") {
-                if (weapon) {
-                    weapon->projectileScale += effect.value;
-                    weaponUpdated = true;
-                }
-            } else if (effect.target == "add_weapon_shotgun") {
-                LOG_INFO("Spawning SHOTGUN companion for player " + std::to_string(playerId));
-                spawnCompanion(entity, WeaponType::SHOTGUN);
-            } else if (effect.target == "add_weapon_missile") {
-                LOG_INFO("Spawning MISSILE companion for player " + std::to_string(playerId));
-                spawnCompanion(entity, WeaponType::MISSILE);
-            } else if (effect.target == "current_health_percent") {
-                 stats.hp += (int)(stats.maxHp * (effect.value / 100.0f));
-                 if (stats.hp > stats.maxHp) stats.hp = stats.maxHp;
             }
-        }
 
-        if (weaponUpdated && weapon) {
-             MessageData payload = factory.encodeMessageUpdateWeapon(entity, weapon->damage, weapon->nbOfBullets, weapon->fireRate);
-             PreparedMessage msg = factory.createMessage(OpCode::UPDATE_WEAPON, payload);
-             
-             // Broadcast to all
-             for (const auto& [targetPid, _] : playerEntities) {
-                 _session.sendTcp(targetPid, msg);
-             }
-        }
+            if (weaponUpdated && weapon) {
+                 MessageData payload = factory.encodeMessageUpdateWeapon(entity, weapon->damage, weapon->nbOfBullets, weapon->fireRate);
+                 PreparedMessage msg = factory.createMessage(OpCode::UPDATE_WEAPON, payload);
+                 
+                 // Broadcast to all
+                 for (const auto& [targetPid, _] : playerEntities) {
+                     _session.sendTcp(targetPid, msg);
+                 }
+            }
 
-        // Send Stats Update
-        MessageData statsPayload = factory.encodeMessageUpdateStats(entity, stats.hp, stats.maxHp, stats.movement_speed);
-        PreparedMessage statsMsg = factory.createMessage(OpCode::UPDATE_STATS, statsPayload);
-        for (const auto& [targetPid, _] : playerEntities) {
-            _session.sendTcp(targetPid, statsMsg);
+            // Send Stats Update
+            MessageData statsPayload = factory.encodeMessageUpdateStats(entity, stats.hp, stats.maxHp, stats.movement_speed);
+            PreparedMessage statsMsg = factory.createMessage(OpCode::UPDATE_STATS, statsPayload);
+            for (const auto& [targetPid, _] : playerEntities) {
+                _session.sendTcp(targetPid, statsMsg);
+            }
         }
     }
     
-    // Resume game
-    _waitingForUpgrades = false;
-    _offeredUpgrades.clear();
-    enemySystem.setWavePaused(false);
-    
-    LOG_INFO("Upgrade applied. Resuming wave.");
+    // Check for resume
+    if (_playersSelectedUpgrade.size() >= playerEntities.size()) {
+        _waitingForUpgrades = false;
+        _offeredUpgrades.clear();
+        enemySystem.setWavePaused(false);
+        LOG_INFO("All players selected upgrades. Resuming wave.");
+    } else {
+        LOG_INFO("Waiting for " + std::to_string(playerEntities.size() - _playersSelectedUpgrade.size()) + " more players.");
+    }
 }
 
 void GameHandler::spawnCompanion(Entity parent, WeaponType weaponType)

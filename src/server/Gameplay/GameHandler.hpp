@@ -28,6 +28,7 @@
 #include "../common/ecs/components/weapon.hpp"
 
 #include <map>
+#include <set>
 #include <atomic>
 
 class GameHandler {
@@ -52,6 +53,7 @@ private:
     
     bool _waitingForUpgrades = false;
     std::vector<UpgradeData> _offeredUpgrades;
+    std::set<uint32_t> _playersSelectedUpgrade;
 
 public:
     GameHandler(SessionManager& session, std::atomic<bool>& running, const std::string& configPath);
