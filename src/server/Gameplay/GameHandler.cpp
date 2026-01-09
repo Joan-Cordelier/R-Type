@@ -309,6 +309,13 @@ void GameHandler::updateGame(float deltaTime)
     for (auto entity : reg.viewEntitiesWith<Parent, Weapon>()) {
         weaponSystem.fireWeapon(reg, entity);
     }
+    
+    // Auto-fire players
+    for (const auto& [playerId, entity] : playerEntities) {
+        if (reg.hasComponent<Weapon>(entity)) {
+            weaponSystem.fireWeapon(reg, entity);
+        }
+    }
 
     weaponSystem.update(reg, deltaTime);
     

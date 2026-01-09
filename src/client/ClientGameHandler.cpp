@@ -102,7 +102,7 @@ int ClientGameHandler::run()
         handleMessages();
 
         _weaponsys.update(_reg, static_cast<float>(dt));
-        _input.update(_reg, status, _network, _weaponsys);
+        _input.update(_reg, status, _network);
 
         _movement.update(_reg, static_cast<float>(dt));
 

@@ -14,7 +14,6 @@
 #include "input_system.hpp"
 #include "../common/ecs/components/velocity.hpp"
 #include "../common/ecs/components/label.hpp"
-#include "../common/ecs/components/weapon.hpp"
 #include <SDL2/SDL.h>
 #include <cmath>
 
@@ -31,7 +30,7 @@ void InputSystem::setControlled(Entity e, KeybindsManager& kbManager) {
     keybindsManager = &kbManager;
 }
 
-void InputSystem::update(Registry& reg, SDL_Event& e, NetworkManager& networkManager, WeaponSystem &weaponsys) {
+void InputSystem::update(Registry& reg, SDL_Event& e, NetworkManager& networkManager) {
     if (!keybindsManager) return;
     
     if (keybindsManager->isWaitingForKeybind) {
@@ -60,27 +59,6 @@ void InputSystem::update(Registry& reg, SDL_Event& e, NetworkManager& networkMan
             networkManager.sendUdp(factory.createMessage(OpCode::MOVE_INPUT, payload));
         }
 
-        if (ks[keybindsManager->shootKey]) {
-            if (!reg.hasComponent<Stats>(controlled))
-                return;
-            if (!reg.hasComponent<Weapon>(controlled))
-                return;
-            if (!weaponsys.canAttack(controlled))
-                return;
-            
-            // Get current position
-            float x = 0.f, y = 0.f;
-            if (reg.hasComponent<Position>(controlled)) {
-                Position& pos = reg.getComponent<Position>(controlled);
-                x = pos.x;
-                y = pos.y;
-            }
-            
-            MessageFactory& factory = MessageFactory::getInstance();
-            MessageData payload = factory.encodeMessageProjectile(0, controlled, std::string("player"), x, y, 1.0f);
-            networkManager.sendUdp(factory.createMessage(OpCode::SHOOT, payload));
-            weaponsys.fireWeapon(reg, controlled);
-        }
     } else if (reg.hasComponent<Label>(controlled)) {
         if (e.type != 0) {
             if (e.type == SDL_TEXTINPUT) {
