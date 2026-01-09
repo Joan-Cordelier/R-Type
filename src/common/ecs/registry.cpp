@@ -133,6 +133,7 @@ template void Registry::addComponent<Projectile, int, std::string>(Entity, int, 
 template void Registry::addComponent<Projectile, int, std::string, float>(Entity, int, std::string, float);
 template void Registry::addComponent<Slider, float, float, float, float, float, int, int, int, bool, bool, bool, std::string, Color, Color, Color>(Entity, float, float, float, float, float, int, int, int, bool, bool, bool, std::string, Color, Color, Color);
 template void Registry::addComponent<Weapon, int, int, float>(Entity, int, int, float);
+template void Registry::addComponent<Weapon, int, int, float, float, float, float>(Entity, int, int, float, float, float, float);
 
 template bool Registry::hasComponent<Position>(Entity) const;
 template bool Registry::hasComponent<Velocity>(Entity) const;

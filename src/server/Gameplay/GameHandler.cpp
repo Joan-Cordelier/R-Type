@@ -304,6 +304,12 @@ void GameHandler::updateGame(float deltaTime)
     updateEnemyPosition(enemySystem.getEnemyEntities());
     movement.update(reg, deltaTime);
     statsys.update(reg, deltaTime);
+
+    // Auto-fire companions
+    for (auto entity : reg.viewEntitiesWith<Parent, Weapon>()) {
+        weaponSystem.fireWeapon(reg, entity);
+    }
+
     weaponSystem.update(reg, deltaTime);
     
     checkPlayerCollisions();
@@ -712,8 +718,10 @@ void GameHandler::onUpgradeSelect(uint32_t playerId, uint8_t index)
                     weaponUpdated = true;
                 }
             } else if (effect.target == "add_weapon_shotgun") {
+                LOG_INFO("Spawning SHOTGUN companion for player " + std::to_string(playerId));
                 spawnCompanion(entity, WeaponType::SHOTGUN);
             } else if (effect.target == "add_weapon_missile") {
+                LOG_INFO("Spawning MISSILE companion for player " + std::to_string(playerId));
                 spawnCompanion(entity, WeaponType::MISSILE);
             } else if (effect.target == "current_health_percent") {
                  stats.hp += (int)(stats.maxHp * (effect.value / 100.0f));
@@ -749,7 +757,11 @@ void GameHandler::onUpgradeSelect(uint32_t playerId, uint8_t index)
 
 void GameHandler::spawnCompanion(Entity parent, WeaponType weaponType)
 {
-    if (!reg.hasComponent<Position>(parent)) return;
+    LOG_INFO("Entering spawnCompanion for parent " + std::to_string(parent));
+    if (!reg.hasComponent<Position>(parent)) {
+        LOG_WARN("Parent has no Position component!");
+        return;
+    }
     auto& pos = reg.getComponent<Position>(parent);
 
     // Count existing companions
@@ -772,6 +784,15 @@ void GameHandler::spawnCompanion(Entity parent, WeaponType weaponType)
     reg.addComponent<Velocity>(drone, 0.f, 0.f); 
 
     weaponSystem.setWeaponType(reg, drone, weaponType);
+    
+    // Configure Drone specific weapon offsets
+    if (reg.hasComponent<Weapon>(drone)) {
+        auto& w = reg.getComponent<Weapon>(drone);
+        // Drone is ~40x40, fire from center-front
+        // Center vertically: (DroneHeight 40 / 2) - (ProjHeight 16 / 2) = 20 - 8 = 12
+        w.offsetX = 10.0f;
+        w.offsetY = 12.0f; 
+    }
 
     // Notify clients of new companion
     uint8_t type = (weaponType == WeaponType::SHOTGUN) ? 0 : 1; 

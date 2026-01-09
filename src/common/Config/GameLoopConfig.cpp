@@ -206,7 +206,7 @@ bool GameLoopConfig::loadUpgradesFromFile(const std::string& filepath)
                 }
 
                 // Handle simple stat boost
-                if (upgrade.type == "stat_boost") {
+                if (upgrade.type == "stat_boost" || upgrade.type == "add_weapon") {
                     UpgradeEffect effect;
                     if (upgradeNode["target"]) effect.target = upgradeNode["target"].as<std::string>();
                     if (upgradeNode["value"]) effect.value = upgradeNode["value"].as<float>();

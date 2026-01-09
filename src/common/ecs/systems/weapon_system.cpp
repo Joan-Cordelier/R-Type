@@ -25,8 +25,11 @@ void WeaponSystem::fireWeapon(Registry &reg, Entity entity) {
     Entity projectile = reg.createEntity();
     reg.addComponent<Position>(projectile, 0.f, 0.f);
     auto &pos = reg.getComponent<Position>(entity);
-    reg.getComponent<Position>(projectile).y = pos.y + projOffsetY;
-    reg.getComponent<Position>(projectile).x = pos.x + projOffsetX;
+    float spawnX = pos.x + weaponComp.offsetX;
+    float spawnY = pos.y + weaponComp.offsetY;
+    
+    reg.getComponent<Position>(projectile).x = spawnX;
+    reg.getComponent<Position>(projectile).y = spawnY;
     reg.addComponent<Velocity>(projectile, 0.f, -projSpeed);
     reg.addComponent<Projectile>(projectile, weaponComp.damage, std::string("player"), weaponComp.projectileScale);
 
@@ -39,11 +42,11 @@ void WeaponSystem::fireWeapon(Registry &reg, Entity entity) {
         int remaining = weaponComp.nbOfBullets - 1;
         for (int i = 0; i < remaining / 2; ++i) {
             Entity projLeft = reg.createEntity();
-            reg.addComponent<Position>(projLeft, pos.x + projOffsetX - (offsetPerBullet * (i + 1)), pos.y + projOffsetY);
+            reg.addComponent<Position>(projLeft, spawnX - (offsetPerBullet * (i + 1)), spawnY);
             reg.addComponent<Velocity>(projLeft, 0.0f, -projSpeed);
             reg.addComponent<Projectile>(projLeft, weaponComp.damage, std::string("player"), weaponComp.projectileScale);
             Entity projRight = reg.createEntity();
-            reg.addComponent<Position>(projRight, pos.x + projOffsetX + (offsetPerBullet * (i + 1)), pos.y + projOffsetY);
+            reg.addComponent<Position>(projRight, spawnX + (offsetPerBullet * (i + 1)), spawnY);
             reg.addComponent<Velocity>(projRight, 0.0f, -projSpeed);
             reg.addComponent<Projectile>(projRight, weaponComp.damage, std::string("player"), weaponComp.projectileScale);
             if (projNotifier) {
@@ -79,10 +82,14 @@ void WeaponSystem::setWeaponType(Registry &reg, Entity entity, WeaponType type) 
             weapon.fireRate = 0.5f;
             break;
     }
+    
+    weapon.offsetX = projOffsetX;
+    weapon.offsetY = projOffsetY;
+
     if (reg.hasComponent<Weapon>(entity)) {
         reg.getComponent<Weapon>(entity) = weapon;
     } else {
-        reg.addComponent<Weapon>(entity, weapon.damage, weapon.nbOfBullets, weapon.fireRate);
+        reg.addComponent<Weapon>(entity, weapon.damage, weapon.nbOfBullets, weapon.fireRate, weapon.projectileScale, weapon.offsetX, weapon.offsetY);
     }
 }
 

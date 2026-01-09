@@ -390,6 +390,8 @@ void ClientGameHandler::handleMessages()
 
                     if (ownerType == "player") {
                         auto it = playerEntities.find(serverParentEntity);
+                        auto itComp = companionEntities.find(serverParentEntity);
+                        
                         if (it != playerEntities.end()) {
                             Entity localParent = it->second;
                             
@@ -403,6 +405,16 @@ void ClientGameHandler::handleMessages()
                             
                             projectileEntities[serverProjectileEntity] = projectile;
                             std::cout << "Created player projectile (serverId: " << serverProjectileEntity << ", localId: " << projectile << ") at (" << x << ", " << y << ") scale: " << scale << std::endl;
+                        } else if (itComp != companionEntities.end()) {
+                            Entity projectile = _reg.createEntity();
+                            _reg.addComponent<Position>(projectile, x, y);
+                            _reg.addComponent<Velocity>(projectile, 0.f, -400.f);
+                            _reg.addComponent<SpriteSheets>(projectile, std::string(""), std::string("projectile_player"), size, size, 0, 4, 0, true, true);
+                            
+                            projectileEntities[serverProjectileEntity] = projectile;
+                            std::cout << "Created companion projectile (serverId: " << serverProjectileEntity << ", localId: " << projectile << ") at (" << x << ", " << y << ") scale: " << scale << std::endl;
+                        } else {
+                            std::cout << "Received SHOOT from unknown entity: " << serverParentEntity << std::endl;
                         }
                     } else if (ownerType == "enemy") {
                         auto it = enemyEntities.find(serverParentEntity);
@@ -500,6 +512,7 @@ void ClientGameHandler::handleMessages()
                 break;
             }
             case OpCode::COMPANION: {
+                std::cout << "[DEBUG] Received COMPANION OpCode" << std::endl;
                 if (msg->data.size() >= 13) {
                     Entity serverEntity = 
                         (static_cast<Entity>(msg->data[0]) << 24) |
@@ -507,9 +520,11 @@ void ClientGameHandler::handleMessages()
                         (static_cast<Entity>(msg->data[2]) << 8) |
                         static_cast<Entity>(msg->data[3]);
                     
-                    float x = *reinterpret_cast<const float*>(&msg->data[4]);
-                    float y = *reinterpret_cast<const float*>(&msg->data[8]);
-                    // uint8_t type = msg->data[12];
+                    float x, y;
+                    std::memcpy(&x, &msg->data[4], sizeof(float));
+                    std::memcpy(&y, &msg->data[8], sizeof(float));
+
+                    std::cout << "[DEBUG] COMPANION Data: ID=" << serverEntity << " X=" << x << " Y=" << y << std::endl;
 
                     auto it = companionEntities.find(serverEntity);
                     if (it == companionEntities.end()) {
@@ -518,14 +533,25 @@ void ClientGameHandler::handleMessages()
                         _reg.addComponent<Position>(localEntity, x, y);
                         _reg.addComponent<Velocity>(localEntity, 0.f, 0.f);
 
-                        _renderer.loadTexture("textures/vaisseau.png", "drone");
+                        // Fallback to player_ship for debugging visibility
+                        // std::string texId = _renderer.loadTexture("textures/vaisseau.png", "drone");
                         
-                        // Use 40x40 size for companion
-                        _reg.addComponent<Sprite>(localEntity, std::string("textures/vaisseau.png"), std::string("drone"), 40, 40, 5, true);
+                         // Try loading with explicit path and ID, fallback to player_ship if fails
+                        std::string texId = _renderer.loadTexture("textures/vaisseau.png", "drone");
+                        if (texId.empty()) {
+                             std::cerr << "[ERROR] Failed to load 'textures/vaisseau.png'. Using player_ship." << std::endl;
+                             texId = "player_ship"; 
+                             _renderer.loadTexture("textures/ships/player_ship.png", "drone_fallback");
+                             _reg.addComponent<Sprite>(localEntity, std::string("textures/ships/player_ship.png"), std::string("drone_fallback"), 40, 40, 10, true);
+                        } else {
+                             std::cout << "[DEBUG] Loaded 'textures/vaisseau.png' as " << texId << std::endl;
+                             _reg.addComponent<Sprite>(localEntity, std::string("textures/vaisseau.png"), std::string("drone"), 40, 40, 10, true);
+                        }
                         
                         companionEntities[serverEntity] = localEntity;
-                        std::cout << "Created Companion entity (serverId: " << serverEntity << ", localId: " << localEntity << ") at (" << x << ", " << y << ")" << std::endl;
                     }
+                } else {
+                    std::cerr << "[ERROR] COMPANION packet size too small: " << msg->data.size() << std::endl;
                 }
                 break;
             }
