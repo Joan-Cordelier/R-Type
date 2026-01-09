@@ -207,7 +207,7 @@ int ClientGameHandler::run()
                          // Boss or animated enemy
                          // Check config for hitbox? For now rely on sprite dims
                          // Add offset logic if needed
-                         float hx = pos.x + sprite.offset_x; // Wait, sprite offset is for VISUALS. Hitbox is usually separate?
+                         // float hx = pos.x + sprite.offset_x; // Wait, sprite offset is for VISUALS. Hitbox is usually separate?
                          // But here we draw "Hitbox based on sprite".
                          // For Boss, Hitbox is config based, but we don't have easy access to that config per-entity here without lookup.
                          // Let's iterate bosses to find match? Too slow.

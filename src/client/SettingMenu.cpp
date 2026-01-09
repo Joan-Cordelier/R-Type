@@ -58,7 +58,8 @@ void SettingMenu::setup(Registry& reg, SliderSystem& slidersys, ButtonSystem& bu
     (void) slidersys;
     
     keybindsManager.setOnKeybindChangedCallback([&](KeybindAction action, SDL_Scancode scancode) {
-        
+        (void) action;
+        (void) scancode;
     });
     
     buttonsys.registerHandler("DaltonianModeButton", [&](Registry& r, Entity e) {
