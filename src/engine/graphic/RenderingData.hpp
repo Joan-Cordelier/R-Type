@@ -8,7 +8,8 @@
 enum class DrawType {
     Texture,
     Line,
-    Rect
+    Rect,
+    Circle
 };
 
 enum class RenderLayer {
@@ -27,6 +28,7 @@ struct SpriteSheet {
 
 struct PrimitiveData {
     int x1, y1, x2, y2;
+    int radius; // Added for Circle
     bool filled = false;
 };
 

@@ -1,0 +1,32 @@
+enemies:
+  - id: "blaster"
+    name: "Blaster"
+    type: "normal"
+    description: "Un ennemi stationnaire ou lent qui tire des projectiles."
+    
+    stats:
+      health: 25
+      speed: 5.0
+      collision_damage: 15
+      score_value: 200
+    
+    visuals:
+      texture_path: "textures/enemies/blaster.png"
+      default_scale: {x: 2.0, y: 2.0}
+      collider_box: {width: 40, height: 40, offset_x: 0, offset_y: 0}
+      
+      animations:
+        idle:
+          start_x: 0
+          start_y: 0
+          width: 44
+          height: 44
+          frame_count: 2
+          frame_duration: 0.5
+          loop: true
+          
+    behavior:
+      movement_pattern: "straight_slow"
+      can_shoot: true
+      weapon_id: "enemy_basic_blaster"
+      fire_rate: 1.5

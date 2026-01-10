@@ -17,8 +17,6 @@ private:
 
     //keybinds btn
     KeybindsManager& keybindsManager;
-    Entity ShootLabel;
-    Entity ShootKeybindBtn;
     Entity MoveUpLabel;
     Entity MoveUpKeybindBtn;
     Entity MoveDownLabel;

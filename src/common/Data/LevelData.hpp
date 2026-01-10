@@ -28,6 +28,7 @@ struct EnemyWaveGroupData {
 struct WaveData {
     int id;
     float start_delay = 0.0f;
+    std::string boss_id;
     std::vector<EnemyWaveGroupData> groups;
 };
 

@@ -100,6 +100,9 @@ void Renderer::render()
                     case DrawType::Rect:
                         renderRect(cmd);
                         break;
+                    case DrawType::Circle:
+                        renderCircle(cmd);
+                        break;
                     default:
                         break;
                 }
@@ -149,7 +152,7 @@ void Renderer::drawFont(const std::string &id, const std::string &text, int x, i
     Rect destRect = {x, y, surface->w, surface->h};
     SDL_FreeSurface(surface);
     
-    DrawCommand cmd = {{}, texture, {}, destRect, z};
+    DrawCommand cmd = {{}, texture, {}, destRect, z, DrawType::Texture, {}};
     drawCommands[layer].push_back(cmd);
 }
 
@@ -168,7 +171,7 @@ void Renderer::drawFontAndCache(const std::string &id, const std::string &text,
     auto it = textCache.find(cacheKey);
     if (it != textCache.end()) {
         Rect destRect = {x, y, it->second.width, it->second.height};
-        DrawCommand cmd = {{}, it->second.texture, {}, destRect, z};
+        DrawCommand cmd = {{}, it->second.texture, {}, destRect, z, DrawType::Texture, {}};
         drawCommands[layer].push_back(cmd);
         return;
     }
@@ -192,7 +195,7 @@ void Renderer::drawFontAndCache(const std::string &id, const std::string &text,
     Rect destRect = {x, y, surface->w, surface->h};
     SDL_FreeSurface(surface);
     
-    DrawCommand cmd = {{}, texture, {}, destRect, z};
+    DrawCommand cmd = {{}, texture, {}, destRect, z, DrawType::Texture, {}};
     drawCommands[layer].push_back(cmd);
 }
 
@@ -221,7 +224,7 @@ void Renderer::drawTexture(const std::string &id, RenderLayer layer, int z, Rect
         return;
     }
 
-    DrawCommand cmd = {options, texture, {}, rect, z};
+    DrawCommand cmd = {options, texture, {}, rect, z, DrawType::Texture, {}};
     drawCommands[layer].push_back({cmd});
 }
 
@@ -252,7 +255,7 @@ void Renderer::drawTextureRegion(const std::string &id, RenderLayer layer, int z
         return;
     }
 
-    DrawCommand cmd = {options, texture, srcRect, rect, z};
+    DrawCommand cmd = {options, texture, srcRect, rect, z, DrawType::Texture, {}};
     drawCommands[layer].push_back({cmd});
 }
 
@@ -291,19 +294,27 @@ void Renderer::drawFrame(const std::string &id, int frameIndex, RenderLayer laye
         sheet.frameHeight
     };
 
-    DrawCommand cmd = {options, texture, srcRect, rect, z};
+    DrawCommand cmd = {options, texture, srcRect, rect, z, DrawType::Texture, {}};
     drawCommands[layer].push_back(cmd);
 }
 
 void Renderer::drawLine(int x1, int y1, int x2, int y2, Color color, RenderLayer layer, int z)
 {
-    DrawCommand cmd = {{.tint = color}, nullptr, {}, {}, z, DrawType::Line, {x1, y1, x2, y2, false}};
+    DrawCommand cmd = {{.tint = color}, nullptr, {}, {}, z, DrawType::Line, {x1, y1, x2, y2, 0, false}};
     drawCommands[layer].push_back(cmd);
 }
 
 void Renderer::drawRect(Rect rect, Color color, RenderLayer layer, int z, bool filled)
 {
-    DrawCommand cmd = {{.tint = color}, nullptr, {}, {}, z, DrawType::Rect, {rect.x, rect.y, rect.w, rect.h, filled}};
+    DrawCommand cmd = {{.tint = color}, nullptr, {}, {}, z, DrawType::Rect, {rect.x, rect.y, rect.w, rect.h, 0, filled}};
+    drawCommands[layer].push_back(cmd);
+}
+
+void Renderer::drawCircle(int x, int y, int radius, Color color, RenderLayer layer, int z, bool filled)
+{
+    PrimitiveData prim = {x, y, 0, 0, radius, filled};
+    Rect dummyRect = {x - radius, y - radius, radius * 2, radius * 2};
+    DrawCommand cmd = {{.tint = color}, nullptr, {}, dummyRect, z, DrawType::Circle, prim};
     drawCommands[layer].push_back(cmd);
 }
 
@@ -561,6 +572,58 @@ Color Renderer::applyDaltonianFilter(const Color& color) const {
     uint8_t outB = static_cast<uint8_t>(std::max(0.0f, std::min(255.0f, finalB * 255.0f)));
 
     return Color(outR, outG, outB, color.a);
+}
+
+void Renderer::renderCircle(const DrawCommand& cmd)
+{
+    const PrimitiveData& prim = cmd.primitiveData;
+    Color c = applyDaltonianFilter(cmd.option.tint);
+    SDL_SetRenderDrawColor(window.renderer, c.r, c.g, c.b, c.a);
+    SDL_SetRenderDrawBlendMode(window.renderer, (c.a < 255) ? SDL_BLENDMODE_BLEND : SDL_BLENDMODE_NONE);
+    
+    int radius = prim.radius;
+    int centerX = prim.x1;
+    int centerY = prim.y1;
+
+    // Midpoint Circle Algorithm
+    int x = radius - 1;
+    int y = 0;
+    int dx = 1;
+    int dy = 1;
+    int err = dx - (radius << 1);
+
+    while (x >= y)
+    {
+        if (prim.filled) {
+            SDL_RenderDrawLine(window.renderer, centerX + x, centerY + y, centerX - x, centerY + y);
+            SDL_RenderDrawLine(window.renderer, centerX + y, centerY + x, centerX - y, centerY + x);
+            SDL_RenderDrawLine(window.renderer, centerX - x, centerY - y, centerX + x, centerY - y);
+            SDL_RenderDrawLine(window.renderer, centerX - y, centerY - x, centerX + y, centerY - x);
+        } else {
+            SDL_RenderDrawPoint(window.renderer, centerX + x, centerY + y);
+            SDL_RenderDrawPoint(window.renderer, centerX + y, centerY + x);
+            SDL_RenderDrawPoint(window.renderer, centerX - y, centerY + x);
+            SDL_RenderDrawPoint(window.renderer, centerX - x, centerY + y);
+            SDL_RenderDrawPoint(window.renderer, centerX - x, centerY - y);
+            SDL_RenderDrawPoint(window.renderer, centerX - y, centerY - x);
+            SDL_RenderDrawPoint(window.renderer, centerX + y, centerY - x);
+            SDL_RenderDrawPoint(window.renderer, centerX + x, centerY - y);
+        }
+
+        if (err <= 0)
+        {
+            y++;
+            err += dy;
+            dy += 2;
+        }
+        
+        if (err > 0)
+        {
+            x--;
+            dx += 2;
+            err += dx - (radius << 1);
+        }
+    }
 }
 
 void Renderer::createRenderTarget() {

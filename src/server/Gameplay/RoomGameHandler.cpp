@@ -245,8 +245,9 @@ void RoomGameHandler::onPlayerLinked(uint32_t playerId) {
             continue;
 
         Position &pos = _reg.getComponent<Position>(enemyEntity);
+        std::string enemyType = "default";
         MessageData payload =
-            factory.encodeMessageEnemy(enemyEntity, pos.x, pos.y);
+            factory.encodeMessageEnemy(enemyEntity, pos.x, pos.y, enemyType);
         PreparedMessage msg = factory.createMessage(OpCode::ENEMY, payload);
         _sendUdp(playerId, msg);
         LOG_DEBUG("Sent existing enemy " + std::to_string(enemyEntity) +
@@ -299,12 +300,18 @@ void RoomGameHandler::sendUpdatedPositionToPlayer(uint32_t playerId) {
 void RoomGameHandler::sendNewProjectilesToAllPlayers(Entity parentEntity,
                                                      Entity projectileEntity) {
     std::string ownerType = "player";
+    float projX = 0.f, projY = 0.f, scale = 1.0f;
     if (_reg.hasComponent<Projectile>(projectileEntity)) {
         ownerType = _reg.getComponent<Projectile>(projectileEntity).ownerType;
     }
+    if (_reg.hasComponent<Position>(projectileEntity)) {
+        Position &pos = _reg.getComponent<Position>(projectileEntity);
+        projX = pos.x;
+        projY = pos.y;
+    }
 
     MessageData payload = MessageFactory::getInstance().encodeMessageProjectile(
-        projectileEntity, parentEntity, ownerType);
+        projectileEntity, parentEntity, ownerType, projX, projY, scale);
     PreparedMessage msg =
         MessageFactory::getInstance().createMessage(OpCode::SHOOT, payload);
 
@@ -357,8 +364,9 @@ void RoomGameHandler::initNewEnemyEntities(
             continue;
 
         Position &pos = _reg.getComponent<Position>(enemyEntity);
+        std::string enemyType = "default";
         MessageData payload = MessageFactory::getInstance().encodeMessageEnemy(
-            enemyEntity, pos.x, pos.y);
+            enemyEntity, pos.x, pos.y, enemyType);
         PreparedMessage msg =
             MessageFactory::getInstance().createMessage(OpCode::ENEMY, payload);
 

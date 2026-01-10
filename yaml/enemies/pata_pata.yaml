@@ -1,0 +1,40 @@
+enemies:
+  - id: "pata_pata"
+    name: "Pata Pata"
+    type: "normal"
+    description: "Un ennemi basique qui vole en ligne sinusoïdale."
+    
+    stats:
+      health: 10
+      speed: 15.0
+      collision_damage: 10
+      score_value: 100
+    
+    visuals:
+      texture_path: "textures/enemies/pata_pata.png"
+      default_scale: {x: 2.0, y: 2.0}
+      collider_box: {width: 30, height: 30, offset_x: 1, offset_y: 1}
+      
+      animations:
+        idle:
+          start_x: 0
+          start_y: 0
+          width: 32
+          height: 32
+          frame_count: 4
+          frame_duration: 0.2
+          loop: true
+        death:
+          start_x: 128
+          start_y: 0
+          width: 32
+          height: 32
+          frame_count: 3
+          frame_duration: 0.1
+          loop: false
+
+    behavior:
+      movement_pattern: "sinusoidal"
+      movement_amplitude: 50.0
+      movement_frequency: 2.0
+      can_shoot: false
