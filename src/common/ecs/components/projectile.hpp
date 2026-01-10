@@ -6,6 +6,7 @@
 struct Projectile {
     int damage = 10;
     std::string ownerType; // "player" or "enemy"
+    float scale = 1.0f;
 };
 
 #endif

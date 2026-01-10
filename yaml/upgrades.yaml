@@ -1,0 +1,104 @@
+# Configuration des ameliorations (Upgrades)
+# Cette liste contient toutes les ameliorations disponibles qui peuvent apparaitre sur les cartes
+# entre les manches. Le jeu en piochera 3 aleatoirement.
+
+upgrades:
+  # --- Mobilite ---
+  - id: "move_speed_1"
+    name: "Propulseurs Mk.I"
+    description: "Augmente la vitesse de deplacement de 15%."
+    type: "stat_boost"
+    target: "movement_speed"
+    value: 15.0
+    rarity: "common"
+    visuals:
+      card_color: "blue"
+
+  - id: "move_speed_2"
+    name: "Post-Combustion"
+    description: "Augmente considerablement la vitesse de deplacement (+30%)."
+    type: "stat_boost"
+    target: "movement_speed"
+    value: 30.0
+    rarity: "rare"
+    visuals:
+      card_color: "purple"
+
+  # --- Survie (Health/HP) ---
+  - id: "hull_reinforcement_1"
+    name: "Blindage Leger"
+    description: "Augmente les points de vie max (Max HP) de 25."
+    type: "stat_boost"
+    target: "max_health"
+    value: 25.0
+    rarity: "common"
+    visuals:
+      card_color: "green"
+
+  - id: "hull_repair_instant"
+    name: "Nano-Reparation"
+    description: "Restaure 50% de vos points de vie actuels et ajoute 10 Max HP."
+    type: "hybrid"
+    effects:
+      - target: "current_health_percent"
+        value: 50.0
+      - target: "max_health"
+        value: 10.0
+    rarity: "rare"
+    visuals:
+      card_color: "green"
+
+  # --- Offensif (Degats) ---
+  - id: "damage_boost_1"
+    name: "Lentilles Laser"
+    description: "Augmente les degats de 20%."
+    type: "stat_boost"
+    target: "damage_multiplier"
+    value: 0.20
+    rarity: "common"
+    visuals:
+      card_color: "red"
+
+  - id: "fire_rate_boost"
+    name: "Dissipateur Thermique"
+    description: "Augmente la cadence de tir de 25%."
+    type: "stat_boost"
+    target: "fire_rate"
+    value: 0.25
+    rarity: "common"
+    visuals:
+      card_color: "red"
+
+  - id: "projectile_size_up"
+    name: "Chargeur Plasma"
+    description: "Les projectiles sont plus gros et font 10% de degats en plus."
+    type: "hybrid"
+    effects:
+      - target: "projectile_scale"
+        value: 0.5
+      - target: "damage_multiplier"
+        value: 0.10
+    rarity: "epic"
+    visuals:
+      card_color: "gold"
+
+  # --- Legendary Weapons ---
+  - id: "add_drone_shotgun"
+    name: "Drone Shotgun"
+    description: "Ajoute un drone de soutien equipe d'un Shotgun."
+    type: "add_weapon"
+    target: "add_weapon_shotgun"
+    value: 1.0
+    rarity: "legendary"
+    visuals:
+      card_color: "gold"
+
+  - id: "add_drone_missile"
+    name: "Drone Missile"
+    description: "Ajoute un drone de soutien equipe d'un Lance-Missiles."
+    type: "add_weapon"
+    target: "add_weapon_missile"
+    value: 1.0
+    rarity: "legendary"
+    visuals:
+      card_color: "gold"

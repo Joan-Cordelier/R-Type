@@ -21,6 +21,8 @@ struct MoveData {
 
 struct ShootData {
     uint32_t playerId;
+    float x;
+    float y;
 };
 
 class MessageHandler {
@@ -28,6 +30,7 @@ class MessageHandler {
         using PlayerCallback = std::function<void(const Player&)>;
         using MoveCallback = std::function<void(const MoveData&)>;
         using ShootCallback = std::function<void(const ShootData&)>;
+        using UpgradeCallback = std::function<void(uint32_t, uint8_t)>;
         
         MessageHandler(SessionManager& session, std::atomic<bool>& running);
         ~MessageHandler() = default;
@@ -41,6 +44,7 @@ class MessageHandler {
         void setOnPlayerMove(MoveCallback callback) { _onPlayerMove = callback; }
         void setOnPlayerShoot(ShootCallback callback) { _onPlayerShoot = callback; }
         void setOnPlayerLink(std::function<void(uint32_t)> callback) { _onPlayerLink = callback; }
+        void setOnUpgradeSelect(UpgradeCallback callback) { _onUpgradeSelect = callback; }
 
     private:
         SessionManager& _session;
@@ -51,6 +55,7 @@ class MessageHandler {
         MoveCallback _onPlayerMove;
         ShootCallback _onPlayerShoot;
         std::function<void(uint32_t)> _onPlayerLink;
+        UpgradeCallback _onUpgradeSelect;
         
         void dispatchMessage(DecodedMessage msg);
         
@@ -59,6 +64,7 @@ class MessageHandler {
         void handleDeath(const DecodedMessage& msg);
         void handleMoveInput(const DecodedMessage& msg);
         void handleShoot(const DecodedMessage& msg);
+        void handleUpgradeSelect(const DecodedMessage& msg);
 };
 
 #endif /* !MESSAGEHANDLER_HPP_ */

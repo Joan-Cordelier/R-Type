@@ -46,6 +46,7 @@ private:
     std::string makeTextKey(const std::string& fontId, const std::string& text, Color color);
     void renderLine(const DrawCommand& cmd);
     void renderRect(const DrawCommand& cmd);
+    void renderCircle(const DrawCommand& cmd);
     Color applyDaltonianFilter(const Color& color) const;
     void createRenderTarget();
     void destroyRenderTarget();
@@ -68,6 +69,7 @@ public:
     
     void drawLine(int x1, int y1, int x2, int y2, Color color, RenderLayer layer, int z);
     void drawRect(Rect rect, Color color, RenderLayer layer, int z, bool filled = false);
+    void drawCircle(int x, int y, int radius, Color color, RenderLayer layer, int z, bool filled = false);
     
     std::string loadFont(const std::string &filePath, int fontSize, const std::string &id = "");
     std::string loadTexture(const std::string &filePath, const std::string &id = "");

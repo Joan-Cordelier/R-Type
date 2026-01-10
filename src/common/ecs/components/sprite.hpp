@@ -10,6 +10,8 @@ struct Sprite {
     int width = 64;
     int height = 64;
     int z = 0;
+    float offset_x = 0;
+    float offset_y = 0;
     bool visible = true;
 };
 

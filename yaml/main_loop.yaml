@@ -52,12 +52,16 @@ levels:
     music: "audio/music/level1.ogg"
     waves:
       - id: 1
+        start_delay: 1.0
+        boss: "obelisk"
+        groups: [] 
+      - id: 2
         start_delay: 2.0
         groups:
           - type: "basic_enemy"
             count: 3
             interval: 1.0
-      - id: 2
+      - id: 3
         start_delay: 10.0
         groups:
           - type: "basic_enemy"
@@ -66,6 +70,16 @@ levels:
           - type: "shooter_enemy"
             count: 2
             interval: 2.0
+      - id: 4
+        start_delay: 5.0
+        groups:
+          - type: "basic_enemy"
+            count: 2
+            interval: 1.0
+          - type: "shooter_enemy"
+            count: 4
+            interval: 0.8
+
 
   - id: 2
     name: "Zone 2"
@@ -100,8 +114,8 @@ player:
   stats:
     health: 100
     max_health: 100
-    attack_damage: 10
-    attack_speed: 5
+    attack_damage: 100
+    attack_speed: 10
     defense: 1
     speed: 200
 

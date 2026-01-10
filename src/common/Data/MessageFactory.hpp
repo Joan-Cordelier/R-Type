@@ -40,6 +40,11 @@ enum OpCode : uint8_t {
     ENEMY = 0x0C,
     MOVE_SYNC = 0x0D,
     MOVE_INPUT = 0x0E,
+    UPGRADE_OPTIONS = 0x0F,
+    UPGRADE_SELECT = 0x10,
+    UPDATE_WEAPON = 0x11,
+    COMPANION = 0x12,
+    UPDATE_STATS = 0x13,
 };
 
 using MessageData = std::vector<uint8_t>;
@@ -103,11 +108,17 @@ class MessageFactory {
         MessageData encodeMessageMovementPlayer(Entity entity, float x, float y) const;
         MessageData encodePlayerInfo(uint32_t playerId, Entity entity, float x, float y) const;
         MessageData encodeMessageServer(std::string type, Entity entity, Entity entity_changes) const;
+        MessageData encodeMessageEnemy(Entity entity, float x, float y, const std::string& type) const;
         MessageData encodeMessageMove(EntityType type, Entity entity, float x, float y) const;
+
         MessageData encodeMessageDeath(EntityType type, Entity entity) const;
-        MessageData encodeMessageEnemy(Entity entity, float x, float y) const;
-        MessageData encodeMessageProjectile(Entity projectileEntity, Entity parentEntity, const std::string& ownerType) const;
+        MessageData encodeMessageProjectile(Entity projectileEntity, Entity parentEntity, const std::string& ownerType, float x, float y, float scale) const;
+        MessageData encodeMessageUpdateWeapon(Entity entity, int damage, int nbBullets, float fireRate) const;
         MessageData encodeMessageMoveInput(Entity entity, float vx, float vy) const;
+        MessageData encodeMessageUpgradeOptions(const std::vector<std::string>& upgradeIds) const;
+        MessageData encodeMessageUpgradeSelect(uint8_t index) const;
+        MessageData encodeMessageCompanion(Entity entity, float x, float y, uint8_t type) const;
+        MessageData encodeMessageUpdateStats(Entity entity, int hp, int maxHp, int speed) const;
     
     private:
         MessageFactory();

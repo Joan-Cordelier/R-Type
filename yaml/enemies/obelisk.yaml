@@ -1,0 +1,103 @@
+# Boss Configuration File
+# Type: Boss (Obelisk)
+enemies:
+  - id: "obelisk"
+    name: "Ancient Obelisk"
+    type: "boss"
+    description: "Un monolithe mystérieux protégeant une technologie ancienne."
+    
+    stats:
+      health: 1000
+      max_health: 1000
+      speed: 5.0
+      collision_damage: 20
+      score_value: 8000
+    
+    visuals:
+      texture_path: "textures/ships/bosses/Obelisk.png"
+      scale: 2
+      width: 190
+      height: 240
+      offset_x: 0.0
+      offset_y: 0.0
+      
+      collider_box: {width: 190, height: 240, offset_x: 0, offset_y: 0}
+          
+      animations:
+        idle:
+          start_x: 0
+          start_y: 0
+          width: 190
+          height: 240
+          frame_count: 14
+          frame_duration: 0.2
+          loop: true
+        
+        channeling:
+          start_x: 0
+          start_y: 0
+          width: 190
+          height: 240
+          frame_count: 14
+          frame_duration: 0.2
+          loop: true
+
+    behavior:
+      phases:
+        - id: 1
+          name: "Awakening"
+          trigger_health_percentage: 100
+          patterns:
+            - "enter_screen"
+        
+        - id: 2
+          name: "Zone_Control"
+          trigger_health_percentage: 95
+          loop_patterns: true
+          patterns:
+            - "spawn_void_zones"
+            - "wait_medium"
+            - "energy_pulse"
+            - "wait_medium"
+            
+        - id: 3
+          name: "Unstable_Core"
+          trigger_health_percentage: 40
+          visual_effect: "flicker_red"
+          loop_patterns: true
+          patterns:
+            - "spawn_void_zones_rapid"
+            - "energy_pulse_rapid"
+            - "screen_shake"
+            
+      attack_patterns:
+        - id: "spawn_void_zones"
+          type: "area_spawner"
+          description: "Créé des zones de dégâts persistantes utilisant obelisk_effects"
+          texture_override: "textures/ships/bosses/Obelisk_effects.png"
+          count: 3
+          duration: 5.0
+          damage: 15
+          warning_time: 1.5
+          animation_trigger: "channeling"
+          
+        - id: "spawn_void_zones_rapid"
+          type: "area_spawner"
+          texture_override: "textures/ships/bosses/Obelisk_effects.png"
+          count: 6
+          duration: 3.0
+          damage: 20
+          warning_time: 0.8
+          animation_trigger: "channeling"
+          
+        - id: "energy_pulse"
+          type: "projectile_ring"
+          projectile_id: "boss_orb"
+          count: 8
+          speed: 200.0
+          
+        - id: "energy_pulse_rapid"
+          type: "projectile_ring"
+          projectile_id: "boss_orb"
+          count: 16
+          speed: 300.0

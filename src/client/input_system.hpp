@@ -12,7 +12,6 @@
 #include "Network/NetworkManager.hpp"
 #include <SDL2/SDL.h>
 #include "KeybindsManager.hpp"
-#include "../common/ecs/systems/weapon_system.hpp"
 
 class InputSystem {
 public:
@@ -20,7 +19,7 @@ public:
     ~InputSystem();
 
     void setControlled(Entity e, KeybindsManager& kbManager);
-    void update(Registry& reg, SDL_Event& e, NetworkManager& networkManager, WeaponSystem& weaponsys);
+    void update(Registry& reg, SDL_Event& e, NetworkManager& networkManager);
 
 private:
     Entity controlled;

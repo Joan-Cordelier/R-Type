@@ -93,6 +93,9 @@ void MessageHandler::dispatchMessage(DecodedMessage msg)
         case SHOOT:
             handleShoot(msg);
             break;
+        case UPGRADE_SELECT:
+            handleUpgradeSelect(msg);
+            break;
         default:
             LOG_WARN("Unknown OpCode: " + std::to_string(msg.opCode));
             break;
@@ -215,7 +218,7 @@ void MessageHandler::handleShoot(const DecodedMessage& msg)
 {
     LOG_DEBUG("Handling SHOOT message");
 
-    if (msg.data.size() < 18) {
+    if (msg.data.size() < 26) {
         LOG_WARN("SHOOT message with invalid payload size: " + std::to_string(msg.data.size()));
         return;
     }
@@ -226,10 +229,39 @@ void MessageHandler::handleShoot(const DecodedMessage& msg)
         (static_cast<Entity>(msg.data[6]) << 8) |
         static_cast<Entity>(msg.data[7]);
 
-    LOG_DEBUG("SHOOT: playerId=" + std::to_string(msg.playerId) + " entity=" + std::to_string(entity));
+    // Decode x coordinate (bytes 18-21)
+    uint32_t xInt =
+        (static_cast<uint32_t>(msg.data[18]) << 24) |
+        (static_cast<uint32_t>(msg.data[19]) << 16) |
+        (static_cast<uint32_t>(msg.data[20]) << 8) |
+        static_cast<uint32_t>(msg.data[21]);
+    float x;
+    std::memcpy(&x, &xInt, sizeof(float));
+    
+    // Decode y coordinate (bytes 22-25)
+    uint32_t yInt =
+        (static_cast<uint32_t>(msg.data[22]) << 24) |
+        (static_cast<uint32_t>(msg.data[23]) << 16) |
+        (static_cast<uint32_t>(msg.data[24]) << 8) |
+        static_cast<uint32_t>(msg.data[25]);
+    float y;
+    std::memcpy(&y, &yInt, sizeof(float));
+
+    LOG_DEBUG("SHOOT: playerId=" + std::to_string(msg.playerId) + " entity=" + std::to_string(entity) + " at (" + std::to_string(x) + ", " + std::to_string(y) + ")");
 
     if (_onPlayerShoot) {
-        ShootData shootData{msg.playerId};
+        ShootData shootData{msg.playerId, x, y};
         _onPlayerShoot(shootData);
+    }
+}
+
+void MessageHandler::handleUpgradeSelect(const DecodedMessage& msg)
+{
+    if (msg.data.empty()) return;
+    uint8_t index = msg.data[0];
+    uint32_t playerId = msg.playerId;
+    
+    if (_onUpgradeSelect) {
+        _onUpgradeSelect(playerId, index);
     }
 }

@@ -28,10 +28,6 @@ void KeybindsManager::assignNewKeybind(KeybindAction keybind, SDL_Scancode newVa
         case LeftKey:
             leftKey = newVal;
             break;
-        case ShootKey:
-        std::cout << "Rebinding ShootKey to scancode " << newVal << std::endl;
-            shootKey = newVal;
-            break;
         default:
             break;
     }

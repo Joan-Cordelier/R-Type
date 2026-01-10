@@ -9,7 +9,6 @@ typedef enum {
     DownKey,
     RightKey,
     LeftKey,
-    ShootKey,
 } KeybindAction;
 
 class KeybindsManager
@@ -22,7 +21,6 @@ public:
     SDL_Scancode downKey = SDL_SCANCODE_S;
     SDL_Scancode rightKey = SDL_SCANCODE_D;
     SDL_Scancode leftKey = SDL_SCANCODE_A;
-    SDL_Scancode shootKey = SDL_SCANCODE_SPACE;
 
     bool isWaitingForKeybind = false;
     KeybindAction currentKeybindAction = KeybindAction::None;
