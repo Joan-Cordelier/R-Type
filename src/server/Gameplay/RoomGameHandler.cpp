@@ -23,6 +23,34 @@ RoomGameHandler::RoomGameHandler(std::atomic<bool> &running,
         _scoreEntity, std::string("Score: 0"),
         std::string("font/josefin-sans/JosefinSans-Regular.ttf"),
         std::string("default_font"), Color(255, 255, 255), 0, true);
+
+    if (!_config.loadFromFile("yaml/main_loop.yaml")) {
+        _config.loadFromFile("../yaml/main_loop.yaml");
+    }
+
+    // Configure EnemySystem
+    _enemySystem.setSpawnInterval(_config.getEnemySpawning().spawn_interval);
+    _enemySystem.setMaxEnemies(_config.getEnemySpawning().max_enemies);
+    _enemySystem.setInitialDelay(_config.getEnemySpawning().initial_delay);
+    if (!_config.getEnemySpawning().enabled) {
+        _enemySystem.disableSpawning();
+    }
+    _enemySystem.setLevels(_config.getLevels());
+    _enemySystem.setEnemyTypes(_config.getEnemyTypes());
+
+    auto &projConfig = _config.getProjectilesConfig().enemy;
+    _enemySystem.setProjectileOffsets(projConfig.offset_x, projConfig.offset_y);
+
+    // Configure WeaponSystem
+    _weaponSystem.setProjectileNotifier(
+        [this](Entity parent, Entity projectile) {
+            sendNewProjectilesToAllPlayers(parent, projectile);
+        });
+
+    _weaponSystem.setProjectileConfig(
+        _config.getProjectilesConfig().player.offset_x,
+        _config.getProjectilesConfig().player.offset_y,
+        _config.getProjectilesConfig().player.speed);
 }
 
 void RoomGameHandler::run() {
@@ -59,6 +87,9 @@ void RoomGameHandler::run() {
 void RoomGameHandler::updateGame(float deltaTime) {
     std::lock_guard<std::mutex> lock(_regMutex); // Protect ECS access
 
+    if (!_gameStarted)
+        return;
+
     _enemySystem.update(_reg, deltaTime);
 
     for (const auto &[enemy, projectile] :
@@ -73,10 +104,14 @@ void RoomGameHandler::updateGame(float deltaTime) {
         sendDestroyedEnemyToAllPlayers(enemy);
     }
 
+    checkPlayerCollisions();
+
     initNewEnemyEntities(_enemySystem.getNewEnemyEntities());
     updateEnemyPosition(_enemySystem.getEnemyEntities());
     _movement.update(_reg, deltaTime);
+
     _statSystem.update(_reg, deltaTime);
+    _weaponSystem.update(_reg, deltaTime);
 }
 
 void RoomGameHandler::onPlayerConnect(uint32_t playerId) {
@@ -87,6 +122,7 @@ void RoomGameHandler::onPlayerConnect(uint32_t playerId) {
     _reg.addComponent<Position>(playerEntity, 0.f, 0.f);
     _reg.addComponent<Velocity>(playerEntity, 0.f, 0.f);
     _reg.addComponent<Stats>(playerEntity, 100, 100, 1, 0.f, 10, 1, 200);
+    _reg.addComponent<Weapon>(playerEntity, 10, 1, 0.5f);
 
     auto &factory = MessageFactory::getInstance();
 
@@ -136,6 +172,10 @@ void RoomGameHandler::onPlayerDisconnect(uint32_t playerId) {
         _playerEntities.erase(it);
         LOG_INFO("Player " + std::to_string(playerId) +
                  " entity destroyed in room");
+        if (_playerEntities.empty()) {
+            _gameStarted = false;
+            LOG_INFO("Room is empty, game paused.");
+        }
     }
 }
 
@@ -191,21 +231,7 @@ void RoomGameHandler::onPlayerShoot(const RoomShootData &shootData) {
         return;
     }
 
-    Entity projectile = _reg.createEntity();
-    _reg.addComponent<Position>(projectile, 0.f, 0.f);
-    auto &pos = _reg.getComponent<Position>(entity);
-    _reg.getComponent<Position>(projectile).y = pos.y + 30.f;
-    _reg.getComponent<Position>(projectile).x = pos.x + 52.f;
-    _reg.addComponent<Velocity>(projectile, 0.f, -400.f);
-    _reg.addComponent<Projectile>(projectile, stats.attack_damage,
-                                  std::string("player"));
-
-    LOG_INFO("Player " + std::to_string(shootData.playerId) +
-             " shot projectile " + std::to_string(projectile));
-
-    stats.cooldown = 1.f / static_cast<float>(stats.attack_speed);
-
-    sendNewProjectilesToAllPlayers(entity, projectile);
+    _weaponSystem.fireWeapon(_reg, entity);
 }
 
 void RoomGameHandler::onPlayerLinked(uint32_t playerId) {
@@ -362,5 +388,97 @@ void RoomGameHandler::updateEnemyPosition(
         PreparedMessage msg = factory.createMessage(OpCode::MOVE_SYNC, payload);
 
         _broadcastUdp(msg);
+    }
+}
+
+void RoomGameHandler::checkPlayerCollisions() {
+    std::vector<Entity> projectilesToRemove;
+    std::vector<Entity> playersToKill;
+
+    // Config values
+    float pW = _config.getPlayerConfig().hitbox.width;
+    float pH = _config.getPlayerConfig().hitbox.height;
+    float offX = _config.getPlayerConfig().hitbox.offset_x;
+    float offY = _config.getPlayerConfig().hitbox.offset_y;
+
+    static int logCounter = 0;
+    if (logCounter++ % 120 == 0) {
+        LOG_INFO("COLLISION CHECK: W=" + std::to_string(pW) +
+                 " H=" + std::to_string(pH) + " OffX=" + std::to_string(offX) +
+                 " OffY=" + std::to_string(offY));
+    }
+
+    // View all projectiles
+    for (auto projectileEntity :
+         _reg.viewEntitiesWith<Projectile, Position>()) {
+        if (!_reg.hasComponent<Projectile>(projectileEntity))
+            continue;
+        auto &projectile = _reg.getComponent<Projectile>(projectileEntity);
+
+        // Only check enemy projectiles against players
+        if (projectile.ownerType != "enemy")
+            continue;
+
+        Position &projPos = _reg.getComponent<Position>(projectileEntity);
+
+        // Check against all players
+        for (const auto &[playerId, playerEntity] : _playerEntities) {
+            // Check validity
+            if (!_reg.hasComponent<Position>(playerEntity) ||
+                !_reg.hasComponent<Stats>(playerEntity))
+                continue;
+
+            Position &playerPos = _reg.getComponent<Position>(playerEntity);
+            Stats &playerStats = _reg.getComponent<Stats>(playerEntity);
+
+            if (playerStats.hp <= 0)
+                continue;
+
+            // Simple AABB Collision
+            float targetX = playerPos.x + offX;
+            float targetY = playerPos.y + offY;
+
+            float projW = 16.0f;
+            float projH = 16.0f;
+            float projLeft = projPos.x;
+            float projTop = projPos.y;
+
+            bool collision =
+                (projLeft < targetX + pW && projLeft + projW > targetX &&
+                 projTop < targetY + pH && projTop + projH > targetY);
+
+            if (collision) {
+                LOG_INFO("HIT! Projectile(" + std::to_string(projLeft) + ", " +
+                         std::to_string(projTop) + ") vs PlayerHitbox(" +
+                         std::to_string(targetX) + ", " +
+                         std::to_string(targetY) + ")");
+                // Hit
+                playerStats.hp -= projectile.damage;
+                projectilesToRemove.push_back(projectileEntity);
+
+                LOG_DEBUG("Player " + std::to_string(playerId) +
+                          " hit by projectile " +
+                          std::to_string(projectileEntity) +
+                          ", hp: " + std::to_string(playerStats.hp));
+
+                if (playerStats.hp <= 0) {
+                    playersToKill.push_back(playerEntity);
+                }
+
+                // One projectile hits one player
+                break;
+            }
+        }
+    }
+
+    for (auto proj : projectilesToRemove) {
+        if (_reg.hasComponent<Projectile>(proj)) {
+            sendDestroyedProjectileToAllPlayers(proj);
+            _reg.destroyEntity(proj);
+        }
+    }
+
+    for (auto player : playersToKill) {
+        sendDestroyedPlayerToAllPlayers(player);
     }
 }

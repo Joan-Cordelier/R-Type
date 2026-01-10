@@ -87,8 +87,14 @@ int ClientGameHandler::run() {
     while (running) {
         _renderer.window.processSDLEvents();
         SDL_Event status = _renderer.window.pollEvent();
-        if (status.type == SDL_QUIT)
+        if (status.type == SDL_QUIT) {
+            MessageFactory &factory = MessageFactory::getInstance();
+            PreparedMessage msg = factory.createMessage(OpCode::ROOM_LEAVE, {});
+            _network.sendTcp(msg);
+            std::this_thread::sleep_for(
+                std::chrono::milliseconds(100)); // Give time to flush
             break;
+        }
 
         // Handle ESC key for settings menu
         if (status.type == SDL_KEYDOWN &&

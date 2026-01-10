@@ -54,4 +54,7 @@ void AClient::reset() {
 void AClient::stop() {
     _running = false;
     _connected = false;
+    if (_socketFd >= 0) {
+        shutdown(_socketFd, SHUT_RDWR);
+    }
 }

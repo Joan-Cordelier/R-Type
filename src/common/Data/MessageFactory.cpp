@@ -31,6 +31,7 @@ std::array<MessageFactory::Message, 256> MessageFactory::initMessageTable() {
     table[LINK] = {4, Priority::CRITICAL};
     table[ENEMY] = {12, Priority::HIGH};
     table[ROOM_READY] = {4, Priority::CRITICAL};
+    table[ROOM_LEAVE] = {0, Priority::CRITICAL};
 
     return table;
 }

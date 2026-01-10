@@ -218,6 +218,14 @@ void Room::handleMessage(const DecodedMessage &msg) {
         }
         break;
     }
+    case OpCode::ROOM_LEAVE: {
+        if (playerId != 0) {
+            LOG_INFO("Room " + std::to_string(_id) + ": Player " +
+                     std::to_string(playerId) + " requested to leave");
+            removePlayer(playerId);
+        }
+        break;
+    }
     default:
         LOG_DEBUG("Room " + std::to_string(_id) + ": Unhandled OpCode " +
                   std::to_string(msg.opCode));
@@ -248,6 +256,10 @@ void Room::removePlayer(uint32_t playerId) {
 
     if (_game) {
         _game->onPlayerDisconnect(playerId);
+    }
+
+    if (_session) {
+        _session->removePlayer(playerId);
     }
 
     LOG_INFO("Room " + std::to_string(_id) + ": Player " +

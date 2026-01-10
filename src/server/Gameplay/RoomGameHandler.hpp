@@ -8,7 +8,9 @@
 #ifndef ROOMGAMEHANDLER_HPP_
 #define ROOMGAMEHANDLER_HPP_
 
+#include "../../common/Config/GameLoopConfig.hpp"
 #include "../../common/Data/EntityType.hpp"
+#include "../../common/ecs/systems/weapon_system.hpp"
 #include "../common/Data/MessageFactory.hpp"
 #include "../common/ecs/components/enemy.hpp"
 #include "../common/ecs/components/label.hpp"
@@ -16,6 +18,7 @@
 #include "../common/ecs/components/projectile.hpp"
 #include "../common/ecs/components/stats.hpp"
 #include "../common/ecs/components/velocity.hpp"
+#include "../common/ecs/components/weapon.hpp"
 #include "ecs/registry.hpp"
 #include "ecs/systems/enemy_system.hpp"
 #include "ecs/systems/movement_system.hpp"
@@ -87,7 +90,9 @@ private:
     Registry _reg;
     MovementSystem _movement;
     StatSystem _statSystem;
+
     EnemySystem _enemySystem;
+    WeaponSystem _weaponSystem;
 
     // Player tracking
     std::map<uint32_t, Entity> _playerEntities;
@@ -107,6 +112,11 @@ private:
     void sendDestroyedPlayerToAllPlayers(Entity player);
     void initNewEnemyEntities(const std::vector<Entity> &enemyEntities);
     void updateEnemyPosition(const std::vector<Entity> &enemyEntities);
+
+    // Config
+    GameLoopConfig _config;
+    // Collision
+    void checkPlayerCollisions();
 };
 
 #endif /* !ROOMGAMEHANDLER_HPP_ */
