@@ -38,59 +38,58 @@
 class GameHandler {
 
 private:
-  bool _gameStarted = false;
-  std::atomic<bool> &_running;
-  SessionManager &_session;
-  MessageHandler _messageHandler;
+    bool _gameStarted = false;
+    std::atomic<bool> &_running;
+    SessionManager &_session;
+    MessageHandler _messageHandler;
 
-  Registry reg;
-  MovementSystem movement;
-  StatSystem statsys;
-  EnemySystem enemySystem;
-  WeaponSystem weaponSystem;
-  GameLoopConfig _config;
+    Registry reg;
+    MovementSystem movement;
+    StatSystem statsys;
+    EnemySystem enemySystem;
+    WeaponSystem weaponSystem;
+    GameLoopConfig _config;
 
-  std::map<uint32_t, Entity> playerEntities;
-  std::map<Entity, bool> wasMoving;
-  Entity ScoreEntity;
-  int score = 0;
+    std::map<uint32_t, Entity> playerEntities;
+    std::map<Entity, bool> wasMoving;
+    Entity ScoreEntity;
+    int score = 0;
 
-  bool _waitingForUpgrades = false;
-  std::vector<UpgradeData> _offeredUpgrades;
-  std::set<uint32_t> _playersSelectedUpgrade;
+    bool _waitingForUpgrades = false;
+    std::vector<UpgradeData> _offeredUpgrades;
+    std::set<uint32_t> _playersSelectedUpgrade;
 
-  std::mutex _disconnectionMutex;
-  std::vector<uint32_t> _pendingDisconnections;
-  std::vector<Player> _pendingPlayers;
+    std::mutex _disconnectionMutex;
+    std::vector<uint32_t> _pendingDisconnections;
+    std::vector<Player> _pendingPlayers;
 
-  std::shared_ptr<ThreadedQueue<DecodedMessage>> _inputQueue;
-  std::thread _gameThread;
+    std::shared_ptr<ThreadedQueue<DecodedMessage>> _inputQueue;
+    std::thread _gameThread;
 
 public:
-  GameHandler(SessionManager &session,
-              std::shared_ptr<ThreadedQueue<DecodedMessage>> inputQueue,
-              std::atomic<bool> &running, const std::string &configPath);
-  void run();
+    GameHandler(SessionManager &session, std::shared_ptr<ThreadedQueue<DecodedMessage>> inputQueue,
+                std::atomic<bool> &running, const std::string &configPath);
+    void run();
 
-  void sendUpdatedPositionToAllPlayers();
-  void sendUpdatedPositionToPlayer(uint32_t playerId);
-  void sendNewProjectilesToAllPlayers(Entity player, Entity projectile);
+    void sendUpdatedPositionToAllPlayers();
+    void sendUpdatedPositionToPlayer(uint32_t playerId);
+    void sendNewProjectilesToAllPlayers(Entity player, Entity projectile);
 
 private:
-  void processMessages();
-  void updateGame(float deltaTime);
-  void onPlayerConnect(const Player &player);
-  void onPlayerDisconnect(uint32_t playerId);
-  void onPlayerMove(const MoveData &moveData);
-  void onPlayerShoot(const ShootData &shootData);
-  void updateEnemyPosition(const std::vector<Entity> &enemyEntities);
-  void initNewEnemyEntities(const std::vector<Entity> &enemyEntities);
-  void onPlayerLinked(uint32_t playerId);
-  void sendDestroyedProjectileToAllPlayers(Entity projectile);
-  void sendDestroyedEnemyToAllPlayers(Entity enemy);
-  void sendDestroyedPlayerToAllPlayers(Entity player);
-  void checkPlayerCollisions();
+    void processMessages();
+    void updateGame(float deltaTime);
+    void onPlayerConnect(const Player &player);
+    void onPlayerDisconnect(uint32_t playerId);
+    void onPlayerMove(const MoveData &moveData);
+    void onPlayerShoot(const ShootData &shootData);
+    void updateEnemyPosition(const std::vector<Entity> &enemyEntities);
+    void initNewEnemyEntities(const std::vector<Entity> &enemyEntities);
+    void onPlayerLinked(uint32_t playerId);
+    void sendDestroyedProjectileToAllPlayers(Entity projectile);
+    void sendDestroyedEnemyToAllPlayers(Entity enemy);
+    void sendDestroyedPlayerToAllPlayers(Entity player);
+    void checkPlayerCollisions();
 
-  void onUpgradeSelect(uint32_t playerId, uint8_t index);
-  void spawnCompanion(Entity parent, WeaponType weaponType);
+    void onUpgradeSelect(uint32_t playerId, uint8_t index);
+    void spawnCompanion(Entity parent, WeaponType weaponType);
 };

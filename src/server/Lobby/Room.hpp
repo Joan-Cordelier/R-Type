@@ -19,39 +19,41 @@
 
 class Room {
 public:
-  Room(uint32_t id, SessionManager &session,
-       const std::string &configPath = "yaml/main_loop.yaml");
-  ~Room();
+    Room(uint32_t id, SessionManager &session,
+         const std::string &configPath = "yaml/main_loop.yaml");
+    ~Room();
 
-  void start();
-  void stop();
+    void start();
+    void stop();
 
-  uint32_t getId() const { return _id; }
-  size_t getPlayerCount() const;
-  bool isFull() const;
+    uint32_t getId() const {
+        return _id;
+    }
+    size_t getPlayerCount() const;
+    bool isFull() const;
 
-  // Add player to room references
-  void addPlayer(uint32_t playerId);
-  void removePlayer(uint32_t playerId);
+    // Add player to room references
+    void addPlayer(uint32_t playerId);
+    void removePlayer(uint32_t playerId);
 
-  // Push message to the GameHandler's queue
-  void pushMessage(const DecodedMessage &msg);
+    // Push message to the GameHandler's queue
+    void pushMessage(const DecodedMessage &msg);
 
-  std::vector<uint32_t> getPlayers() const;
+    std::vector<uint32_t> getPlayers() const;
 
 private:
-  uint32_t _id;
-  SessionManager &_session;
-  std::atomic<bool> _running{false};
+    uint32_t _id;
+    SessionManager &_session;
+    std::atomic<bool> _running{false};
 
-  std::shared_ptr<ThreadedQueue<DecodedMessage>> _inputQueue;
-  std::unique_ptr<GameHandler> _game;
+    std::shared_ptr<ThreadedQueue<DecodedMessage>> _inputQueue;
+    std::unique_ptr<GameHandler> _game;
 
-  std::thread _thread;
+    std::thread _thread;
 
-  mutable std::mutex _mutex;
-  std::vector<uint32_t> _players;
-  uint32_t _maxPlayers = 4;
+    mutable std::mutex _mutex;
+    std::vector<uint32_t> _players;
+    uint32_t _maxPlayers = 4;
 };
 
 #endif /* !ROOM_HPP_ */

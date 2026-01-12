@@ -17,31 +17,31 @@
 
 class LobbyManager {
 public:
-  LobbyManager(const std::string &configPath = "yaml/main_loop.yaml");
-  ~LobbyManager();
+    LobbyManager(const std::string &configPath = "yaml/main_loop.yaml");
+    ~LobbyManager();
 
-  void run();
-  void stop();
+    void run();
+    void stop();
 
 private:
-  SessionManager _session;
-  std::map<uint32_t, std::shared_ptr<Room>> _rooms;
-  std::atomic<bool> _running{true};
-  std::string _configPath;
+    SessionManager _session;
+    std::map<uint32_t, std::shared_ptr<Room>> _rooms;
+    std::atomic<bool> _running{true};
+    std::string _configPath;
 
-  uint32_t _nextRoomId = 1;
+    uint32_t _nextRoomId = 1;
 
-  void processMessages();
-  void dispatchMessage(DecodedMessage &msg);
+    void processMessages();
+    void dispatchMessage(DecodedMessage &msg);
 
-  void handleCreateRoom(const DecodedMessage &msg);
-  void handleJoinRoom(const DecodedMessage &msg);
-  void handleListRooms(const DecodedMessage &msg);
-  void handleConnect(const DecodedMessage &msg);
-  void handleLink(const DecodedMessage &msg);
+    void handleCreateRoom(const DecodedMessage &msg);
+    void handleJoinRoom(const DecodedMessage &msg);
+    void handleListRooms(const DecodedMessage &msg);
+    void handleConnect(const DecodedMessage &msg);
+    void handleLink(const DecodedMessage &msg);
 
-  // Handling disconnections
-  void onPlayerDisconnect(const Player &player);
+    // Handling disconnections
+    void onPlayerDisconnect(const Player &player);
 };
 
 #endif /* !LOBBYMANAGER_HPP_ */
