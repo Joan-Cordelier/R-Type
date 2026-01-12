@@ -447,6 +447,30 @@ void GameHandler::onPlayerConnect(const Player &player) {
                   " info to new player " + std::to_string(player.id));
     }
 
+    for (auto enemyEntity : reg.viewEntitiesWith<Enemy, Position>()) {
+        auto &pos = reg.getComponent<Position>(enemyEntity);
+        auto &enemy = reg.getComponent<Enemy>(enemyEntity);
+
+        MessageData payload = factory.encodeMessageEnemy(enemyEntity, pos.x, pos.y, enemy.type);
+        PreparedMessage msg = factory.createMessage(OpCode::ENEMY, payload);
+        _session.sendUdp(player.id, msg);
+        LOG_DEBUG("Sent existing enemy " + std::to_string(enemyEntity) + " info to new player " +
+                  std::to_string(player.id));
+    }
+
+    for (auto projEntity : reg.viewEntitiesWith<Projectile, Position>()) {
+        auto &pos = reg.getComponent<Position>(projEntity);
+        auto &proj = reg.getComponent<Projectile>(projEntity);
+
+        Entity parentEntity = 0;
+        MessageData payload = factory.encodeMessageProjectile(
+            projEntity, parentEntity, proj.ownerType, pos.x, pos.y, proj.scale);
+        PreparedMessage msg = factory.createMessage(OpCode::SHOOT, payload);
+        _session.sendTcp(player.id, msg);
+        LOG_DEBUG("Sent existing projectile " + std::to_string(projEntity) +
+                  " info to new player " + std::to_string(player.id));
+    }
+
     // Add new player to the map
     playerEntities[player.id] = playerEntity;
 
