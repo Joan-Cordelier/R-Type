@@ -7,6 +7,12 @@ void SpriteSheetSystem::render(Registry& reg, std::function<void(const TextureId
     if (!spArr) return;
     auto posArr = reg.componentArray<Position>();
 
+    int framesToAdvance = 0;
+    while (animationClock >= 0.2) {
+        framesToAdvance++;
+        animationClock -= 0.2;
+    }
+
     for (auto e : spArr->entities()) {
         if (!spArr->has(e)) continue;
         auto &sp = spArr->get(e);
@@ -21,10 +27,9 @@ void SpriteSheetSystem::render(Registry& reg, std::function<void(const TextureId
         x += sp.offset_x;
         y += sp.offset_y;
 
-        if (animationClock >= 0.2) {
+        if (framesToAdvance > 0) {
             if (sp.loop)
-                sp.frameIndex = (sp.frameIndex + 1) % sp.maxFrames;
-            animationClock -= 0.2;
+                sp.frameIndex = (sp.frameIndex + framesToAdvance) % sp.maxFrames;
         }
 
         drawCallback(sp.textureIndex, sp.frameIndex, sp.width, sp.height, x, y, sp.z);

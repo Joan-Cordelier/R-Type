@@ -114,7 +114,7 @@ player:
   stats:
     health: 100
     max_health: 100
-    attack_damage: 100
+    attack_damage: 10
     attack_speed: 10
     defense: 1
     speed: 200

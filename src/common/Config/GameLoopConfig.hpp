@@ -133,6 +133,7 @@ struct BossConfig {
     std::string name;
     int health;
     int max_health;
+    int health_per_player = 0;
     float speed;
     BossVisuals visuals;
     std::vector<BossPhase> phases;

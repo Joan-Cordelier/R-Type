@@ -257,6 +257,7 @@ bool GameLoopConfig::loadBossesFromDirectory(const std::string& dirPath)
                                 if (enemy["stats"]) {
                                     if (enemy["stats"]["health"]) boss.health = enemy["stats"]["health"].as<int>();
                                     if (enemy["stats"]["max_health"]) boss.max_health = enemy["stats"]["max_health"].as<int>();
+                                    if (enemy["stats"]["health_per_player"]) boss.health_per_player = enemy["stats"]["health_per_player"].as<int>();
                                     if (enemy["stats"]["speed"]) boss.speed = enemy["stats"]["speed"].as<float>();
                                 }
                                 

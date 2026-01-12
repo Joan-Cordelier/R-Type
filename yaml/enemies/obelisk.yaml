@@ -9,6 +9,7 @@ enemies:
     stats:
       health: 1000
       max_health: 1000
+      health_per_player: 500
       speed: 5.0
       collision_damage: 20
       score_value: 8000
@@ -52,13 +53,15 @@ enemies:
         
         - id: 2
           name: "Zone_Control"
-          trigger_health_percentage: 95
+          trigger_health_percentage: 99
           loop_patterns: true
           patterns:
             - "spawn_void_zones"
-            - "wait_medium"
             - "energy_pulse"
-            - "wait_medium"
+            - "screen_shake"
+            - "energy_pulse"
+            - "screen_shake"
+            - "energy_pulse"
             
         - id: 3
           name: "Unstable_Core"
@@ -66,9 +69,13 @@ enemies:
           visual_effect: "flicker_red"
           loop_patterns: true
           patterns:
-            - "spawn_void_zones_rapid"
+            - "spawn_void_zones_alot"
             - "energy_pulse_rapid"
-            - "screen_shake"
+            - "wait_superlow"
+            - "energy_pulse_rapid"
+            - "wait_superlow"
+            - "energy_pulse_rapid"
+            - "wait_superlow"
             
       attack_patterns:
         - id: "spawn_void_zones"
@@ -76,7 +83,7 @@ enemies:
           description: "Créé des zones de dégâts persistantes utilisant obelisk_effects"
           texture_override: "textures/ships/bosses/Obelisk_effects.png"
           count: 3
-          duration: 5.0
+          duration: 3.0
           damage: 15
           warning_time: 1.5
           animation_trigger: "channeling"
@@ -84,9 +91,18 @@ enemies:
         - id: "spawn_void_zones_rapid"
           type: "area_spawner"
           texture_override: "textures/ships/bosses/Obelisk_effects.png"
-          count: 6
-          duration: 3.0
+          count: 8
+          duration: 2.0
           damage: 20
+          warning_time: 0.8
+          animation_trigger: "channeling"
+        
+        - id: "spawn_void_zones_alot"
+          type: "area_spawner"
+          texture_override: "textures/ships/bosses/Obelisk_effects.png"
+          count: 20
+          duration: 1.0
+          damage: 10
           warning_time: 0.8
           animation_trigger: "channeling"
           
@@ -99,5 +115,22 @@ enemies:
         - id: "energy_pulse_rapid"
           type: "projectile_ring"
           projectile_id: "boss_orb"
-          count: 16
+          count: 14
           speed: 300.0
+          duration: 0.25
+
+        - id: "wait_medium"
+          type: "wait"
+          duration: 2.0
+
+        - id: "enter_screen"
+          type: "wait"
+          duration: 3.0
+
+        - id: "screen_shake"
+          type: "wait"
+          duration: 0.8
+        
+        - id: "wait_superlow"
+          type: "wait"
+          duration: 0.25

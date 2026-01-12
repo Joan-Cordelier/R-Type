@@ -223,9 +223,10 @@ void GameHandler::sendUpdatedPositionToPlayer(uint32_t playerId) {
 
     // Send player positions
     for (const auto &[pid, entity] : playerEntities) {
-        Position &pos = reg.getComponent<Position>(entity);
-        if (!reg.hasComponent<Velocity>(entity))
+        if (!reg.hasComponent<Position>(entity) || !reg.hasComponent<Velocity>(entity))
             continue;
+
+        Position &pos = reg.getComponent<Position>(entity);
 
         bool isMoving = reg.getComponent<Velocity>(entity).vx != 0.f ||
                         reg.getComponent<Velocity>(entity).vy != 0.f;
@@ -290,6 +291,7 @@ void GameHandler::updateGame(float deltaTime) {
         }
     }
 
+    enemySystem.setPlayerCount(playerEntities.size());
     enemySystem.update(reg, deltaTime);
 
     // Check for wave completion to trigger upgrades
@@ -318,12 +320,6 @@ void GameHandler::updateGame(float deltaTime) {
                          candidates[i].id);
             }
 
-            // Send options to all connected players (TCP likely better for reliable
-            // UI data, but protocol seems mix) Existing sends use sendTcp or sendUdp
-            // dependent on OpCode priority and msg type. UPGRADE_OPTIONS is MEDIUM? I
-            // set it to MEDIUM. It should probably be reliable. Let's use sendTcp for
-            // reliable delivery of this game state change.
-
             auto &factory = MessageFactory::getInstance();
             MessageData payload = factory.encodeMessageUpgradeOptions(upgradeIds);
             PreparedMessage msg = factory.createMessage(OpCode::UPGRADE_OPTIONS, payload);
@@ -341,15 +337,16 @@ void GameHandler::updateGame(float deltaTime) {
         }
     }
 
-    for (const auto &[enemy, projectile] : enemySystem.getNewProjectileEntitiesWithParent()) {
-        sendNewProjectilesToAllPlayers(enemy, projectile);
+    for (const auto &enemy : enemySystem.getDeadEnemyEntities()) {
+        sendDestroyedEnemyToAllPlayers(enemy);
     }
     for (const auto &projectile : enemySystem.getProjectileColliding()) {
         sendDestroyedProjectileToAllPlayers(projectile);
         reg.destroyEntity(projectile);
     }
-    for (const auto &enemy : enemySystem.getDeadEnemyEntities()) {
-        sendDestroyedEnemyToAllPlayers(enemy);
+
+    for (const auto &[enemy, projectile] : enemySystem.getNewProjectileEntitiesWithParent()) {
+        sendNewProjectilesToAllPlayers(enemy, projectile);
     }
 
     initNewEnemyEntities(enemySystem.getNewEnemyEntities());
@@ -449,6 +446,30 @@ void GameHandler::onPlayerConnect(const Player &player) {
         PreparedMessage msg = factory.createMessage(OpCode::PLAYER, payload);
         _session.sendTcp(player.id, msg);
         LOG_DEBUG("Sent existing player " + std::to_string(existingPlayerId) +
+                  " info to new player " + std::to_string(player.id));
+    }
+
+    for (auto enemyEntity : reg.viewEntitiesWith<Enemy, Position>()) {
+        auto &pos = reg.getComponent<Position>(enemyEntity);
+        auto &enemy = reg.getComponent<Enemy>(enemyEntity);
+
+        MessageData payload = factory.encodeMessageEnemy(enemyEntity, pos.x, pos.y, enemy.type);
+        PreparedMessage msg = factory.createMessage(OpCode::ENEMY, payload);
+        _session.sendUdp(player.id, msg);
+        LOG_DEBUG("Sent existing enemy " + std::to_string(enemyEntity) + " info to new player " +
+                  std::to_string(player.id));
+    }
+
+    for (auto projEntity : reg.viewEntitiesWith<Projectile, Position>()) {
+        auto &pos = reg.getComponent<Position>(projEntity);
+        auto &proj = reg.getComponent<Projectile>(projEntity);
+
+        Entity parentEntity = 0;
+        MessageData payload = factory.encodeMessageProjectile(
+            projEntity, parentEntity, proj.ownerType, pos.x, pos.y, proj.scale);
+        PreparedMessage msg = factory.createMessage(OpCode::SHOOT, payload);
+        _session.sendTcp(player.id, msg);
+        LOG_DEBUG("Sent existing projectile " + std::to_string(projEntity) +
                   " info to new player " + std::to_string(player.id));
     }
 
@@ -706,7 +727,7 @@ void GameHandler::checkPlayerCollisions() {
         auto &projectile = reg.getComponent<Projectile>(projectileEntity);
 
         // Only check enemy projectiles against players
-        if (projectile.ownerType != "enemy")
+        if (projectile.ownerType == "player")
             continue;
 
         Position &projPos = reg.getComponent<Position>(projectileEntity);
@@ -725,15 +746,9 @@ void GameHandler::checkPlayerCollisions() {
                 continue;
 
             // Simple AABB Collision
-            // Position (x, y) is the top-left corner of the sprite
-            // Hitbox position = Sprite top-left + offset
 
             float targetX = playerPos.x + offX;
             float targetY = playerPos.y + offY;
-
-            // Projectile size 16x16 (matching client sprite and debug visualization)
-            // Client draws projectile at (projPos.x, projPos.y), so it is Top-Left
-            // anchored.
 
             float projW = 16.0f * projectile.scale;
             float projH = 16.0f * projectile.scale;
@@ -787,8 +802,7 @@ void GameHandler::checkPlayerCollisions() {
     }
 
     // Process removals
-    // Remove duplicates from projectilesToRemove if any (though break should
-    // prevent it)
+    // Remove duplicates from projectilesToRemove if any
     for (auto proj : projectilesToRemove) {
         if (reg.hasComponent<Projectile>(proj)) { // Check if still exists
             sendDestroyedProjectileToAllPlayers(proj);
@@ -798,16 +812,15 @@ void GameHandler::checkPlayerCollisions() {
 
     // Notify deaths
     for (auto player : playersToKill) {
+        // Find and invalidate player in map to prevent auto-shoot or ID reuse issues
+        for (auto &pair : playerEntities) {
+            if (pair.second == player) {
+                pair.second = 0; // INVALID_ENTITY
+                break;
+            }
+        }
+
         sendDestroyedPlayerToAllPlayers(player);
-        // Do NOT destroy player entity here to allow respawn or game over handling
-        // (kept for tracking disconnected/dead state)
-
-        // Find and remove companions associated with this player
-        // Since we don't have a direct reverse lookup for parents easily without
-        // iterating, we iterate all parents. Or if we track companions in a map, we
-        // could use that. ClientGameHandler has it, Server might not. We will
-        // iterate view.
-
         std::vector<Entity> companionsToRemove;
         for (auto e : reg.viewEntitiesWith<Parent>()) {
             if (reg.getComponent<Parent>(e).entity == player) {
@@ -825,9 +838,8 @@ void GameHandler::checkPlayerCollisions() {
             }
             reg.destroyEntity(companion);
         }
+        reg.destroyEntity(player);
     }
-    // Reset position or something?
-    // For now just notify death.
 }
 
 void GameHandler::onUpgradeSelect(uint32_t playerId, uint8_t index) {
@@ -976,9 +988,6 @@ void GameHandler::spawnCompanion(Entity parent, WeaponType weaponType) {
     // Configure Drone specific weapon offsets
     if (reg.hasComponent<Weapon>(drone)) {
         auto &w = reg.getComponent<Weapon>(drone);
-        // Drone is ~40x40, fire from center-front
-        // Center vertically: (DroneHeight 40 / 2) - (ProjHeight 16 / 2) = 20 - 8 =
-        // 12
         w.offsetX = 10.0f;
         w.offsetY = 12.0f;
     }
