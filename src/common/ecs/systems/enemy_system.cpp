@@ -257,10 +257,15 @@ void EnemySystem::spawnBoss(Registry& reg, const std::string& bossId)
     reg.addComponent<Position>(_currentBossEntity, startX, startY);
     reg.addComponent<Velocity>(_currentBossEntity, 0.0f, 50.0f); // Move down slowly initially
     
+    int initialHealth = config.health;
+    if (_playerCount > 1) {
+        initialHealth += config.health_per_player * (_playerCount - 1);
+    }
+
     // We reuse Enemy component but hijack it for boss stats
     reg.addComponent<Enemy>(_currentBossEntity, 
         config.name, 
-        config.health, 
+        initialHealth, 
         80, // Collision damage
         config.speed, 
         1.0f, 
@@ -290,7 +295,12 @@ void EnemySystem::updateBoss(Registry& reg, float dt)
     
     // Phase Management
     auto& enemyState = reg.getComponent<Enemy>(_currentBossEntity);
-    float hpPercent = (float)enemyState.health / (float)config.max_health * 100.0f;
+    
+    int scaledMaxHealth = config.max_health;
+    if (_playerCount > 1) {
+        scaledMaxHealth += config.health_per_player * (_playerCount - 1);
+    }
+    float hpPercent = (float)enemyState.health / (float)scaledMaxHealth * 100.0f;
 
     // Boss Collision Logic
     float bossW = config.visuals.collider_width;

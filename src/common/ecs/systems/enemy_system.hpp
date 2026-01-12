@@ -40,6 +40,8 @@ class EnemySystem {
             _statsUpdateCallback = callback;
         }
 
+        void setPlayerCount(int count) { _playerCount = count; }
+
     private:
         void spawnBoss(Registry& reg, const std::string& bossId);
         void updateBoss(Registry& reg, float dt);
@@ -54,6 +56,7 @@ class EnemySystem {
         int enemiesAlive = 0;
         int wave = 0;
         bool canSpawn = false;
+        int _playerCount = 1;
         
         float _spawnInterval = 3.0f;
         int _maxEnemies = 10;

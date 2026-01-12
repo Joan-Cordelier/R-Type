@@ -223,9 +223,10 @@ void GameHandler::sendUpdatedPositionToPlayer(uint32_t playerId) {
 
     // Send player positions
     for (const auto &[pid, entity] : playerEntities) {
-        Position &pos = reg.getComponent<Position>(entity);
-        if (!reg.hasComponent<Velocity>(entity))
+        if (!reg.hasComponent<Position>(entity) || !reg.hasComponent<Velocity>(entity))
             continue;
+
+        Position &pos = reg.getComponent<Position>(entity);
 
         bool isMoving = reg.getComponent<Velocity>(entity).vx != 0.f ||
                         reg.getComponent<Velocity>(entity).vy != 0.f;
@@ -290,6 +291,7 @@ void GameHandler::updateGame(float deltaTime) {
         }
     }
 
+    enemySystem.setPlayerCount(playerEntities.size());
     enemySystem.update(reg, deltaTime);
 
     // Check for wave completion to trigger upgrades
@@ -810,6 +812,14 @@ void GameHandler::checkPlayerCollisions() {
 
     // Notify deaths
     for (auto player : playersToKill) {
+        // Find and invalidate player in map to prevent auto-shoot or ID reuse issues
+        for (auto &pair : playerEntities) {
+            if (pair.second == player) {
+                pair.second = 0; // INVALID_ENTITY
+                break;
+            }
+        }
+
         sendDestroyedPlayerToAllPlayers(player);
         std::vector<Entity> companionsToRemove;
         for (auto e : reg.viewEntitiesWith<Parent>()) {
@@ -828,9 +838,8 @@ void GameHandler::checkPlayerCollisions() {
             }
             reg.destroyEntity(companion);
         }
+        reg.destroyEntity(player);
     }
-    // Reset position or something?
-    // For now just notify death.
 }
 
 void GameHandler::onUpgradeSelect(uint32_t playerId, uint8_t index) {

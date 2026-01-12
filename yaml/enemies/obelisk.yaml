@@ -9,6 +9,7 @@ enemies:
     stats:
       health: 1000
       max_health: 1000
+      health_per_player: 500
       speed: 5.0
       collision_damage: 20
       score_value: 8000
@@ -114,9 +115,9 @@ enemies:
         - id: "energy_pulse_rapid"
           type: "projectile_ring"
           projectile_id: "boss_orb"
-          count: 16
+          count: 14
           speed: 300.0
-          duration: 0.2
+          duration: 0.25
 
         - id: "wait_medium"
           type: "wait"
