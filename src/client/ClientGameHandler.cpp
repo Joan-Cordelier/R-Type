@@ -75,10 +75,15 @@ ClientGameHandler::ClientGameHandler(bool debugMode)
 
     _renderer.loadSpriteSheet("textures/settingmenu/colorblindbtn.png", "daltonian_btn", 401, 108);
     _renderer.loadTexture("textures/settingmenu/bg.png", "settings_bg");
+    _renderer.loadTexture("textures/bg.png", "background_game");
     _renderer.loadSpriteSheet("textures/settingmenu/Keybinds.png", "keybinds", 16, 16);
     _renderer.loadTexture("textures/vaisseau.png", "drone");
 
     // Set up entities
+    _reg.addComponent<Position>(background, 0.f, 0.f);
+    _reg.addComponent<Sprite>(background, (std::string) "textures/bg.png",
+                              (std::string) "background_game", 1080, 720, -10, 0.f, 0.f, true);
+
     _reg.addComponent<Position>(start_button, 400.f, 300.f);
     _reg.addComponent<Sprite>(start_button, (std::string) "textures/play_button/default.png",
                               (std::string) "play_button", 300, 150, 0, 0.f, 0.f, true);
@@ -220,15 +225,6 @@ int ClientGameHandler::run() {
                             Color{255, 0, 0, 255}, RenderLayer::OVERLAY, 100);
                     } else if (_reg.hasComponent<SpriteSheets>(localEntity)) {
                         SpriteSheets &sprite = _reg.getComponent<SpriteSheets>(localEntity);
-                        // Boss or animated enemy
-                        // Check config for hitbox? For now rely on sprite dims
-                        // Add offset logic if needed
-                        // float hx = pos.x + sprite.offset_x; // Wait, sprite offset is for
-                        // VISUALS. Hitbox is usually separate? But here we draw "Hitbox
-                        // based on sprite". For Boss, Hitbox is config based, but we don't
-                        // have easy access to that config per-entity here without lookup.
-                        // Let's iterate bosses to find match? Too slow.
-                        // Just draw visual box for now.
                         _renderer.drawRect(
                             Rect{(int)pos.x, (int)pos.y, sprite.width, sprite.height},
                             Color{255, 0, 0, 255}, RenderLayer::OVERLAY, 100);
@@ -718,15 +714,7 @@ void ClientGameHandler::handleMessages() {
                     _reg.addComponent<Position>(projectile, x, y);
                     _reg.addComponent<Velocity>(projectile, 0.f, 200.f);
 
-                    // Use a simple sprite for boss orb, or fallback to player projectile
-                    // if texture missing We try to load a distinctive texture
                     _renderer.loadTexture("textures/projectiles/boss_orb.png", "boss_orb");
-                    // If file missing, renderer usually logs error and returns empty or
-                    // fallback. But let's assume if it fails we can't easily check
-                    // without helper. We will use Sprite, assuming boss_orb.png exists or
-                    // we use enemy_ship as fallback visual? Let's rely on standard
-                    // projectile_player sprite sheet but maybe frame index? No, let's
-                    // just make it a Sprite.
                     _reg.addComponent<Sprite>(
                         projectile, std::string("textures/projectiles/boss_orb.png"),
                         std::string("boss_orb"), size, size, 10, 0.f, 0.f, true);
@@ -1239,27 +1227,6 @@ void ClientGameHandler::selectUpgrade(int index) {
     MessageFactory &factory = MessageFactory::getInstance();
     PreparedMessage msg =
         factory.createMessage(OpCode::UPGRADE_SELECT, factory.encodeMessageUpgradeSelect(index));
-    // Usually commands are UDP, but selection is critical state.
-    // If we use UDP we might lose it. If we use TCP it's safe.
-    // Assuming NetworkManager supports sendTcp on Client side?
-    // Let's check NetworkManager.
-    // _network.sendUdp(msg); // Default
-    // Using TCP if available or reliable UDP.
-    // Client usually connects with UDP for gameplay. TCP for connection.
-    // Let's assume TCP socket is valid.
-
-    // Note: Protocol might not have fully mapped TCP logic on client for sending?
-    // _network.sendTcp(msg); // Let's try this.
-    // Actually ClientGameHandler.cpp uses
-    // Does NetworkManager have sendTcp?
-
-    // Checking NetworkManager.hpp... (I recall reading it has sendUdp)
-    // If I can't check, I'll use UDP for now as START/CONNECT use UDP/TCP mixed.
-    // Safe bet: UDP with ACK? No ACK system here.
-    // But  sets UPGRADE_SELECT priority to HIGH.
-    // NetworkManager probably sends HIGH via UDP.
-
-    // Let's use sendUdp for now as it's the primary channel.
     _network.sendUdp(msg);
 }
 

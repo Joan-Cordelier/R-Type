@@ -59,6 +59,7 @@ private:
     // menu Entities
     Entity start_button = _reg.createEntity();
     Entity label_input = _reg.createEntity();
+    Entity background = _reg.createEntity();
 
     void toggleSettingsMenu();
 
