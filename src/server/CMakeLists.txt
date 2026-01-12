@@ -31,6 +31,7 @@ target_compile_options(r-type_server PRIVATE -Wall -Wextra)
 target_compile_features(r-type_server PRIVATE cxx_std_17)
 target_compile_definitions(r-type_server PRIVATE BUILD_SERVER)
 
-target_link_libraries(r-type_server PRIVATE yaml-cpp::yaml-cpp)
+find_package(ZLIB REQUIRED)
+target_link_libraries(r-type_server PRIVATE yaml-cpp::yaml-cpp ZLIB::ZLIB)
 
 set_target_properties(r-type_server PROPERTIES OUTPUT_NAME "r-type_server")
