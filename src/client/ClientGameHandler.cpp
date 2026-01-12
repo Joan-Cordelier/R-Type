@@ -428,15 +428,67 @@ void ClientGameHandler::handleMessages() {
                 }
                 pendingPlayerPackets.clear();
 
-                // Auto-create room for now
+                // Request room list to join existing room if possible
                 if (!_joinedRoom) {
-                    std::cout << "Auto-creating room..." << std::endl;
-                    PreparedMessage createMsg = factory.createMessage(OpCode::CREATE_ROOM, {});
-                    _network.sendTcp(createMsg);
+                    std::cout << "Requesting room list..." << std::endl;
+                    PreparedMessage listMsg = factory.createMessage(OpCode::LIST_ROOMS, {});
+                    _network.sendTcp(listMsg);
                 }
             }
             break;
         }
+
+        case OpCode::ROOM_LIST: {
+            std::cout << "Received Room List (Size: " << msg->data.size() << ")" << std::endl;
+            if (msg->data.size() >= 1) {
+                uint8_t count = msg->data[0];
+
+                size_t offset = 1;
+                uint32_t targetRoomId = 0;
+                bool roomFound = false;
+
+                for (uint8_t i = 0; i < count; ++i) {
+                    if (offset + 5 > msg->data.size())
+                        break;
+
+                    uint32_t rId = (static_cast<uint32_t>(msg->data[offset]) << 24) |
+                                   (static_cast<uint32_t>(msg->data[offset + 1]) << 16) |
+                                   (static_cast<uint32_t>(msg->data[offset + 2]) << 8) |
+                                   static_cast<uint32_t>(msg->data[offset + 3]);
+                    uint8_t pCount = msg->data[offset + 4];
+                    offset += 5;
+
+                    std::cout << "Room " << rId << " (" << (int)pCount << "/4)" << std::endl;
+
+                    if (pCount < 4 && !roomFound) {
+                        targetRoomId = rId;
+                        roomFound = true;
+                    }
+                }
+
+                MessageFactory &factory = MessageFactory::getInstance();
+                if (roomFound) {
+                    std::cout << "Joining Room " << targetRoomId << std::endl;
+                    std::vector<uint8_t> payload;
+                    payload.push_back(static_cast<uint8_t>((targetRoomId >> 24) & 0xFF));
+                    payload.push_back(static_cast<uint8_t>((targetRoomId >> 16) & 0xFF));
+                    payload.push_back(static_cast<uint8_t>((targetRoomId >> 8) & 0xFF));
+                    payload.push_back(static_cast<uint8_t>(targetRoomId & 0xFF));
+
+                    PreparedMessage joinMsg = factory.createMessage(OpCode::JOIN_ROOM, payload);
+                    _network.sendTcp(joinMsg);
+                } else {
+                    std::cout << "No suitable room found, creating new one..." << std::endl;
+                    PreparedMessage createMsg = factory.createMessage(OpCode::CREATE_ROOM, {});
+                    _network.sendTcp(createMsg);
+                }
+            } else {
+                std::cout << "Empty room list, creating new room..." << std::endl;
+                MessageFactory &factory = MessageFactory::getInstance();
+                PreparedMessage createMsg = factory.createMessage(OpCode::CREATE_ROOM, {});
+                _network.sendTcp(createMsg);
+            }
+        } break;
         case OpCode::ROOM_CREATED: {
             if (msg->data.size() >= 4) {
                 uint32_t roomId = (static_cast<uint32_t>(msg->data[0]) << 24) |
