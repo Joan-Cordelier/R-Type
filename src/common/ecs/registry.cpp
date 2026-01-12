@@ -129,6 +129,7 @@ template void Registry::addComponent<Button, std::string, int, bool>(Entity, std
 template void Registry::addComponent<Label, std::string, std::string, std::string, Color, int, bool>(Entity, std::string, std::string, std::string, Color, int, bool);
 template void Registry::addComponent<SpriteSheets, std::string, std::string, int, int, int, int, int, float, float, bool, bool>(Entity, std::string, std::string, int, int, int, int, int, float, float, bool, bool);
 template void Registry::addComponent<Enemy, std::string, int, int, float, float, float, int, float, float, float>(Entity, std::string, int, int, float, float, float, int, float, float, float);
+template void Registry::addComponent<Enemy, std::string, int, int, float, float, float, int, float, float, float, float>(Entity, std::string, int, int, float, float, float, int, float, float, float, float);
 template void Registry::addComponent<Projectile, int, std::string>(Entity, int, std::string);
 template void Registry::addComponent<Projectile, int, std::string, float>(Entity, int, std::string, float);
 template void Registry::addComponent<Slider, float, float, float, float, float, int, int, int, bool, bool, bool, std::string, Color, Color, Color>(Entity, float, float, float, float, float, int, int, int, bool, bool, bool, std::string, Color, Color, Color);

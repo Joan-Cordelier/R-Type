@@ -51,7 +51,8 @@ void EnemySystem::update(Registry& reg, float dt) {
             }
             
             // Also lifetime?
-            if (enemy.time_alive > 5.0f + warningTime) { // Duration from config?
+            float duration = (enemy.max_lifetime > 0.0f) ? enemy.max_lifetime : 5.0f;
+            if (enemy.time_alive > duration + warningTime) { 
                  deadEnemyEntities.push_back(e);
                  // Deferred destruction
             }
@@ -84,21 +85,25 @@ void EnemySystem::update(Registry& reg, float dt) {
         
         // Collision logic
         bool isDead = false;
-        for (auto& entity : reg.viewEntitiesWith<Projectile, Position, Velocity>()) {
-            if (isDead) break;
-            if (reg.getComponent<Projectile>(entity).ownerType == "player") {
-                Position& projPos = reg.getComponent<Position>(entity);
-                if (projPos.x >= position.x && projPos.x <= position.x + 50 &&
-                    projPos.y >= position.y && projPos.y <= position.y + 50) {
-                    
-                    enemy.health -= reg.getComponent<Projectile>(entity).damage;
-                    projectileColliding.push_back(entity);
-                    
-                    if (enemy.health <= 0) {
-                        deadEnemyEntities.push_back(e);
-                        enemyEntities.erase(std::remove(enemyEntities.begin(), enemyEntities.end(), e), enemyEntities.end());
-                        enemiesAlive--;
-                        isDead = true;
+        
+        // Disable collision for void zones (they are just damaging fields, shouldn't block shots)
+        if (enemy.type != "void_zone") {
+            for (auto& entity : reg.viewEntitiesWith<Projectile, Position, Velocity>()) {
+                if (isDead) break;
+                if (reg.getComponent<Projectile>(entity).ownerType == "player") {
+                    Position& projPos = reg.getComponent<Position>(entity);
+                    if (projPos.x >= position.x && projPos.x <= position.x + 50 &&
+                        projPos.y >= position.y && projPos.y <= position.y + 50) {
+                        
+                        enemy.health -= reg.getComponent<Projectile>(entity).damage;
+                        projectileColliding.push_back(entity);
+                        
+                        if (enemy.health <= 0) {
+                            deadEnemyEntities.push_back(e);
+                            enemyEntities.erase(std::remove(enemyEntities.begin(), enemyEntities.end(), e), enemyEntities.end());
+                            enemiesAlive--;
+                            isDead = true;
+                        }
                     }
                 }
             }
@@ -306,7 +311,8 @@ void EnemySystem::updateBoss(Registry& reg, float dt)
                 enemyState.health -= proj.damage;
                 projectileColliding.push_back(projEntity);
                 
-                reg.destroyEntity(projEntity);
+                // Do NOT destroy immediately to avoid ID reuse within same frame causing race conditions
+                // reg.destroyEntity(projEntity); 
 
                 // Boss Death Logic
                 if (enemyState.health <= 0) {
@@ -395,11 +401,13 @@ void EnemySystem::executePattern(Registry& reg, const BossAttackPattern& pattern
         
         for (int i=0; i<count; ++i) {
              Entity proj = reg.createEntity();
-             reg.addComponent<Position>(proj, bossPos.x + 90.f, bossPos.y + 100.f);
-             float angle = (float)i / (float)count * 2.0f * 3.14159f;
-             float vx = static_cast<float>(std::cos(angle) * speed);
-             float vy = static_cast<float>(std::sin(angle) * speed);
-             reg.addComponent<Velocity>(proj, vx, vy);
+             // Spread projectile on X axis
+             float randX = 10 + (rand() % 1060);
+             reg.addComponent<Position>(proj, randX, bossPos.y + 100.f);
+             
+             // Fall straight down to match client prediction
+             reg.addComponent<Velocity>(proj, 0.f, speed);
+             
              int dmg = (pattern.damage > 0) ? (int)pattern.damage : 20;
              reg.addComponent<Projectile>(proj, dmg, projId);
              newProjectileEntitiesWithParent.push_back({bossEntity, proj});
@@ -409,20 +417,24 @@ void EnemySystem::executePattern(Registry& reg, const BossAttackPattern& pattern
         int count = pattern.count > 0 ? pattern.count : 3;
         for (int i=0; i<count; ++i) {
             Entity zone = reg.createEntity();
-            int rx = 100 + (rand() % 900);
-            int ry = 100 + (rand() % 600);
+            int rx = 20 + (rand() % 1000);
+            int ry = 40 + (rand() % 640);
             
             reg.addComponent<Position>(zone, (float)rx, (float)ry);
             reg.addComponent<Velocity>(zone, 0.f, 0.f);
             
             int hp = 5000; 
             int dmg = (pattern.damage > 0) ? (int)pattern.damage : 10;
+            float duration = (pattern.duration > 0.f) ? pattern.duration : 5.0f;
+            
             // Use specific type so client can render it
             reg.addComponent<Enemy>(zone, 
                 (std::string)"void_zone", 
                 hp, 
                 dmg, 
-                0.f, 0.f, 0.f, 0, 0.f, 0.f, 0.f
+                0.f, 0.f, 0.f, 0, 
+                0.f, 0.f, 0.f, 
+                duration // max_lifetime
             );
             
             newEnemyEntities.push_back(zone);

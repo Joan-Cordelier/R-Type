@@ -69,6 +69,8 @@ enemies:
             - "spawn_void_zones_rapid"
             - "energy_pulse_rapid"
             - "screen_shake"
+            - "spawn_void_zones_alot"
+            - "screen_shake"
             
       attack_patterns:
         - id: "spawn_void_zones"
@@ -84,9 +86,18 @@ enemies:
         - id: "spawn_void_zones_rapid"
           type: "area_spawner"
           texture_override: "textures/ships/bosses/Obelisk_effects.png"
-          count: 6
+          count: 8
           duration: 3.0
           damage: 20
+          warning_time: 0.8
+          animation_trigger: "channeling"
+        
+        - id: "spawn_void_zones_alot"
+          type: "area_spawner"
+          texture_override: "textures/ships/bosses/Obelisk_effects.png"
+          count: 20
+          duration: 3.0
+          damage: 10
           warning_time: 0.8
           animation_trigger: "channeling"
           
@@ -101,3 +112,15 @@ enemies:
           projectile_id: "boss_orb"
           count: 16
           speed: 300.0
+
+        - id: "wait_medium"
+          type: "wait"
+          duration: 2.0
+
+        - id: "enter_screen"
+          type: "wait"
+          duration: 3.0
+
+        - id: "screen_shake"
+          type: "wait"
+          duration: 0.8

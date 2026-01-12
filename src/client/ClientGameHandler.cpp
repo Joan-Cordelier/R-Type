@@ -723,6 +723,15 @@ void ClientGameHandler::handleMessages() {
                         break;
                     }
 
+                    // Force clean up stale projectiles if they exist (Fixes ID collision glitches)
+                    auto itProj = projectileEntities.find(serverEntity);
+                    if (itProj != projectileEntities.end()) {
+                        std::cout << "[INFO] Cleaning up stale PROJECTILE (ID: " << serverEntity 
+                                  << ") for new ENEMY" << std::endl;
+                        _reg.destroyEntity(itProj->second);
+                        projectileEntities.erase(itProj);
+                    }
+
                     cleanupServerEntity(serverEntity);
 
                     Entity localEntity = _reg.createEntity();

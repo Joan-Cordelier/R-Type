@@ -318,12 +318,6 @@ void GameHandler::updateGame(float deltaTime) {
                          candidates[i].id);
             }
 
-            // Send options to all connected players (TCP likely better for reliable
-            // UI data, but protocol seems mix) Existing sends use sendTcp or sendUdp
-            // dependent on OpCode priority and msg type. UPGRADE_OPTIONS is MEDIUM? I
-            // set it to MEDIUM. It should probably be reliable. Let's use sendTcp for
-            // reliable delivery of this game state change.
-
             auto &factory = MessageFactory::getInstance();
             MessageData payload = factory.encodeMessageUpgradeOptions(upgradeIds);
             PreparedMessage msg = factory.createMessage(OpCode::UPGRADE_OPTIONS, payload);
@@ -341,15 +335,16 @@ void GameHandler::updateGame(float deltaTime) {
         }
     }
 
-    for (const auto &[enemy, projectile] : enemySystem.getNewProjectileEntitiesWithParent()) {
-        sendNewProjectilesToAllPlayers(enemy, projectile);
+    for (const auto &enemy : enemySystem.getDeadEnemyEntities()) {
+        sendDestroyedEnemyToAllPlayers(enemy);
     }
     for (const auto &projectile : enemySystem.getProjectileColliding()) {
         sendDestroyedProjectileToAllPlayers(projectile);
         reg.destroyEntity(projectile);
     }
-    for (const auto &enemy : enemySystem.getDeadEnemyEntities()) {
-        sendDestroyedEnemyToAllPlayers(enemy);
+
+    for (const auto &[enemy, projectile] : enemySystem.getNewProjectileEntitiesWithParent()) {
+        sendNewProjectilesToAllPlayers(enemy, projectile);
     }
 
     initNewEnemyEntities(enemySystem.getNewEnemyEntities());
@@ -706,7 +701,7 @@ void GameHandler::checkPlayerCollisions() {
         auto &projectile = reg.getComponent<Projectile>(projectileEntity);
 
         // Only check enemy projectiles against players
-        if (projectile.ownerType != "enemy")
+        if (projectile.ownerType == "player")
             continue;
 
         Position &projPos = reg.getComponent<Position>(projectileEntity);
@@ -725,15 +720,9 @@ void GameHandler::checkPlayerCollisions() {
                 continue;
 
             // Simple AABB Collision
-            // Position (x, y) is the top-left corner of the sprite
-            // Hitbox position = Sprite top-left + offset
 
             float targetX = playerPos.x + offX;
             float targetY = playerPos.y + offY;
-
-            // Projectile size 16x16 (matching client sprite and debug visualization)
-            // Client draws projectile at (projPos.x, projPos.y), so it is Top-Left
-            // anchored.
 
             float projW = 16.0f * projectile.scale;
             float projH = 16.0f * projectile.scale;
@@ -787,8 +776,7 @@ void GameHandler::checkPlayerCollisions() {
     }
 
     // Process removals
-    // Remove duplicates from projectilesToRemove if any (though break should
-    // prevent it)
+    // Remove duplicates from projectilesToRemove if any
     for (auto proj : projectilesToRemove) {
         if (reg.hasComponent<Projectile>(proj)) { // Check if still exists
             sendDestroyedProjectileToAllPlayers(proj);
@@ -799,15 +787,6 @@ void GameHandler::checkPlayerCollisions() {
     // Notify deaths
     for (auto player : playersToKill) {
         sendDestroyedPlayerToAllPlayers(player);
-        // Do NOT destroy player entity here to allow respawn or game over handling
-        // (kept for tracking disconnected/dead state)
-
-        // Find and remove companions associated with this player
-        // Since we don't have a direct reverse lookup for parents easily without
-        // iterating, we iterate all parents. Or if we track companions in a map, we
-        // could use that. ClientGameHandler has it, Server might not. We will
-        // iterate view.
-
         std::vector<Entity> companionsToRemove;
         for (auto e : reg.viewEntitiesWith<Parent>()) {
             if (reg.getComponent<Parent>(e).entity == player) {
@@ -976,9 +955,6 @@ void GameHandler::spawnCompanion(Entity parent, WeaponType weaponType) {
     // Configure Drone specific weapon offsets
     if (reg.hasComponent<Weapon>(drone)) {
         auto &w = reg.getComponent<Weapon>(drone);
-        // Drone is ~40x40, fire from center-front
-        // Center vertically: (DroneHeight 40 / 2) - (ProjHeight 16 / 2) = 20 - 8 =
-        // 12
         w.offsetX = 10.0f;
         w.offsetY = 12.0f;
     }
