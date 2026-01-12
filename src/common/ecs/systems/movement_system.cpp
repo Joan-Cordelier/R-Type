@@ -26,7 +26,7 @@ void MovementSystem::update(Registry& reg, float dt) {
         }
         if (reg.hasComponent<Projectile>(e) &&reg.hasComponent<Position>(e)) {
             Position& position = reg.getComponent<Position>(e);
-            if (position.y < -10.f || position.y > 730.f || position.x < -10.f || position.x > 1090.f) {
+            if (position.y < -100.f || position.y > 1200.f || position.x < -100.f || position.x > 2000.f) {
                 reg.destroyEntity(e);
             }
         }

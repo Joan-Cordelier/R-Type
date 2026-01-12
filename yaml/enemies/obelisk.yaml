@@ -52,13 +52,15 @@ enemies:
         
         - id: 2
           name: "Zone_Control"
-          trigger_health_percentage: 95
+          trigger_health_percentage: 99
           loop_patterns: true
           patterns:
             - "spawn_void_zones"
-            - "wait_medium"
             - "energy_pulse"
-            - "wait_medium"
+            - "screen_shake"
+            - "energy_pulse"
+            - "screen_shake"
+            - "energy_pulse"
             
         - id: 3
           name: "Unstable_Core"
@@ -66,11 +68,13 @@ enemies:
           visual_effect: "flicker_red"
           loop_patterns: true
           patterns:
-            - "spawn_void_zones_rapid"
-            - "energy_pulse_rapid"
-            - "screen_shake"
             - "spawn_void_zones_alot"
-            - "screen_shake"
+            - "energy_pulse_rapid"
+            - "wait_superlow"
+            - "energy_pulse_rapid"
+            - "wait_superlow"
+            - "energy_pulse_rapid"
+            - "wait_superlow"
             
       attack_patterns:
         - id: "spawn_void_zones"
@@ -78,7 +82,7 @@ enemies:
           description: "Créé des zones de dégâts persistantes utilisant obelisk_effects"
           texture_override: "textures/ships/bosses/Obelisk_effects.png"
           count: 3
-          duration: 5.0
+          duration: 3.0
           damage: 15
           warning_time: 1.5
           animation_trigger: "channeling"
@@ -87,7 +91,7 @@ enemies:
           type: "area_spawner"
           texture_override: "textures/ships/bosses/Obelisk_effects.png"
           count: 8
-          duration: 3.0
+          duration: 2.0
           damage: 20
           warning_time: 0.8
           animation_trigger: "channeling"
@@ -96,7 +100,7 @@ enemies:
           type: "area_spawner"
           texture_override: "textures/ships/bosses/Obelisk_effects.png"
           count: 20
-          duration: 3.0
+          duration: 1.0
           damage: 10
           warning_time: 0.8
           animation_trigger: "channeling"
@@ -112,6 +116,7 @@ enemies:
           projectile_id: "boss_orb"
           count: 16
           speed: 300.0
+          duration: 0.2
 
         - id: "wait_medium"
           type: "wait"
@@ -124,3 +129,7 @@ enemies:
         - id: "screen_shake"
           type: "wait"
           duration: 0.8
+        
+        - id: "wait_superlow"
+          type: "wait"
+          duration: 0.25
