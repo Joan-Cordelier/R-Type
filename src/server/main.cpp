@@ -5,41 +5,51 @@
 ** main
 */
 
-#include "Session/SessionManager.hpp"
-#include "Gameplay/GameHandler.hpp"
+#include "Lobby/LobbyManager.hpp"
 #include "Logs/Logger.hpp"
-#include <csignal>
 #include <atomic>
+#include <csignal>
 
 std::atomic<bool> running(true);
 
-void signalHandler(int sig)
-{
-    (void)sig;
-    LOG_INFO("Received shutdown signal");
-    running = false;
+// We need a pointer to lobbyManager for signal handler if we want to stop it
+// gracefull via atomic? Or just let atomic bool handle it if passed?
+// LobbyManager has _running atomic member.
+
+// Actually main() has `running`. LobbyManager has its own.
+// We should probably just call lobby.stop() in signal handler?
+// But signal handler is static.
+
+// Let's keep it simple: atomic global running flag.
+// Pass it to LobbyManager?
+// LobbyManager has `_session`. SessionManager has `start` and `stop`.
+// LobbyManager::run() blocks until stopped.
+
+LobbyManager *g_lobby = nullptr;
+
+void signalHandler(int sig) {
+  (void)sig;
+  LOG_INFO("Received shutdown signal");
+  if (g_lobby) {
+    g_lobby->stop();
+  }
 }
 
-int main()
-{
-    signal(SIGINT, signalHandler);
-    signal(SIGTERM, signalHandler);
+int main() {
+  signal(SIGINT, signalHandler);
+  signal(SIGTERM, signalHandler);
 
-    LOG_INFO("Starting R-Type server...");
+  LOG_INFO("Starting R-Type server...");
 
-    SessionManager session;
-    GameHandler game(session, running, "yaml/main_loop.yaml");
-    
-    session.start();
+  LobbyManager lobby("yaml/main_loop.yaml");
+  g_lobby = &lobby;
 
-    LOG_INFO("Server started - all systems running");
+  LOG_INFO("Server started - all systems running");
 
-    // Run the main game loop
-    game.run();
+  // Run the lobby manager
+  lobby.run();
 
-    LOG_INFO("Shutting down server...");
-    session.stop();
-    LOG_INFO("Server stopped");
+  LOG_INFO("Shutting down server...");
 
-    return 0;
+  return 0;
 }
