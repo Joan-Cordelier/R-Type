@@ -123,6 +123,7 @@ int ClientGameHandler::run() {
     std::map<Entity, float> voidZoneTimers;
     Uint64 last = SDL_GetPerformanceCounter();
     _input.setControlled(label_input, _keybindsManager);
+    _audioManager.playMusic("textures/music.ogg");
 
     while (running) {
         _renderer.window.processSDLEvents();
@@ -171,6 +172,8 @@ int ClientGameHandler::run() {
 
         _buttonsys.update(_reg);
         _slidersys.update(_reg);
+        _audioManager.setMusicVolume(static_cast<int>(_settingsMenu.getMusicVolumeSliderValue(_reg)));
+        _audioManager.setSoundVolume(static_cast<int>(_settingsMenu.getSoundVolumeSliderValue(_reg)));
 
         _renderer.clear();
 
@@ -659,6 +662,7 @@ void ClientGameHandler::handleMessages() {
                     auto itComp = companionEntities.find(serverParentEntity);
 
                     if (it != playerEntities.end()) {
+                        _audioManager.playSound("textures/shoot.wav");
                         Entity localParent = it->second;
 
                         // Sync cooldown with server confirmation
