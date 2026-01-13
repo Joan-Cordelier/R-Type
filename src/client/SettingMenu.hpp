@@ -15,6 +15,12 @@ private:
     Entity DaltonianMode;
     DaltonianType currentDaltonianMode = DaltonianType::None;
 
+    // Volume sliders
+    Entity MusicVolumeSlider;
+    Entity SoundVolumeSlider;
+    Entity MusicLabel;
+    Entity SoundLabel;
+
     //keybinds btn
     KeybindsManager& keybindsManager;
     Entity MoveUpLabel;
@@ -38,5 +44,17 @@ public:
             return reg.getComponent<Slider>(DaltonianSlider).getValue();
         }
         return 0.0f;
+    }
+    float getMusicVolumeSliderValue(Registry& reg) const {
+        if (reg.hasComponent<Slider>(MusicVolumeSlider)) {
+            return reg.getComponent<Slider>(MusicVolumeSlider).getValue();
+        }
+        return 64.0f;
+    }
+    float getSoundVolumeSliderValue(Registry& reg) const {
+        if (reg.hasComponent<Slider>(SoundVolumeSlider)) {
+            return reg.getComponent<Slider>(SoundVolumeSlider).getValue();
+        }
+        return 64.0f;
     }
 };
