@@ -2,6 +2,12 @@
 
 AudioManager::AudioManager() : _currentMusic(nullptr)
 {
+    // Initialize SDL_mixer for MP3 and OGG support
+    int flags = MIX_INIT_MP3 | MIX_INIT_OGG;
+    if (Mix_Init(flags) != flags) {
+        std::cerr << "SDL_mixer could not initialize support for MP3/OGG: " << Mix_GetError() << std::endl;
+    }
+
     if (Mix_OpenAudio(44100, MIX_DEFAULT_FORMAT, 2, 2048) < 0) {
         std::cerr << "SDL_mixer could not initialize! SDL_mixer Error: " << Mix_GetError() << std::endl;
     }

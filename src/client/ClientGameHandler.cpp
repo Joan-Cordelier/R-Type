@@ -123,7 +123,7 @@ int ClientGameHandler::run() {
     std::map<Entity, float> voidZoneTimers;
     Uint64 last = SDL_GetPerformanceCounter();
     _input.setControlled(label_input, _keybindsManager);
-    _audioManager.playMusic("textures/music.ogg");
+    _audioManager.playMusic(_config.getAudioConfig().level_music);
 
     while (running) {
         _renderer.window.processSDLEvents();
@@ -595,6 +595,7 @@ void ClientGameHandler::handleMessages() {
         }
         case OpCode::SHOOT: {
             std::cout << "Received SHOOT message, size=" << msg->data.size() << std::endl;
+            _audioManager.playSound(_config.getAudioConfig().shoot_sound);
             if (msg->data.size() >= 26) {
                 Entity serverProjectileEntity = (static_cast<Entity>(msg->data[0]) << 24) |
                                                 (static_cast<Entity>(msg->data[1]) << 16) |
@@ -638,9 +639,6 @@ void ClientGameHandler::handleMessages() {
                     std::memcpy(&scale, &scaleInt, sizeof(float));
                 }
 
-                // cleanupServerEntity(serverProjectileEntity);
-                // Only cleanup previous projectiles to avoid killing active
-                // Companions/Players if ID reuse happens rapidly or out-of-order.
                 auto itOldProj = projectileEntities.find(serverProjectileEntity);
                 if (itOldProj != projectileEntities.end()) {
                     _reg.destroyEntity(itOldProj->second);
@@ -662,7 +660,6 @@ void ClientGameHandler::handleMessages() {
                     auto itComp = companionEntities.find(serverParentEntity);
 
                     if (it != playerEntities.end()) {
-                        _audioManager.playSound("textures/shoot.wav");
                         Entity localParent = it->second;
 
                         // Sync cooldown with server confirmation

@@ -16,6 +16,7 @@ void GameLoopConfig::loadDefaults()
     _player = PlayerConfig{};
     _projectiles = ProjectilesConfig{};
     _systems = SystemsConfig{};
+    _audio = AudioConfig{};
     
     // Default enemy type
     EnemyTypeConfig basicEnemy;
@@ -43,7 +44,13 @@ bool GameLoopConfig::loadFromFile(const std::string& filepath)
             if (gl["max_messages_per_frame"]) _gameLoop.max_messages_per_frame = gl["max_messages_per_frame"].as<int>();
             if (gl["min_players_to_start"]) _gameLoop.min_players_to_start = gl["min_players_to_start"].as<int>();
         }
-        
+
+        if (config["audio"]) {
+            auto au = config["audio"];
+            if (au["level_music"]) _audio.level_music = au["level_music"].as<std::string>();
+            if (au["shoot_sound"]) _audio.shoot_sound = au["shoot_sound"].as<std::string>();
+        }
+
         // Parse enemy_spawning section
         if (config["enemy_spawning"]) {
             auto es = config["enemy_spawning"];

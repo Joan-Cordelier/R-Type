@@ -49,7 +49,6 @@ levels:
   - id: 1
     name: "Zone 1"
     background: "textures/backgrounds/level1.png"
-    music: "audio/music/level1.ogg"
     waves:
       - id: 1
         start_delay: 1.0
@@ -84,7 +83,6 @@ levels:
   - id: 2
     name: "Zone 2"
     background: "textures/backgrounds/level2.png"
-    music: "audio/music/level2.ogg"
     waves:
       - id: 1
         start_delay: 2.0
@@ -136,3 +134,7 @@ systems:
   stats: true
   enemy: true
   collision: true
+
+audio:
+  level_music: "textures/music.ogg"
+  shoot_sound: "textures/shoot.wav"
