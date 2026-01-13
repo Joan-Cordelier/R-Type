@@ -77,6 +77,11 @@ struct SystemsConfig {
     bool collision = true;
 };
 
+struct AudioConfig {
+    std::string level_music = "textures/music.ogg";
+    std::string shoot_sound = "textures/shoot.wav";
+};
+
 struct GameLoopSettings {
     int tick_rate = 30;
     int max_messages_per_frame = 100;
@@ -155,6 +160,8 @@ public:
     const PlayerConfig& getPlayerConfig() const { return _player; }
     const ProjectilesConfig& getProjectilesConfig() const { return _projectiles; }
     const SystemsConfig& getSystemsConfig() const { return _systems; }
+    const AudioConfig& getAudioConfig() const { return _audio; }
+
     const std::map<std::string, EnemyTypeConfig>& getEnemyTypes() const { return _enemyTypes; }
     const std::map<std::string, BossConfig>& getBosses() const { return _bosses; }
     const std::vector<LevelConfig>& getLevels() const { return _levels; }
@@ -173,9 +180,11 @@ private:
     PlayerConfig _player;
     ProjectilesConfig _projectiles;
     SystemsConfig _systems;
+    AudioConfig _audio;
+    
     std::map<std::string, EnemyTypeConfig> _enemyTypes;
-    std::map<std::string, BossConfig> _bosses;
     std::vector<LevelConfig> _levels;
+    std::map<std::string, BossConfig> _bosses;
     std::vector<UpgradeData> _upgrades;
 };
 
