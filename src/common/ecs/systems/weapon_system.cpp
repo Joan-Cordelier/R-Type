@@ -12,7 +12,7 @@
 
 void WeaponSystem::fireWeapon(Registry &reg, Entity entity) {
     if (fireCooldowns.find(entity) != fireCooldowns.end() && fireCooldowns[entity] > 0.0f) {
-        return; // Still in cooldown
+        return;
     }
     Weapon weaponComp = reg.getComponent<Weapon>(entity);
 
@@ -21,41 +21,39 @@ void WeaponSystem::fireWeapon(Registry &reg, Entity entity) {
     if (!isServer) {
         return;
     }
-    //server side code
-    Entity projectile = reg.createEntity();
-    reg.addComponent<Position>(projectile, 0.f, 0.f);
     auto &pos = reg.getComponent<Position>(entity);
     float spawnX = pos.x + weaponComp.offsetX;
     float spawnY = pos.y + weaponComp.offsetY;
-    
-    reg.getComponent<Position>(projectile).x = spawnX;
-    reg.getComponent<Position>(projectile).y = spawnY;
-    reg.addComponent<Velocity>(projectile, 0.f, -projSpeed);
-    reg.addComponent<Projectile>(projectile, weaponComp.damage, std::string("player"), weaponComp.projectileScale);
 
-    if (projNotifier) {
-        projNotifier(entity, projectile);
+    int n = weaponComp.nbOfBullets;
+    if (n < 1) n = 1;
+
+    float spreadAngle = 30.0f * (3.14159f / 180.0f);
+    if (n == 2) spreadAngle = 15.0f * (3.14159f / 180.0f);
+
+    float startAngle = 0.0f;
+    float step = 0.0f;
+
+    if (n > 1) {
+        startAngle = -spreadAngle / 2.0f;
+        step = spreadAngle / (float)(n - 1);
     }
 
-    if (weaponComp.nbOfBullets > 1) {
-        static int offsetPerBullet = 20;
-        int remaining = weaponComp.nbOfBullets - 1;
-        for (int i = 0; i < remaining / 2; ++i) {
-            Entity projLeft = reg.createEntity();
-            reg.addComponent<Position>(projLeft, spawnX - (offsetPerBullet * (i + 1)), spawnY);
-            reg.addComponent<Velocity>(projLeft, 0.0f, -projSpeed);
-            reg.addComponent<Projectile>(projLeft, weaponComp.damage, std::string("player"), weaponComp.projectileScale);
-            Entity projRight = reg.createEntity();
-            reg.addComponent<Position>(projRight, spawnX + (offsetPerBullet * (i + 1)), spawnY);
-            reg.addComponent<Velocity>(projRight, 0.0f, -projSpeed);
-            reg.addComponent<Projectile>(projRight, weaponComp.damage, std::string("player"), weaponComp.projectileScale);
-            if (projNotifier) {
-                projNotifier(entity, projRight);
-                projNotifier(entity, projLeft);
-            }
+    for (int i = 0; i < n; ++i) {
+        float angle = (n > 1) ? (startAngle + i * step) : 0.0f;
+
+        float vx = projSpeed * std::sin(angle);
+        float vy = -projSpeed * std::cos(angle);
+
+        Entity projectile = reg.createEntity();
+        reg.addComponent<Position>(projectile, spawnX, spawnY);
+        reg.addComponent<Velocity>(projectile, vx, vy);
+        reg.addComponent<Projectile>(projectile, weaponComp.damage, std::string("player"), weaponComp.projectileScale);
+
+        if (projNotifier) {
+            projNotifier(entity, projectile);
         }
     }
-
 }
 
 void WeaponSystem::setWeaponType(Registry &reg, Entity entity, WeaponType type) {

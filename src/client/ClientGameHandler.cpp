@@ -1,6 +1,7 @@
 #include "ClientGameHandler.hpp"
 #include "../common/Data/EntityType.hpp"
 #include "../common/ecs/components/weapon.hpp"
+#include "../common/ecs/components/enemy.hpp"
 #include <cmath>
 #include <cstring>
 #include <map>
@@ -596,7 +597,7 @@ void ClientGameHandler::handleMessages() {
         case OpCode::SHOOT: {
             std::cout << "Received SHOOT message, size=" << msg->data.size() << std::endl;
             _audioManager.playSound(_config.getAudioConfig().shoot_sound);
-            if (msg->data.size() >= 26) {
+            if (msg->data.size() >= 34) {
                 Entity serverProjectileEntity = (static_cast<Entity>(msg->data[0]) << 24) |
                                                 (static_cast<Entity>(msg->data[1]) << 16) |
                                                 (static_cast<Entity>(msg->data[2]) << 8) |
@@ -614,7 +615,7 @@ void ClientGameHandler::handleMessages() {
                 ownerType.erase(std::find(ownerType.begin(), ownerType.end(), '\0'),
                                 ownerType.end());
 
-                // Decode x coordinate (bytes 18-21)
+                // Decode x coordinate
                 uint32_t xInt = (static_cast<uint32_t>(msg->data[18]) << 24) |
                                 (static_cast<uint32_t>(msg->data[19]) << 16) |
                                 (static_cast<uint32_t>(msg->data[20]) << 8) |
@@ -622,7 +623,7 @@ void ClientGameHandler::handleMessages() {
                 float x;
                 std::memcpy(&x, &xInt, sizeof(float));
 
-                // Decode y coordinate (bytes 22-25)
+                // Decode y coordinate
                 uint32_t yInt = (static_cast<uint32_t>(msg->data[22]) << 24) |
                                 (static_cast<uint32_t>(msg->data[23]) << 16) |
                                 (static_cast<uint32_t>(msg->data[24]) << 8) |
@@ -630,12 +631,28 @@ void ClientGameHandler::handleMessages() {
                 float y;
                 std::memcpy(&y, &yInt, sizeof(float));
 
+                // Decode vx
+                uint32_t vxInt = (static_cast<uint32_t>(msg->data[26]) << 24) |
+                                (static_cast<uint32_t>(msg->data[27]) << 16) |
+                                (static_cast<uint32_t>(msg->data[28]) << 8) |
+                                static_cast<uint32_t>(msg->data[29]);
+                float vx;
+                std::memcpy(&vx, &vxInt, sizeof(float));
+
+                // Decode vy
+                uint32_t vyInt = (static_cast<uint32_t>(msg->data[30]) << 24) |
+                                (static_cast<uint32_t>(msg->data[31]) << 16) |
+                                (static_cast<uint32_t>(msg->data[32]) << 8) |
+                                static_cast<uint32_t>(msg->data[33]);
+                float vy;
+                std::memcpy(&vy, &vyInt, sizeof(float));
+
                 float scale = 1.0f;
-                if (msg->data.size() >= 30) {
-                    uint32_t scaleInt = (static_cast<uint32_t>(msg->data[26]) << 24) |
-                                        (static_cast<uint32_t>(msg->data[27]) << 16) |
-                                        (static_cast<uint32_t>(msg->data[28]) << 8) |
-                                        static_cast<uint32_t>(msg->data[29]);
+                if (msg->data.size() >= 38) {
+                    uint32_t scaleInt = (static_cast<uint32_t>(msg->data[34]) << 24) |
+                                        (static_cast<uint32_t>(msg->data[35]) << 16) |
+                                        (static_cast<uint32_t>(msg->data[36]) << 8) |
+                                        static_cast<uint32_t>(msg->data[37]);
                     std::memcpy(&scale, &scaleInt, sizeof(float));
                 }
 
@@ -667,7 +684,7 @@ void ClientGameHandler::handleMessages() {
 
                         Entity projectile = _reg.createEntity();
                         _reg.addComponent<Position>(projectile, x, y);
-                        _reg.addComponent<Velocity>(projectile, 0.f, -400.f);
+                        _reg.addComponent<Velocity>(projectile, vx, vy);
                         _reg.addComponent<SpriteSheets>(projectile, std::string(""),
                                                         std::string("projectile_player"), size,
                                                         size, 0, 4, 0, 0.f, 0.f, true, true);
@@ -680,7 +697,7 @@ void ClientGameHandler::handleMessages() {
                     } else if (itComp != companionEntities.end()) {
                         Entity projectile = _reg.createEntity();
                         _reg.addComponent<Position>(projectile, x, y);
-                        _reg.addComponent<Velocity>(projectile, 0.f, -400.f);
+                        _reg.addComponent<Velocity>(projectile, vx, vy);
                         _reg.addComponent<SpriteSheets>(projectile, std::string(""),
                                                         std::string("projectile_player"), size,
                                                         size, 0, 4, 0, 0.f, 0.f, true, true);
