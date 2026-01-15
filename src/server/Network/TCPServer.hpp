@@ -13,6 +13,7 @@
 #include "../../common/Data/MessageFactory.hpp"
 #include "../../common/Data/ThreadedQueue.hpp"
 #include "../../common/Data/OutgoingMessage.hpp"
+#include "../Monitoring/PrometheusExporter.hpp"
 #include <map>
 #include <functional>
 
@@ -21,7 +22,7 @@ class TCPServer : public AServer {
         using ConnectionCallback = std::function<void(int fd)>;
         using DisconnectionCallback = std::function<void(int fd)>;
         
-        TCPServer(ThreadedQueue<DecodedMessage>& queue);
+        TCPServer(ThreadedQueue<DecodedMessage>& queue, PrometheusExporter& monitor);
         ~TCPServer();
         int run();
         
@@ -42,6 +43,7 @@ class TCPServer : public AServer {
         
         ConnectionCallback _onConnect;
         DisconnectionCallback _onDisconnect;
+        PrometheusExporter& _monitor;
 };
 
 #endif /* !TCPSERVER_HPP_ */

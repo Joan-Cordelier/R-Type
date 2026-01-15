@@ -10,7 +10,11 @@
 #include "../Logs/Logger.hpp"
 #include <chrono>
 
-LobbyManager::LobbyManager(const std::string &configPath) : _configPath(configPath) {
+LobbyManager::LobbyManager(const std::string &configPath, PrometheusExporter& monitor) 
+    : _session(monitor)
+    , _configPath(configPath)
+    , _monitor(monitor) 
+{
     _session.setOnPlayerDisconnect([this](const Player &player) { onPlayerDisconnect(player); });
 }
 
@@ -67,6 +71,8 @@ void LobbyManager::processMessages() {
 }
 
 void LobbyManager::dispatchMessage(DecodedMessage &msg) {
+    std::string opName = MessageFactory::getInstance().getOpCodeName(msg.opCode);
+    _monitor.recordPacketType("Lobby_" + opName);
     if (msg.playerId == 0 && msg.tcpFd > 0) {
         auto player = _session.getPlayerByTcpFd(msg.tcpFd);
         if (player)
@@ -131,7 +137,7 @@ void LobbyManager::dispatchMessage(DecodedMessage &msg) {
 
 void LobbyManager::handleCreateRoom(const DecodedMessage &msg) {
     uint32_t roomId = _nextRoomId++;
-    auto room = std::make_shared<Room>(roomId, _session, _configPath);
+    auto room = std::make_shared<Room>(roomId, _session, _configPath, _monitor);
     _rooms[roomId] = room;
     room->start();
 

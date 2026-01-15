@@ -8,7 +8,9 @@
 #include "TCPServer.hpp"
 #include "../Logs/Logger.hpp"
 
-TCPServer::TCPServer(ThreadedQueue<DecodedMessage> &queue) : AServer(queue) {
+TCPServer::TCPServer(ThreadedQueue<DecodedMessage>& queue, PrometheusExporter& monitor)
+    : AServer(queue), _monitor(monitor)
+{
     init(AServer::protocol::TCP, 4789);
 }
 
@@ -77,6 +79,7 @@ int TCPServer::run() {
                                      ")");
                         toDisconnect.push_back(fdsSnapshot[i].fd);
                     } else {
+                        _monitor.addBytes("tcp", "rx", static_cast<double>(n));
                         LOG_DEBUG("TCP received " + std::to_string(n) +
                                   " bytes (fd: " + std::to_string(fdsSnapshot[i].fd) + ")");
                         bool writeSuccess = false;
@@ -119,8 +122,6 @@ int TCPServer::run() {
                 }
             }
         }
-
-        // Call disconnect callback before handling disconnections
         if (_onDisconnect) {
             for (int fd : toDisconnect) {
                 _onDisconnect(fd);
@@ -179,6 +180,9 @@ int TCPServer::sendToFd(int fd, const MessageData &data) {
     }
 
     ssize_t sent = ::send(fd, data.data(), data.size(), MSG_NOSIGNAL);
+    if (sent > 0) {
+        _monitor.addBytes("tcp", "tx", static_cast<double>(sent));
+    }
     if (sent < 0) {
         LOG_ERROR("TCP send failed (fd: " + std::to_string(fd) + ")");
         return -1;
@@ -197,6 +201,9 @@ int TCPServer::sendToAll(const MessageData &data) {
               std::to_string(_clientFds.size()) + " clients");
     for (int fd : _clientFds) {
         ssize_t sent = ::send(fd, data.data(), data.size(), MSG_NOSIGNAL);
+        if (sent > 0) {
+            _monitor.addBytes("tcp", "tx", static_cast<double>(sent));
+        }
         if (sent < 0) {
             LOG_ERROR("TCP send failed (fd: " + std::to_string(fd) + ")");
             result = -1;
