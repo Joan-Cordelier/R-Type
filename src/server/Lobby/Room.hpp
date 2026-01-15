@@ -37,6 +37,9 @@ public:
     void addPlayer(uint32_t playerId);
     void removePlayer(uint32_t playerId);
 
+    // Called by GameHandler when a player dies
+    void onPlayerDeath(uint32_t playerId);
+
     // Push message to the GameHandler's queue
     void pushMessage(const DecodedMessage &msg);
 

@@ -68,10 +68,14 @@ private:
     std::shared_ptr<ThreadedQueue<DecodedMessage>> _inputQueue;
     std::thread _gameThread;
 
+    std::function<void(uint32_t)> _onPlayerDeath;
+
 public:
     GameHandler(SessionManager &session, std::shared_ptr<ThreadedQueue<DecodedMessage>> inputQueue,
                 std::atomic<bool> &running, const std::string &configPath, PrometheusExporter& monitor);
     void run();
+
+    void setOnPlayerDeath(std::function<void(uint32_t)> callback) { _onPlayerDeath = callback; }
 
     void sendUpdatedPositionToAllPlayers();
     void sendUpdatedPositionToPlayer(uint32_t playerId);

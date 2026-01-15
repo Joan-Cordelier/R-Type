@@ -90,27 +90,9 @@ GameHandler::GameHandler(SessionManager &session,
                 _session.sendTcp(pid, statsMsg);
             }
 
-            if (stats.hp <= 0) {
-                sendDestroyedPlayerToAllPlayers(playerEntity);
-
-                std::vector<Entity> companionsToRemove;
-                for (auto e : reg.viewEntitiesWith<Parent>()) {
-                    if (reg.getComponent<Parent>(e).entity == playerEntity) {
-                        companionsToRemove.push_back(e);
-                    }
-                }
-
-                auto &factory = MessageFactory::getInstance();
-                for (auto companion : companionsToRemove) {
-                    MessageData payload =
-                        factory.encodeMessageDeath(EntityType::COMPANION, companion);
-                    PreparedMessage msg = factory.createMessage(OpCode::DEATH, payload);
-                    for (const auto &[pid, entity] : playerEntities) {
-                        _session.sendTcp(pid, msg);
-                    }
-                    reg.destroyEntity(companion);
-                }
-            }
+            // Note: Death handling is done in checkPlayerCollisions() 
+            // to avoid duplicate logic. The hp is already updated, 
+            // and checkPlayerCollisions() will detect hp <= 0.
         }
     });
 
@@ -840,14 +822,40 @@ void GameHandler::checkPlayerCollisions() {
         }
     }
 
-    // Notify deaths
+    // Also check for any players killed by other means (e.g., asteroid collision)
+    for (const auto &[playerId, playerEntity] : playerEntities) {
+        if (!reg.hasComponent<Stats>(playerEntity))
+            continue;
+        Stats &stats = reg.getComponent<Stats>(playerEntity);
+        if (stats.hp <= 0) {
+            // Check if not already in playersToKill
+            bool alreadyMarked = false;
+            for (auto e : playersToKill) {
+                if (e == playerEntity) {
+                    alreadyMarked = true;
+                    break;
+                }
+            }
+            if (!alreadyMarked) {
+                playersToKill.push_back(playerEntity);
+            }
+        }
+    }
+
+    // Notify deaths and remove dead players
+    std::vector<uint32_t> playerIdsToRemove;
     for (auto player : playersToKill) {
-        // Find and invalidate player in map to prevent auto-shoot or ID reuse issues
-        for (auto &pair : playerEntities) {
+        // Find the playerId for this entity
+        uint32_t deadPlayerId = 0;
+        for (const auto &pair : playerEntities) {
             if (pair.second == player) {
-                pair.second = 0; // INVALID_ENTITY
+                deadPlayerId = pair.first;
                 break;
             }
+        }
+
+        if (deadPlayerId != 0) {
+            playerIdsToRemove.push_back(deadPlayerId);
         }
 
         sendDestroyedPlayerToAllPlayers(player);
@@ -864,11 +872,24 @@ void GameHandler::checkPlayerCollisions() {
             MessageData payload = factory.encodeMessageDeath(EntityType::COMPANION, companion);
             PreparedMessage msg = factory.createMessage(OpCode::DEATH, payload);
             for (const auto &[pid, entity] : playerEntities) {
-                _session.sendUdp(pid, msg);
+                if (entity != 0) {
+                    _session.sendUdp(pid, msg);
+                }
             }
             reg.destroyEntity(companion);
         }
         reg.destroyEntity(player);
+    }
+
+    // Remove dead players from playerEntities map
+    for (uint32_t pid : playerIdsToRemove) {
+        playerEntities.erase(pid);
+        LOG_INFO("Player " + std::to_string(pid) + " died and removed from game");
+
+        // Notify Room to remove player from its list
+        if (_onPlayerDeath) {
+            _onPlayerDeath(pid);
+        }
     }
 }
 

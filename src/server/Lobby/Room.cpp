@@ -19,6 +19,12 @@ Room::Room(uint32_t id, SessionManager &session, const std::string &configPath, 
     // Initialize GameHandler but don't start the loop yet
     // GameHandler constructor expects running atomic ref
     _game = std::make_unique<GameHandler>(_session, _inputQueue, _running, configPath, monitor);
+
+    // Set up callback for when players die
+    _game->setOnPlayerDeath([this](uint32_t playerId) {
+        onPlayerDeath(playerId);
+    });
+
     LOG_INFO("Room " + std::to_string(id) + " created");
 }
 
@@ -40,6 +46,10 @@ void Room::stop() {
         return;
 
     _running = false;
+
+    // Clear the death callback to avoid dangling references
+    _game->setOnPlayerDeath(nullptr);
+
     if (_thread.joinable()) {
         _thread.join();
     }
@@ -107,4 +117,22 @@ bool Room::hasBeenEmptyFor(std::chrono::seconds duration) const {
     }
     auto now = std::chrono::steady_clock::now();
     return (now - _emptyTimestamp) >= duration;
+}
+
+void Room::onPlayerDeath(uint32_t playerId) {
+    std::lock_guard<std::mutex> lock(_mutex);
+    for (auto it = _players.begin(); it != _players.end(); ++it) {
+        if (*it == playerId) {
+            _players.erase(it);
+            LOG_INFO("Player " + std::to_string(playerId) + " removed from room " +
+                     std::to_string(_id) + " after death");
+
+            // Track when room becomes empty
+            if (_players.empty() && !_wasEmpty) {
+                _emptyTimestamp = std::chrono::steady_clock::now();
+                _wasEmpty = true;
+            }
+            break;
+        }
+    }
 }
