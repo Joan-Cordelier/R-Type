@@ -22,7 +22,7 @@ std::array<MessageFactory::Message, 256> MessageFactory::initMessageTable() {
     table[INCOMPLETE] = {0, Priority::ERROR};
     table[PARSING_ERROR] = {0, Priority::ERROR};
     table[DEATH] = {5, Priority::CRITICAL};
-    table[SHOOT] = {30, Priority::HIGH};
+    table[SHOOT] = {38, Priority::HIGH};
     table[MOVE_SYNC] = {13, Priority::LOW};
     table[MOVE_INPUT] = {12, Priority::LOW};
     table[CONNECT] = {0, Priority::CRITICAL};
@@ -227,7 +227,7 @@ MessageData MessageFactory::encodeMessagePlayer(Entity entity) const {
 
 MessageData MessageFactory::encodeMessageProjectile(Entity projectileEntity, Entity parentEntity,
                                                     const std::string &ownerType, float x, float y,
-                                                    float scale) const {
+                                                    float vx, float vy, float scale) const {
     MessageData data;
 
     data.push_back(static_cast<uint8_t>((projectileEntity >> 24) & 0xFF));
@@ -261,6 +261,22 @@ MessageData MessageFactory::encodeMessageProjectile(Entity projectileEntity, Ent
     data.push_back(static_cast<uint8_t>((yInt >> 16) & 0xFF));
     data.push_back(static_cast<uint8_t>((yInt >> 8) & 0xFF));
     data.push_back(static_cast<uint8_t>(yInt & 0xFF));
+
+    // Encode vx coordinate (4 bytes)
+    uint32_t vxInt;
+    std::memcpy(&vxInt, &vx, sizeof(float));
+    data.push_back(static_cast<uint8_t>((vxInt >> 24) & 0xFF));
+    data.push_back(static_cast<uint8_t>((vxInt >> 16) & 0xFF));
+    data.push_back(static_cast<uint8_t>((vxInt >> 8) & 0xFF));
+    data.push_back(static_cast<uint8_t>(vxInt & 0xFF));
+
+    // Encode vy coordinate (4 bytes)
+    uint32_t vyInt;
+    std::memcpy(&vyInt, &vy, sizeof(float));
+    data.push_back(static_cast<uint8_t>((vyInt >> 24) & 0xFF));
+    data.push_back(static_cast<uint8_t>((vyInt >> 16) & 0xFF));
+    data.push_back(static_cast<uint8_t>((vyInt >> 8) & 0xFF));
+    data.push_back(static_cast<uint8_t>(vyInt & 0xFF));
 
     // Encode scale (4 bytes)
     uint32_t scaleInt;
