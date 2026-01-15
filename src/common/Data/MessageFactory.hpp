@@ -80,6 +80,7 @@ public:
         return instance;
     }
 
+    std::string getOpCodeName(OpCode opCode) const;
     MessageFactory(const MessageFactory &) = delete;
     MessageFactory &operator=(const MessageFactory &) = delete;
 
@@ -116,8 +117,8 @@ public:
 
     MessageData encodeMessageDeath(EntityType type, Entity entity) const;
     MessageData encodeMessageProjectile(Entity projectileEntity, Entity parentEntity,
-                                        const std::string &ownerType, float x, float y,
-                                        float scale) const;
+                                        const std::string &ownerType, float x, float y, float vx,
+                                        float vy, float scale) const;
     MessageData encodeMessageUpdateWeapon(Entity entity, int damage, int nbBullets,
                                           float fireRate) const;
     MessageData encodeMessageMoveInput(Entity entity, float vx, float vy) const;

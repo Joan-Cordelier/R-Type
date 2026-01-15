@@ -85,7 +85,7 @@ void MessageHandler::dispatchMessage(DecodedMessage msg) {
   case DEATH:
     handleDeath(msg);
     break;
-  case MOVE_INPUT: // <-- Changé de MOVE à MOVE_INPUT
+  case MOVE_INPUT:
     handleMoveInput(msg);
     break;
   case SHOOT:

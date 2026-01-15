@@ -16,9 +16,25 @@ SettingMenu::SettingMenu(Registry& reg, KeybindsManager& kbManager) : keybindsMa
     MoveRightLabel = reg.createEntity();
     
     reg.addComponent<Slider>(DaltonianSlider, 0.0f, 0.0f, 100.0f, 150.0f, 20.0f, 0, 16, 24, false, false, false, std::string("DaltonianHandler"), Color(100, 100, 100), Color(50, 150, 250), Color(255, 255, 255));
-    reg.addComponent<Position>(DaltonianSlider, 300.0f, 170.0f);
+    reg.addComponent<Position>(DaltonianSlider, 230.0f, 170.0f);
 
-    reg.addComponent<Position>(DaltonianMode, 275.0f, 100.0f);
+    MusicVolumeSlider = reg.createEntity();
+    reg.addComponent<Slider>(MusicVolumeSlider, 0.3f, 0.0f, 100.0f, 150.0f, 20.0f, 0, 16, 24, false, false, false, std::string("MusicVolume"), Color(100, 100, 100), Color(50, 150, 250), Color(255, 255, 255));
+    reg.addComponent<Position>(MusicVolumeSlider, 230.0f, 240.0f);
+
+    MusicLabel = reg.createEntity();
+    reg.addComponent<Position>(MusicLabel, 50.0f, 240.0f);
+    reg.addComponent<Label>(MusicLabel, std::string("Music Volume"), std::string(""), std::string("default_font_small"), Color(255, 255, 255), 1, false);
+
+    SoundVolumeSlider = reg.createEntity();
+    reg.addComponent<Slider>(SoundVolumeSlider, 0.5f, 0.0f, 100.0f, 150.0f, 20.0f, 0, 16, 24, false, false, false, std::string("SoundVolume"), Color(100, 100, 100), Color(50, 150, 250), Color(255, 255, 255));
+    reg.addComponent<Position>(SoundVolumeSlider, 230.0f, 310.0f);
+
+    SoundLabel = reg.createEntity();
+    reg.addComponent<Position>(SoundLabel, 50.0f, 310.0f);
+    reg.addComponent<Label>(SoundLabel, std::string("Sound Volume"), std::string(""), std::string("default_font_small"), Color(255, 255, 255), 1, false);
+
+    reg.addComponent<Position>(DaltonianMode, 205.0f, 100.0f);
     reg.addComponent<SpriteSheets>(DaltonianMode, std::string(""), std::string("daltonian_btn"), 200, 50, 0, 3, 0, 0.f, 0.f, false, false);
     reg.addComponent<Sprite>(DaltonianMode, std::string("textures/colorblind_btn/colorblindbtn.png"), std::string("daltonian_btn"), 200, 50, 0, 0.f, 0.f, false); //only for button system to work
     reg.addComponent<Button>(DaltonianMode, std::string("DaltonianModeButton"), 1, false);
@@ -101,6 +117,14 @@ void SettingMenu::updateVisibility(Registry& reg)
     std::cout << "SettingMenu visibility set to " << (toggled ? "true" : "false") << std::endl;
     reg.getComponent<Slider>(DaltonianSlider).visible = toggled;
     reg.getComponent<Slider>(DaltonianSlider).enabled = toggled;
+
+    reg.getComponent<Slider>(MusicVolumeSlider).visible = toggled;
+    reg.getComponent<Slider>(MusicVolumeSlider).enabled = toggled;
+    reg.getComponent<Label>(MusicLabel).visible = toggled;
+
+    reg.getComponent<Slider>(SoundVolumeSlider).visible = toggled;
+    reg.getComponent<Slider>(SoundVolumeSlider).enabled = toggled;
+    reg.getComponent<Label>(SoundLabel).visible = toggled;
 
     reg.getComponent<Button>(DaltonianMode).visible = toggled;
     reg.getComponent<Button>(DaltonianMode).enabled = toggled;

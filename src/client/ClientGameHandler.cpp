@@ -1,6 +1,7 @@
 #include "ClientGameHandler.hpp"
 #include "../common/Data/EntityType.hpp"
 #include "../common/ecs/components/weapon.hpp"
+#include "../common/ecs/components/enemy.hpp"
 #include <cmath>
 #include <cstring>
 #include <map>
@@ -75,10 +76,15 @@ ClientGameHandler::ClientGameHandler(bool debugMode)
 
     _renderer.loadSpriteSheet("textures/settingmenu/colorblindbtn.png", "daltonian_btn", 401, 108);
     _renderer.loadTexture("textures/settingmenu/bg.png", "settings_bg");
+    _renderer.loadTexture("textures/bg.png", "background_game");
     _renderer.loadSpriteSheet("textures/settingmenu/Keybinds.png", "keybinds", 16, 16);
     _renderer.loadTexture("textures/vaisseau.png", "drone");
 
     // Set up entities
+    _reg.addComponent<Position>(background, 0.f, 0.f);
+    _reg.addComponent<Sprite>(background, (std::string) "textures/bg.png",
+                              (std::string) "background_game", 1080, 720, -10, 0.f, 0.f, true);
+
     _reg.addComponent<Position>(start_button, 400.f, 300.f);
     _reg.addComponent<Sprite>(start_button, (std::string) "textures/play_button/default.png",
                               (std::string) "play_button", 300, 150, 0, 0.f, 0.f, true);
@@ -127,6 +133,7 @@ int ClientGameHandler::run() {
     std::map<Entity, float> voidZoneTimers;
     Uint64 last = SDL_GetPerformanceCounter();
     _input.setControlled(label_input, _keybindsManager);
+    _audioManager.playMusic(_config.getAudioConfig().level_music);
 
     while (running) {
         _renderer.window.processSDLEvents();
@@ -175,6 +182,8 @@ int ClientGameHandler::run() {
 
         _buttonsys.update(_reg);
         _slidersys.update(_reg);
+        _audioManager.setMusicVolume(static_cast<int>(_settingsMenu.getMusicVolumeSliderValue(_reg)));
+        _audioManager.setSoundVolume(static_cast<int>(_settingsMenu.getSoundVolumeSliderValue(_reg)));
 
         _renderer.clear();
 
@@ -229,15 +238,6 @@ int ClientGameHandler::run() {
                             Color{255, 0, 0, 255}, RenderLayer::OVERLAY, 100);
                     } else if (_reg.hasComponent<SpriteSheets>(localEntity)) {
                         SpriteSheets &sprite = _reg.getComponent<SpriteSheets>(localEntity);
-                        // Boss or animated enemy
-                        // Check config for hitbox? For now rely on sprite dims
-                        // Add offset logic if needed
-                        // float hx = pos.x + sprite.offset_x; // Wait, sprite offset is for
-                        // VISUALS. Hitbox is usually separate? But here we draw "Hitbox
-                        // based on sprite". For Boss, Hitbox is config based, but we don't
-                        // have easy access to that config per-entity here without lookup.
-                        // Let's iterate bosses to find match? Too slow.
-                        // Just draw visual box for now.
                         _renderer.drawRect(
                             Rect{(int)pos.x, (int)pos.y, sprite.width, sprite.height},
                             Color{255, 0, 0, 255}, RenderLayer::OVERLAY, 100);
@@ -594,7 +594,8 @@ void ClientGameHandler::handleMessages() {
         }
         case OpCode::SHOOT: {
             std::cout << "Received SHOOT message, size=" << msg->data.size() << std::endl;
-            if (msg->data.size() >= 26) {
+            _audioManager.playSound(_config.getAudioConfig().shoot_sound);
+            if (msg->data.size() >= 34) {
                 Entity serverProjectileEntity = (static_cast<Entity>(msg->data[0]) << 24) |
                                                 (static_cast<Entity>(msg->data[1]) << 16) |
                                                 (static_cast<Entity>(msg->data[2]) << 8) |
@@ -612,7 +613,7 @@ void ClientGameHandler::handleMessages() {
                 ownerType.erase(std::find(ownerType.begin(), ownerType.end(), '\0'),
                                 ownerType.end());
 
-                // Decode x coordinate (bytes 18-21)
+                // Decode x coordinate
                 uint32_t xInt = (static_cast<uint32_t>(msg->data[18]) << 24) |
                                 (static_cast<uint32_t>(msg->data[19]) << 16) |
                                 (static_cast<uint32_t>(msg->data[20]) << 8) |
@@ -620,7 +621,7 @@ void ClientGameHandler::handleMessages() {
                 float x;
                 std::memcpy(&x, &xInt, sizeof(float));
 
-                // Decode y coordinate (bytes 22-25)
+                // Decode y coordinate
                 uint32_t yInt = (static_cast<uint32_t>(msg->data[22]) << 24) |
                                 (static_cast<uint32_t>(msg->data[23]) << 16) |
                                 (static_cast<uint32_t>(msg->data[24]) << 8) |
@@ -628,18 +629,31 @@ void ClientGameHandler::handleMessages() {
                 float y;
                 std::memcpy(&y, &yInt, sizeof(float));
 
+                // Decode vx
+                uint32_t vxInt = (static_cast<uint32_t>(msg->data[26]) << 24) |
+                                (static_cast<uint32_t>(msg->data[27]) << 16) |
+                                (static_cast<uint32_t>(msg->data[28]) << 8) |
+                                static_cast<uint32_t>(msg->data[29]);
+                float vx;
+                std::memcpy(&vx, &vxInt, sizeof(float));
+
+                // Decode vy
+                uint32_t vyInt = (static_cast<uint32_t>(msg->data[30]) << 24) |
+                                (static_cast<uint32_t>(msg->data[31]) << 16) |
+                                (static_cast<uint32_t>(msg->data[32]) << 8) |
+                                static_cast<uint32_t>(msg->data[33]);
+                float vy;
+                std::memcpy(&vy, &vyInt, sizeof(float));
+
                 float scale = 1.0f;
-                if (msg->data.size() >= 30) {
-                    uint32_t scaleInt = (static_cast<uint32_t>(msg->data[26]) << 24) |
-                                        (static_cast<uint32_t>(msg->data[27]) << 16) |
-                                        (static_cast<uint32_t>(msg->data[28]) << 8) |
-                                        static_cast<uint32_t>(msg->data[29]);
+                if (msg->data.size() >= 38) {
+                    uint32_t scaleInt = (static_cast<uint32_t>(msg->data[34]) << 24) |
+                                        (static_cast<uint32_t>(msg->data[35]) << 16) |
+                                        (static_cast<uint32_t>(msg->data[36]) << 8) |
+                                        static_cast<uint32_t>(msg->data[37]);
                     std::memcpy(&scale, &scaleInt, sizeof(float));
                 }
 
-                // cleanupServerEntity(serverProjectileEntity);
-                // Only cleanup previous projectiles to avoid killing active
-                // Companions/Players if ID reuse happens rapidly or out-of-order.
                 auto itOldProj = projectileEntities.find(serverProjectileEntity);
                 if (itOldProj != projectileEntities.end()) {
                     _reg.destroyEntity(itOldProj->second);
@@ -668,7 +682,7 @@ void ClientGameHandler::handleMessages() {
 
                         Entity projectile = _reg.createEntity();
                         _reg.addComponent<Position>(projectile, x, y);
-                        _reg.addComponent<Velocity>(projectile, 0.f, -400.f);
+                        _reg.addComponent<Velocity>(projectile, vx, vy);
                         _reg.addComponent<SpriteSheets>(projectile, std::string(""),
                                                         std::string("projectile_player"), size,
                                                         size, 0, 4, 0, 0.f, 0.f, true, true);
@@ -681,7 +695,7 @@ void ClientGameHandler::handleMessages() {
                     } else if (itComp != companionEntities.end()) {
                         Entity projectile = _reg.createEntity();
                         _reg.addComponent<Position>(projectile, x, y);
-                        _reg.addComponent<Velocity>(projectile, 0.f, -400.f);
+                        _reg.addComponent<Velocity>(projectile, vx, vy);
                         _reg.addComponent<SpriteSheets>(projectile, std::string(""),
                                                         std::string("projectile_player"), size,
                                                         size, 0, 4, 0, 0.f, 0.f, true, true);
@@ -716,15 +730,7 @@ void ClientGameHandler::handleMessages() {
                     _reg.addComponent<Position>(projectile, x, y);
                     _reg.addComponent<Velocity>(projectile, 0.f, 200.f);
 
-                    // Use a simple sprite for boss orb, or fallback to player projectile
-                    // if texture missing We try to load a distinctive texture
                     _renderer.loadTexture("textures/projectiles/boss_orb.png", "boss_orb");
-                    // If file missing, renderer usually logs error and returns empty or
-                    // fallback. But let's assume if it fails we can't easily check
-                    // without helper. We will use Sprite, assuming boss_orb.png exists or
-                    // we use enemy_ship as fallback visual? Let's rely on standard
-                    // projectile_player sprite sheet but maybe frame index? No, let's
-                    // just make it a Sprite.
                     _reg.addComponent<Sprite>(
                         projectile, std::string("textures/projectiles/boss_orb.png"),
                         std::string("boss_orb"), size, size, 10, 0.f, 0.f, true);
@@ -1237,27 +1243,6 @@ void ClientGameHandler::selectUpgrade(int index) {
     MessageFactory &factory = MessageFactory::getInstance();
     PreparedMessage msg =
         factory.createMessage(OpCode::UPGRADE_SELECT, factory.encodeMessageUpgradeSelect(index));
-    // Usually commands are UDP, but selection is critical state.
-    // If we use UDP we might lose it. If we use TCP it's safe.
-    // Assuming NetworkManager supports sendTcp on Client side?
-    // Let's check NetworkManager.
-    // _network.sendUdp(msg); // Default
-    // Using TCP if available or reliable UDP.
-    // Client usually connects with UDP for gameplay. TCP for connection.
-    // Let's assume TCP socket is valid.
-
-    // Note: Protocol might not have fully mapped TCP logic on client for sending?
-    // _network.sendTcp(msg); // Let's try this.
-    // Actually ClientGameHandler.cpp uses
-    // Does NetworkManager have sendTcp?
-
-    // Checking NetworkManager.hpp... (I recall reading it has sendUdp)
-    // If I can't check, I'll use UDP for now as START/CONNECT use UDP/TCP mixed.
-    // Safe bet: UDP with ACK? No ACK system here.
-    // But  sets UPGRADE_SELECT priority to HIGH.
-    // NetworkManager probably sends HIGH via UDP.
-
-    // Let's use sendUdp for now as it's the primary channel.
     _network.sendUdp(msg);
 }
 

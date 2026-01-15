@@ -43,7 +43,7 @@ struct DrawOptions {
     Color tint = Color(255, 255, 255);
     SDL_Point* center = nullptr;
     SDL_RendererFlip flip = SDL_FLIP_NONE;
-    SDL_BlendMode blendMode = SDL_BLENDMODE_ADD;
+    SDL_BlendMode blendMode = SDL_BLENDMODE_BLEND;
 };
 
 struct DrawCommand {

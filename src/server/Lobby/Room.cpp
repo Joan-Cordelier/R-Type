@@ -8,12 +8,17 @@
 #include "Room.hpp"
 #include "../Logs/Logger.hpp"
 
-Room::Room(uint32_t id, SessionManager &session, const std::string &configPath)
-    : _id(id), _session(session), _inputQueue(std::make_shared<ThreadedQueue<DecodedMessage>>()),
-      _emptyTimestamp(std::chrono::steady_clock::now()), _wasEmpty(true) {
+Room::Room(uint32_t id, SessionManager &session, const std::string &configPath, PrometheusExporter& monitor)
+    : _id(id)
+    , _session(session)
+    , _monitor(monitor)
+    , _inputQueue(std::make_shared<ThreadedQueue<DecodedMessage>>())
+    , _emptyTimestamp(std::chrono::steady_clock::now())
+    , _wasEmpty(true)
+{
     // Initialize GameHandler but don't start the loop yet
     // GameHandler constructor expects running atomic ref
-    _game = std::make_unique<GameHandler>(_session, _inputQueue, _running, configPath);
+    _game = std::make_unique<GameHandler>(_session, _inputQueue, _running, configPath, monitor);
     LOG_INFO("Room " + std::to_string(id) + " created");
 }
 
@@ -85,6 +90,8 @@ void Room::removePlayer(uint32_t playerId) {
 }
 
 void Room::pushMessage(const DecodedMessage &msg) {
+    std::string opName = MessageFactory::getInstance().getOpCodeName(msg.opCode);
+    _monitor.recordPacketType("Game_" + opName);
     _inputQueue->push(msg.priority, msg);
 }
 

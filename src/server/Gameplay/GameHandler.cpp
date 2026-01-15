@@ -10,9 +10,14 @@
 
 GameHandler::GameHandler(SessionManager &session,
                          std::shared_ptr<ThreadedQueue<DecodedMessage>> inputQueue,
-                         std::atomic<bool> &running, const std::string &configPath)
-    : _running(running), _session(session), _messageHandler(session, *inputQueue, running),
-      _inputQueue(inputQueue) {
+                         std::atomic<bool> &running, const std::string &configPath, 
+                         PrometheusExporter& monitor)
+    : _running(running)
+    , _session(session)
+    , _monitor(monitor)
+    , _messageHandler(session, *inputQueue, running)
+    , _inputQueue(inputQueue) 
+{
     // Load configuration
     char cwd[1024];
     if (getcwd(cwd, sizeof(cwd)) != NULL) {
@@ -151,6 +156,7 @@ void GameHandler::run() {
     constexpr float targetFrameTime = 1.0f / 30.0f; // 30 ticks per second
 
     while (_running) {
+        auto loopStart = std::chrono::high_resolution_clock::now();
         auto currentTime = std::chrono::steady_clock::now();
         float deltaTime = std::chrono::duration<float>(currentTime - lastTime).count();
         lastTime = currentTime;
@@ -163,6 +169,10 @@ void GameHandler::run() {
 
         // Send game packet to players
         sendUpdatedPositionToAllPlayers();
+
+        auto loopEnd = std::chrono::high_resolution_clock::now();
+        std::chrono::duration<double, std::milli> elapsed = loopEnd - loopStart;
+        _monitor.updateGameLoopDuration(elapsed.count());
 
         // Frame rate limiting
         auto frameEnd = std::chrono::steady_clock::now();
@@ -203,8 +213,15 @@ void GameHandler::sendNewProjectilesToAllPlayers(Entity parentEntity, Entity pro
         y = pos.y;
     }
 
+    float vx = 0.f, vy = 0.f;
+    if (reg.hasComponent<Velocity>(projectileEntity)) {
+        Velocity &vel = reg.getComponent<Velocity>(projectileEntity);
+        vx = vel.vx;
+        vy = vel.vy;
+    }
+
     MessageData payload = MessageFactory::getInstance().encodeMessageProjectile(
-        projectileEntity, parentEntity, ownerType, x, y, scale);
+        projectileEntity, parentEntity, ownerType, x, y, vx, vy, scale);
     PreparedMessage msg = MessageFactory::getInstance().createMessage(OpCode::SHOOT, payload);
 
     for (const auto &[playerId, entity] : playerEntities) {
@@ -471,9 +488,16 @@ void GameHandler::onPlayerConnect(const Player &player) {
         auto &pos = reg.getComponent<Position>(projEntity);
         auto &proj = reg.getComponent<Projectile>(projEntity);
 
+        float vx = 0.f, vy = 0.f;
+        if (reg.hasComponent<Velocity>(projEntity)) {
+            auto &vel = reg.getComponent<Velocity>(projEntity);
+            vx = vel.vx;
+            vy = vel.vy;
+        }
+
         Entity parentEntity = 0;
         MessageData payload = factory.encodeMessageProjectile(
-            projEntity, parentEntity, proj.ownerType, pos.x, pos.y, proj.scale);
+            projEntity, parentEntity, proj.ownerType, pos.x, pos.y, vx, vy, proj.scale);
         PreparedMessage msg = factory.createMessage(OpCode::SHOOT, payload);
         _session.sendTcp(player.id, msg);
         LOG_DEBUG("Sent existing projectile " + std::to_string(projEntity) +
@@ -489,7 +513,6 @@ void GameHandler::onPlayerConnect(const Player &player) {
         enemySystem.startSpawning();
     }
 
-    // Send the new player's info to all players (including themselves)
     Position &newPlayerPos = reg.getComponent<Position>(playerEntity);
     MessageData payload =
         factory.encodePlayerInfo(player.id, playerEntity, newPlayerPos.x, newPlayerPos.y);
@@ -913,6 +936,11 @@ void GameHandler::onUpgradeSelect(uint32_t playerId, uint8_t index) {
                 } else if (effect.target == "add_weapon_missile") {
                     LOG_INFO("Spawning MISSILE companion for player " + std::to_string(playerId));
                     spawnCompanion(entity, WeaponType::MISSILE);
+                } else if (effect.target == "extra_projectiles") {
+                   if (weapon) {
+                        weapon->nbOfBullets += (int)effect.value;
+                        weaponUpdated = true;
+                   }
                 } else if (effect.target == "current_health_percent") {
                     stats.hp += (int)(stats.maxHp * (effect.value / 100.0f));
                     if (stats.hp > stats.maxHp)

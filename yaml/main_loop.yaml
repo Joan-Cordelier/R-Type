@@ -49,19 +49,15 @@ levels:
   - id: 1
     name: "Zone 1"
     background: "textures/backgrounds/level1.png"
-    music: "audio/music/level1.ogg"
+    difficulty_multiplier: 1
     waves:
       - id: 1
-        start_delay: 1.0
-        boss: "obelisk"
-        groups: [] 
-      - id: 2
         start_delay: 2.0
         groups:
           - type: "basic_enemy"
             count: 3
             interval: 1.0
-      - id: 3
+      - id: 2
         start_delay: 10.0
         groups:
           - type: "basic_enemy"
@@ -70,7 +66,7 @@ levels:
           - type: "shooter_enemy"
             count: 2
             interval: 2.0
-      - id: 4
+      - id: 3
         start_delay: 5.0
         groups:
           - type: "basic_enemy"
@@ -79,12 +75,16 @@ levels:
           - type: "shooter_enemy"
             count: 4
             interval: 0.8
+      - id: 4
+        start_delay: 1.0
+        boss: "obelisk"
+        groups: [] 
 
 
   - id: 2
     name: "Zone 2"
     background: "textures/backgrounds/level2.png"
-    music: "audio/music/level2.ogg"
+    difficulty_multiplier: 1.5
     waves:
       - id: 1
         start_delay: 2.0
@@ -136,3 +136,7 @@ systems:
   stats: true
   enemy: true
   collision: true
+
+audio:
+  level_music: "textures/music.ogg"
+  shoot_sound: "textures/shoot.wav"

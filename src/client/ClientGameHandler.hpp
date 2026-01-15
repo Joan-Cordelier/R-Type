@@ -4,6 +4,7 @@
 #include "Network/NetworkManager.hpp"
 #include "graphic/Renderer.hpp"
 #include "input_system.hpp"
+#include "AudioManager.hpp"
 
 #include "../common/Config/GameLoopConfig.hpp"
 #include "../common/ecs/ecs_components.hpp"
@@ -70,6 +71,7 @@ private:
     // menu Entities
     Entity start_button = _reg.createEntity();
     Entity label_input = _reg.createEntity();
+    Entity background = _reg.createEntity();
 
     void toggleSettingsMenu();
 
@@ -77,6 +79,8 @@ private:
     void handlePlayerPacket(const DecodedMessage &msg);
 
     void cleanupServerEntity(Entity serverEntity);
+    
+    AudioManager _audioManager;
 
     void setupLobbyCallbacks();
     void requestRoomList();

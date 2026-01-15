@@ -11,6 +11,7 @@ set(CLIENT_SOURCES
 find_package(SDL2 CONFIG REQUIRED)
 find_package(SDL2_image CONFIG REQUIRED)
 find_package(SDL2_ttf CONFIG REQUIRED)
+find_package(SDL2_mixer CONFIG REQUIRED)
 find_package(yaml-cpp CONFIG REQUIRED)
 
 add_executable(r-type_client ${CLIENT_SOURCES})
@@ -19,13 +20,16 @@ target_include_directories(r-type_client PRIVATE ${CMAKE_CURRENT_SOURCE_DIR} ../
 
 target_compile_options(r-type_client PRIVATE -Wall -Wextra)
 target_compile_features(r-type_client PRIVATE cxx_std_17)
-find_package(ZLIB REQUIRED)
+if(NOT TARGET ZLIB::ZLIB)
+    find_package(ZLIB REQUIRED)
+endif()
 
 target_link_libraries(r-type_client PRIVATE
     $<TARGET_NAME_IF_EXISTS:SDL2::SDL2main>
     $<IF:$<TARGET_EXISTS:SDL2::SDL2>,SDL2::SDL2,SDL2::SDL2-static>
     $<IF:$<TARGET_EXISTS:SDL2_image::SDL2_image>,SDL2_image::SDL2_image,SDL2_image::SDL2_image-static>
     $<IF:$<TARGET_EXISTS:SDL2_ttf::SDL2_ttf>,SDL2_ttf::SDL2_ttf,SDL2_ttf::SDL2_ttf-static>
+    $<IF:$<TARGET_EXISTS:SDL2_mixer::SDL2_mixer>,SDL2_mixer::SDL2_mixer,SDL2_mixer::SDL2_mixer-static>
     yaml-cpp::yaml-cpp
     ZLIB::ZLIB
 )

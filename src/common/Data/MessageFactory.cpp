@@ -22,7 +22,7 @@ std::array<MessageFactory::Message, 256> MessageFactory::initMessageTable() {
     table[INCOMPLETE] = {0, Priority::ERROR};
     table[PARSING_ERROR] = {0, Priority::ERROR};
     table[DEATH] = {5, Priority::CRITICAL};
-    table[SHOOT] = {30, Priority::HIGH};
+    table[SHOOT] = {38, Priority::HIGH};
     table[MOVE_SYNC] = {13, Priority::LOW};
     table[MOVE_INPUT] = {12, Priority::LOW};
     table[CONNECT] = {0, Priority::CRITICAL};
@@ -227,7 +227,7 @@ MessageData MessageFactory::encodeMessagePlayer(Entity entity) const {
 
 MessageData MessageFactory::encodeMessageProjectile(Entity projectileEntity, Entity parentEntity,
                                                     const std::string &ownerType, float x, float y,
-                                                    float scale) const {
+                                                    float vx, float vy, float scale) const {
     MessageData data;
 
     data.push_back(static_cast<uint8_t>((projectileEntity >> 24) & 0xFF));
@@ -261,6 +261,22 @@ MessageData MessageFactory::encodeMessageProjectile(Entity projectileEntity, Ent
     data.push_back(static_cast<uint8_t>((yInt >> 16) & 0xFF));
     data.push_back(static_cast<uint8_t>((yInt >> 8) & 0xFF));
     data.push_back(static_cast<uint8_t>(yInt & 0xFF));
+
+    // Encode vx coordinate (4 bytes)
+    uint32_t vxInt;
+    std::memcpy(&vxInt, &vx, sizeof(float));
+    data.push_back(static_cast<uint8_t>((vxInt >> 24) & 0xFF));
+    data.push_back(static_cast<uint8_t>((vxInt >> 16) & 0xFF));
+    data.push_back(static_cast<uint8_t>((vxInt >> 8) & 0xFF));
+    data.push_back(static_cast<uint8_t>(vxInt & 0xFF));
+
+    // Encode vy coordinate (4 bytes)
+    uint32_t vyInt;
+    std::memcpy(&vyInt, &vy, sizeof(float));
+    data.push_back(static_cast<uint8_t>((vyInt >> 24) & 0xFF));
+    data.push_back(static_cast<uint8_t>((vyInt >> 16) & 0xFF));
+    data.push_back(static_cast<uint8_t>((vyInt >> 8) & 0xFF));
+    data.push_back(static_cast<uint8_t>(vyInt & 0xFF));
 
     // Encode scale (4 bytes)
     uint32_t scaleInt;
@@ -590,4 +606,36 @@ MessageData MessageFactory::decompress(const MessageData &data,
     }
     dest.resize(destLen);
     return dest;
+}
+
+std::string MessageFactory::getOpCodeName(OpCode opCode) const {
+    switch (opCode) {
+        case INCOMPLETE:      return "INCOMPLETE";
+        case PARSING_ERROR:   return "PARSING_ERROR";
+        case CRASH:           return "CRASH";
+        case CONNECT:         return "CONNECT";
+        case CONNECT_ACK:     return "CONNECT_ACK";
+        case DISCONNECT:      return "DISCONNECT";
+        case LINK:            return "LINK";
+        case CREATE_ROOM:     return "CREATE_ROOM";
+        case JOIN_ROOM:       return "JOIN_ROOM";
+        case JOIN_ACK:        return "JOIN_ACK";
+        case LIST_ROOMS:      return "LIST_ROOMS";
+        case ROOM_LIST:       return "ROOM_LIST";
+        case ROOM_CREATED:    return "ROOM_CREATED";
+        case START:           return "START";
+        case JOIN:            return "JOIN";
+        case PLAYER:          return "PLAYER";
+        case ENEMY:           return "ENEMY";
+        case DEATH:           return "DEATH";
+        case SHOOT:           return "SHOOT";
+        case MOVE_SYNC:       return "MOVE_SYNC";
+        case MOVE_INPUT:      return "MOVE_INPUT";
+        case COMPANION:       return "COMPANION";
+        case UPDATE_WEAPON:   return "UPDATE_WEAPON";
+        case UPDATE_STATS:    return "UPDATE_STATS";
+        case UPGRADE_OPTIONS: return "UPGRADE_OPTIONS";
+        case UPGRADE_SELECT:  return "UPGRADE_SELECT";
+        default:              return "UNKNOWN_" + std::to_string(static_cast<int>(opCode));
+    }
 }

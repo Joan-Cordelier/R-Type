@@ -11,6 +11,7 @@
 #include "../../common/Data/ThreadedQueue.hpp"
 #include "../Gameplay/GameHandler.hpp"
 #include "../Session/SessionManager.hpp"
+#include "../Monitoring/PrometheusExporter.hpp"
 #include <atomic>
 #include <chrono>
 #include <memory>
@@ -20,8 +21,7 @@
 
 class Room {
 public:
-    Room(uint32_t id, SessionManager &session,
-         const std::string &configPath = "yaml/main_loop.yaml");
+    Room(uint32_t id, SessionManager &session, const std::string &configPath, PrometheusExporter& monitor);
     ~Room();
 
     void start();
@@ -49,6 +49,7 @@ private:
     uint32_t _id;
     SessionManager &_session;
     std::atomic<bool> _running{false};
+    PrometheusExporter& _monitor;
 
     std::shared_ptr<ThreadedQueue<DecodedMessage>> _inputQueue;
     std::unique_ptr<GameHandler> _game;

@@ -7,6 +7,7 @@
 
 #include "Lobby/LobbyManager.hpp"
 #include "Logs/Logger.hpp"
+#include "Monitoring/PrometheusExporter.hpp"
 #include <atomic>
 #include <csignal>
 
@@ -41,15 +42,19 @@ int main() {
 
   LOG_INFO("Starting R-Type server...");
 
-  LobbyManager lobby("yaml/main_loop.yaml");
-  g_lobby = &lobby;
+  try {
+      PrometheusExporter monitor("0.0.0.0:8080");
+      LOG_INFO("Monitoring started on port 8080");
+      LobbyManager lobby("yaml/main_loop.yaml", monitor); 
+      g_lobby = &lobby;
+      LOG_INFO("Server started - all systems running");
+      lobby.run();
+      LOG_INFO("Shutting down server...");
 
-  LOG_INFO("Server started - all systems running");
-
-  // Run the lobby manager
-  lobby.run();
-
-  LOG_INFO("Shutting down server...");
+  } catch (const std::exception &e) {
+      std::cerr << "[CRITICAL ERROR] " << e.what() << std::endl;
+      return 84;
+  }
 
   return 0;
 }
