@@ -13,7 +13,14 @@
 #include "../common/ecs/systems/weapon_system.hpp"
 
 #include "KeybindsManager.hpp"
+#include "LobbyMenu.hpp"
 #include "SettingMenu.hpp"
+
+enum class GameState {
+    MAIN_MENU,
+    LOBBY,
+    IN_GAME
+};
 #include <SDL2/SDL.h>
 #include <arpa/inet.h>
 #include <functional>
@@ -38,9 +45,12 @@ private:
 
     SettingMenu _settingsMenu;
     KeybindsManager _keybindsManager;
+    LobbyMenu _lobbyMenu;
 
     NetworkManager _network;
     GameLoopConfig _config;
+
+    GameState _gameState = GameState::MAIN_MENU;
 
     std::map<Entity, Entity> playerEntities;
     std::map<Entity, Entity> enemyEntities;
@@ -55,6 +65,7 @@ private:
     std::string ip_adress = "127.0.0.1";
     bool _debugMode = false;
     bool _joinedRoom = false;
+    std::vector<RoomInfo> _pendingRooms;
 
     // menu Entities
     Entity start_button = _reg.createEntity();
@@ -66,6 +77,12 @@ private:
     void handlePlayerPacket(const DecodedMessage &msg);
 
     void cleanupServerEntity(Entity serverEntity);
+
+    void setupLobbyCallbacks();
+    void requestRoomList();
+    void createRoom();
+    void joinRoom(uint32_t roomId);
+    void registerJoinHandler(uint32_t roomId);
 
 public:
     uint32_t myPlayerId = 0;
