@@ -8,10 +8,11 @@
 #include "SessionManager.hpp"
 #include "../Logs/Logger.hpp"
 
-SessionManager::SessionManager() 
-    : _tcpServer(_queue), _udpServer(_queue)
+SessionManager::SessionManager(PrometheusExporter& monitor)
+    : _tcpServer(_queue, monitor)
+    , _udpServer(_queue, monitor)
+    , _monitor(monitor)
 {
-    // Set up callbacks for TCP connection/disconnection
     _tcpServer.setOnConnect([this](int fd) {
         addPlayer(fd);
     });
@@ -66,6 +67,7 @@ uint32_t SessionManager::addPlayer(int tcpFd)
     uint32_t playerId = _nextPlayerId++;
     _players.emplace(playerId, Player(playerId, tcpFd));
     _tcpFdToPlayerId[tcpFd] = playerId;
+    _monitor.setPlayerCount(_players.size());
     
     LOG_INFO("Player " + std::to_string(playerId) + " added (TCP fd: " + std::to_string(tcpFd) + ")");
     return playerId;
@@ -91,6 +93,7 @@ void SessionManager::removePlayer(uint32_t playerId)
     if (it != _players.end()) {
         _tcpFdToPlayerId.erase(it->second.tcpFd);
         _players.erase(it);
+        _monitor.setPlayerCount(_players.size());
         LOG_INFO("Player " + std::to_string(playerId) + " removed");
     }
 }
@@ -104,11 +107,11 @@ void SessionManager::removePlayerByTcpFd(int tcpFd)
         uint32_t playerId = it->second;
         auto playerIt = _players.find(playerId);
         if (playerIt != _players.end()) {
-            // Notify callback before removing
             if (_onPlayerDisconnect) {
                 _onPlayerDisconnect(playerIt->second);
             }
             _players.erase(playerIt);
+            _monitor.setPlayerCount(_players.size());
         }
         _tcpFdToPlayerId.erase(it);
         LOG_INFO("Player " + std::to_string(playerId) + " removed (by TCP fd)");
