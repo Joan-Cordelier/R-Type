@@ -102,3 +102,23 @@ upgrades:
     rarity: "legendary"
     visuals:
       card_color: "gold"
+
+  - id: "extra_proj_1"
+    name: "Tir Double"
+    description: "Ajoute un projectile supplementaire."
+    type: "stat_boost"
+    target: "extra_projectiles"
+    value: 1.0
+    rarity: "rare"
+    visuals:
+      card_color: "purple"
+
+  - id: "extra_proj_2"
+    name: "Tir Triple"
+    description: "Ajoute deux projectiles supplementaires."
+    type: "stat_boost"
+    target: "extra_projectiles"
+    value: 2.0
+    rarity: "legendary"
+    visuals:
+      card_color: "gold"
