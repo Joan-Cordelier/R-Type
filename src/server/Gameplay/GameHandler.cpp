@@ -10,9 +10,14 @@
 
 GameHandler::GameHandler(SessionManager &session,
                          std::shared_ptr<ThreadedQueue<DecodedMessage>> inputQueue,
-                         std::atomic<bool> &running, const std::string &configPath)
-    : _running(running), _session(session), _messageHandler(session, *inputQueue, running),
-      _inputQueue(inputQueue) {
+                         std::atomic<bool> &running, const std::string &configPath, 
+                         PrometheusExporter& monitor)
+    : _running(running)
+    , _session(session)
+    , _monitor(monitor)
+    , _messageHandler(session, *inputQueue, running)
+    , _inputQueue(inputQueue) 
+{
     // Load configuration
     char cwd[1024];
     if (getcwd(cwd, sizeof(cwd)) != NULL) {
@@ -151,6 +156,7 @@ void GameHandler::run() {
     constexpr float targetFrameTime = 1.0f / 30.0f; // 30 ticks per second
 
     while (_running) {
+        auto loopStart = std::chrono::high_resolution_clock::now();
         auto currentTime = std::chrono::steady_clock::now();
         float deltaTime = std::chrono::duration<float>(currentTime - lastTime).count();
         lastTime = currentTime;
@@ -163,6 +169,10 @@ void GameHandler::run() {
 
         // Send game packet to players
         sendUpdatedPositionToAllPlayers();
+
+        auto loopEnd = std::chrono::high_resolution_clock::now();
+        std::chrono::duration<double, std::milli> elapsed = loopEnd - loopStart;
+        _monitor.updateGameLoopDuration(elapsed.count());
 
         // Frame rate limiting
         auto frameEnd = std::chrono::steady_clock::now();
