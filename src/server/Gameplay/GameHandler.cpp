@@ -408,6 +408,7 @@ void GameHandler::sendDestroyedPlayerToAllPlayers(Entity player) {
 }
 
 void GameHandler::onPlayerConnect(const Player &player) {
+    LOG_DEBUG("onPlayerConnect START for player " + std::to_string(player.id));
     if (_waitingForUpgrades) {
         LOG_INFO("Player " + std::to_string(player.id) +
                  " connected during upgrade phase. Added to pending list.");
@@ -415,16 +416,22 @@ void GameHandler::onPlayerConnect(const Player &player) {
         return;
     }
 
+    LOG_DEBUG("onPlayerConnect: getting config");
     const auto &pStats = _config.getPlayerConfig().stats;
+    LOG_DEBUG("onPlayerConnect: creating entity");
     Entity playerEntity = reg.createEntity();
+    LOG_DEBUG("onPlayerConnect: adding Position");
     reg.addComponent<Position>(playerEntity, _config.getPlayerConfig().initial_x,
                                _config.getPlayerConfig().initial_y);
+    LOG_DEBUG("onPlayerConnect: adding Velocity");
     reg.addComponent<Velocity>(playerEntity, 0.f, 0.f);
 
     // Initialize Stats from Config
+    LOG_DEBUG("onPlayerConnect: adding Stats");
     reg.addComponent<Stats>(playerEntity, pStats.health, pStats.max_health, pStats.attack_speed,
                             0.f, pStats.attack_damage, 1, pStats.speed);
 
+    LOG_DEBUG("onPlayerConnect: setting weapon type");
     weaponSystem.setWeaponType(reg, playerEntity, WeaponType::DEFAULT);
 
     // Override with config stats

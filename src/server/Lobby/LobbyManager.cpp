@@ -209,7 +209,13 @@ void LobbyManager::handleListRooms(const DecodedMessage &msg) {
 
     auto &factory = MessageFactory::getInstance();
     MessageData payload = factory.encodeMessageRoomList(roomList);
+    std::cout << "[DEBUG] ROOM_LIST payload size: " << std::dec << payload.size() << " bytes: ";
+    for (auto b : payload) std::cout << std::hex << (int)b << " ";
+    std::cout << std::dec << std::endl;
     PreparedMessage response = factory.createMessage(ROOM_LIST, payload);
+    std::cout << "[DEBUG] ROOM_LIST message size: " << std::dec << response.data.size() << " bytes: ";
+    for (auto b : response.data) std::cout << std::hex << (int)b << " ";
+    std::cout << std::dec << std::endl;
     _session.sendTcp(msg.playerId, response);
 }
 
