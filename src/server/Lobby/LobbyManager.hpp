@@ -11,6 +11,7 @@
 #include "../Session/SessionManager.hpp"
 #include "Room.hpp"
 #include <atomic>
+#include <chrono>
 #include <map>
 #include <memory>
 #include <thread>
@@ -42,6 +43,11 @@ private:
 
     // Handling disconnections
     void onPlayerDisconnect(const Player &player);
+
+    // Auto-cleanup empty rooms
+    void cleanupEmptyRooms();
+    std::chrono::steady_clock::time_point _lastCleanupCheck;
+    static constexpr std::chrono::seconds EMPTY_ROOM_TIMEOUT{5};
 };
 
 #endif /* !LOBBYMANAGER_HPP_ */

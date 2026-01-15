@@ -12,6 +12,7 @@
 #include "../Gameplay/GameHandler.hpp"
 #include "../Session/SessionManager.hpp"
 #include <atomic>
+#include <chrono>
 #include <memory>
 #include <mutex>
 #include <thread>
@@ -41,6 +42,9 @@ public:
 
     std::vector<uint32_t> getPlayers() const;
 
+    // Returns true if the room has been empty for the specified duration
+    bool hasBeenEmptyFor(std::chrono::seconds duration) const;
+
 private:
     uint32_t _id;
     SessionManager &_session;
@@ -54,6 +58,10 @@ private:
     mutable std::mutex _mutex;
     std::vector<uint32_t> _players;
     uint32_t _maxPlayers = 4;
+
+    // Track when the room became empty (reset when players join)
+    std::chrono::steady_clock::time_point _emptyTimestamp;
+    bool _wasEmpty = true;  // Start as empty
 };
 
 #endif /* !ROOM_HPP_ */

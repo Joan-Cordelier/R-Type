@@ -10,7 +10,8 @@
 #include "../Logs/Logger.hpp"
 #include <chrono>
 
-LobbyManager::LobbyManager(const std::string &configPath) : _configPath(configPath) {
+LobbyManager::LobbyManager(const std::string &configPath) 
+    : _configPath(configPath), _lastCleanupCheck(std::chrono::steady_clock::now()) {
     _session.setOnPlayerDisconnect([this](const Player &player) { onPlayerDisconnect(player); });
 }
 
@@ -24,6 +25,13 @@ void LobbyManager::run() {
 
     while (_running) {
         processMessages();
+
+        // Check for empty rooms to cleanup every second
+        auto now = std::chrono::steady_clock::now();
+        if (now - _lastCleanupCheck >= std::chrono::seconds(1)) {
+            cleanupEmptyRooms();
+            _lastCleanupCheck = now;
+        }
 
         // Sleep to prevent CPU hogging
         std::this_thread::sleep_for(std::chrono::milliseconds(1));
@@ -279,5 +287,26 @@ void LobbyManager::handleLink(const DecodedMessage &msg) {
         LOG_INFO("Linked UDP address for player " + std::to_string(playerId));
     } else {
         LOG_WARN("LINK request for unknown player " + std::to_string(playerId));
+    }
+}
+
+void LobbyManager::cleanupEmptyRooms() {
+    std::vector<uint32_t> roomsToRemove;
+
+    // Find rooms that have been empty for too long
+    for (const auto &[id, room] : _rooms) {
+        if (room->hasBeenEmptyFor(EMPTY_ROOM_TIMEOUT)) {
+            roomsToRemove.push_back(id);
+        }
+    }
+
+    // Remove empty rooms
+    for (uint32_t id : roomsToRemove) {
+        auto it = _rooms.find(id);
+        if (it != _rooms.end()) {
+            it->second->stop();
+            _rooms.erase(it);
+            LOG_INFO("Room " + std::to_string(id) + " auto-closed (empty for 5 seconds)");
+        }
     }
 }

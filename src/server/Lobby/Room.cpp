@@ -9,7 +9,8 @@
 #include "../Logs/Logger.hpp"
 
 Room::Room(uint32_t id, SessionManager &session, const std::string &configPath)
-    : _id(id), _session(session), _inputQueue(std::make_shared<ThreadedQueue<DecodedMessage>>()) {
+    : _id(id), _session(session), _inputQueue(std::make_shared<ThreadedQueue<DecodedMessage>>()),
+      _emptyTimestamp(std::chrono::steady_clock::now()), _wasEmpty(true) {
     // Initialize GameHandler but don't start the loop yet
     // GameHandler constructor expects running atomic ref
     _game = std::make_unique<GameHandler>(_session, _inputQueue, _running, configPath);
@@ -53,6 +54,7 @@ bool Room::isFull() const {
 void Room::addPlayer(uint32_t playerId) {
     std::lock_guard<std::mutex> lock(_mutex);
     _players.push_back(playerId);
+    _wasEmpty = false;  // Room is no longer empty
 
     // Notify session manager to update player's room ID if needed,
     // but usually LobbyManager handles that mapping.
@@ -64,6 +66,12 @@ void Room::removePlayer(uint32_t playerId) {
     for (auto it = _players.begin(); it != _players.end(); ++it) {
         if (*it == playerId) {
             _players.erase(it);
+
+            // Track when room becomes empty
+            if (_players.empty() && !_wasEmpty) {
+                _emptyTimestamp = std::chrono::steady_clock::now();
+                _wasEmpty = true;
+            }
 
             // Notify GameHandler to remove entity
             DecodedMessage disMsg;
@@ -83,4 +91,13 @@ void Room::pushMessage(const DecodedMessage &msg) {
 std::vector<uint32_t> Room::getPlayers() const {
     std::lock_guard<std::mutex> lock(_mutex);
     return _players;
+}
+
+bool Room::hasBeenEmptyFor(std::chrono::seconds duration) const {
+    std::lock_guard<std::mutex> lock(_mutex);
+    if (!_players.empty()) {
+        return false;
+    }
+    auto now = std::chrono::steady_clock::now();
+    return (now - _emptyTimestamp) >= duration;
 }
