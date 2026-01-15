@@ -591,3 +591,35 @@ MessageData MessageFactory::decompress(const MessageData &data,
     dest.resize(destLen);
     return dest;
 }
+
+std::string MessageFactory::getOpCodeName(OpCode opCode) const {
+    switch (opCode) {
+        case INCOMPLETE:      return "INCOMPLETE";
+        case PARSING_ERROR:   return "PARSING_ERROR";
+        case CRASH:           return "CRASH";
+        case CONNECT:         return "CONNECT";
+        case CONNECT_ACK:     return "CONNECT_ACK";
+        case DISCONNECT:      return "DISCONNECT";
+        case LINK:            return "LINK";
+        case CREATE_ROOM:     return "CREATE_ROOM";
+        case JOIN_ROOM:       return "JOIN_ROOM";
+        case JOIN_ACK:        return "JOIN_ACK";
+        case LIST_ROOMS:      return "LIST_ROOMS";
+        case ROOM_LIST:       return "ROOM_LIST";
+        case ROOM_CREATED:    return "ROOM_CREATED";
+        case START:           return "START";
+        case JOIN:            return "JOIN";
+        case PLAYER:          return "PLAYER";
+        case ENEMY:           return "ENEMY";
+        case DEATH:           return "DEATH";
+        case SHOOT:           return "SHOOT";
+        case MOVE_SYNC:       return "MOVE_SYNC";
+        case MOVE_INPUT:      return "MOVE_INPUT";
+        case COMPANION:       return "COMPANION";
+        case UPDATE_WEAPON:   return "UPDATE_WEAPON";
+        case UPDATE_STATS:    return "UPDATE_STATS";
+        case UPGRADE_OPTIONS: return "UPGRADE_OPTIONS";
+        case UPGRADE_SELECT:  return "UPGRADE_SELECT";
+        default:              return "UNKNOWN_" + std::to_string(static_cast<int>(opCode));
+    }
+}

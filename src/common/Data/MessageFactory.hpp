@@ -80,6 +80,7 @@ public:
         return instance;
     }
 
+    std::string getOpCodeName(OpCode opCode) const;
     MessageFactory(const MessageFactory &) = delete;
     MessageFactory &operator=(const MessageFactory &) = delete;
 
