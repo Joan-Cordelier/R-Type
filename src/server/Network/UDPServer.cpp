@@ -9,7 +9,8 @@
 #include "../Logs/Logger.hpp"
 #include <arpa/inet.h>
 
-UDPServer::UDPServer(ThreadedQueue<DecodedMessage>& queue) : AServer(queue)
+UDPServer::UDPServer(ThreadedQueue<DecodedMessage>& queue, PrometheusExporter& monitor)
+    : AServer(queue), _monitor(monitor)
 {
     init(AServer::protocol::UDP, 4790);
 }
@@ -46,6 +47,7 @@ int UDPServer::run()
                 socklen_t len = sizeof(clientAddr);
                 int n = recvfrom(_serverFd, buffer, sizeof(buffer), 0, (struct sockaddr*)&clientAddr, &len);
                 if (n > 0) {
+                    _monitor.addBytes("udp", "rx", static_cast<double>(n));
                     bool isNewClient = false;
                     std::string clientIp = inet_ntoa(clientAddr.sin_addr);
                     int clientPort = ntohs(clientAddr.sin_port);
@@ -86,6 +88,9 @@ int UDPServer::send(const MessageData& data, const sockaddr_in& clientAddr)
     int clientPort = ntohs(clientAddr.sin_port);
     ssize_t sent = sendto(_serverFd, data.data(), data.size(), 0, (struct sockaddr*)&clientAddr, sizeof(clientAddr));
     
+    if (sent > 0) {
+    _monitor.addBytes("udp", "tx", static_cast<double>(sent));
+    }
     if (sent < 0) {
         LOG_ERROR("UDP send failed to " + clientIp + ":" + std::to_string(clientPort));
         return -1;
@@ -112,6 +117,9 @@ int UDPServer::send(const MessageData& data)
     for (const auto& clientAddr : _clients) {
         ssize_t sent = sendto(_serverFd, data.data(), data.size(), 0,
                              (struct sockaddr*)&clientAddr, sizeof(clientAddr));
+        if (sent > 0) {
+        _monitor.addBytes("udp", "tx", static_cast<double>(sent));
+        }
         if (sent < 0 || sent != static_cast<ssize_t>(data.size())) {
             std::string clientIp = inet_ntoa(clientAddr.sin_addr);
             int clientPort = ntohs(clientAddr.sin_port);

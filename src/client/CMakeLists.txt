@@ -20,7 +20,9 @@ target_include_directories(r-type_client PRIVATE ${CMAKE_CURRENT_SOURCE_DIR} ../
 
 target_compile_options(r-type_client PRIVATE -Wall -Wextra)
 target_compile_features(r-type_client PRIVATE cxx_std_17)
-find_package(ZLIB REQUIRED)
+if(NOT TARGET ZLIB::ZLIB)
+    find_package(ZLIB REQUIRED)
+endif()
 
 target_link_libraries(r-type_client PRIVATE
     $<TARGET_NAME_IF_EXISTS:SDL2::SDL2main>

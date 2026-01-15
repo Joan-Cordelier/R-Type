@@ -13,6 +13,7 @@
 #include "ecs/systems/spritesheet_system.hpp"
 #include "ecs/systems/stat_system.hpp"
 #include "ecs/systems/weapon_system.hpp"
+#include "../Monitoring/PrometheusExporter.hpp"
 
 #include "../../common/Config/GameLoopConfig.hpp"
 
@@ -41,6 +42,7 @@ private:
     bool _gameStarted = false;
     std::atomic<bool> &_running;
     SessionManager &_session;
+    PrometheusExporter& _monitor;
     MessageHandler _messageHandler;
 
     Registry reg;
@@ -68,7 +70,7 @@ private:
 
 public:
     GameHandler(SessionManager &session, std::shared_ptr<ThreadedQueue<DecodedMessage>> inputQueue,
-                std::atomic<bool> &running, const std::string &configPath);
+                std::atomic<bool> &running, const std::string &configPath, PrometheusExporter& monitor);
     void run();
 
     void sendUpdatedPositionToAllPlayers();

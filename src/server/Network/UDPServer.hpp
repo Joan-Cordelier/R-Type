@@ -10,14 +10,17 @@
 
 #include "AServer.hpp"
 #include "../../common/Data/MessageFactory.hpp"
+#include "../Monitoring/PrometheusExporter.hpp"
 
 class UDPServer : public AServer {
     public:
-        UDPServer(ThreadedQueue<DecodedMessage>& queue);
+        UDPServer(ThreadedQueue<DecodedMessage>& queue, PrometheusExporter& monitor);
         ~UDPServer();
         int run();
         int send(const MessageData& data, const sockaddr_in& clientAddr);
         int send(const MessageData& data);
+    private:
+        PrometheusExporter& _monitor;
 };
 
 #endif /* !UDPSERVER_HPP_ */

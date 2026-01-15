@@ -9,6 +9,7 @@
 #define LOBBYMANAGER_HPP_
 
 #include "../Session/SessionManager.hpp"
+#include "../Monitoring/PrometheusExporter.hpp"
 #include "Room.hpp"
 #include <atomic>
 #include <map>
@@ -17,7 +18,7 @@
 
 class LobbyManager {
 public:
-    LobbyManager(const std::string &configPath = "yaml/main_loop.yaml");
+    LobbyManager(const std::string &configPath, PrometheusExporter& monitor);
     ~LobbyManager();
 
     void run();
@@ -28,6 +29,7 @@ private:
     std::map<uint32_t, std::shared_ptr<Room>> _rooms;
     std::atomic<bool> _running{true};
     std::string _configPath;
+    PrometheusExporter& _monitor;
 
     uint32_t _nextRoomId = 1;
 

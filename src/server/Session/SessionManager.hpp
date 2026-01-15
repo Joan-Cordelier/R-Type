@@ -12,6 +12,7 @@
 #include "../Network/TCPServer.hpp"
 #include "../Network/UDPServer.hpp"
 #include "../../common/Data/ThreadedQueue.hpp"
+#include "../Monitoring/PrometheusExporter.hpp"
 #include <unordered_map>
 #include <mutex>
 #include <thread>
@@ -22,7 +23,7 @@ class SessionManager {
     public:
         using PlayerCallback = std::function<void(const Player&)>;
         
-        SessionManager();
+        SessionManager(PrometheusExporter& monitor);
         ~SessionManager();
         
         void start();
@@ -77,6 +78,7 @@ class SessionManager {
         uint32_t _nextPlayerId = 1;
         
         PlayerCallback _onPlayerDisconnect;
+        PrometheusExporter& _monitor;
         
         bool compareUdpAddr(const sockaddr_in& a, const sockaddr_in& b) const;
 };
