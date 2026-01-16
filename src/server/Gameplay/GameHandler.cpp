@@ -11,10 +11,11 @@
 GameHandler::GameHandler(SessionManager &session,
                          std::shared_ptr<ThreadedQueue<DecodedMessage>> inputQueue,
                          std::atomic<bool> &running, const std::string &configPath, 
-                         PrometheusExporter& monitor)
+                         PrometheusExporter& monitor, Difficulty difficulty)
     : _running(running)
     , _session(session)
     , _monitor(monitor)
+    , _difficulty(difficulty)
     , _messageHandler(session, *inputQueue, running)
     , _inputQueue(inputQueue) 
 {
@@ -34,6 +35,17 @@ GameHandler::GameHandler(SessionManager &session,
     } else {
         LOG_INFO("Successfully loaded config from " + configPath);
     }
+
+    // Set difficulty multiplier
+    float difficultyMultiplier = 1.0f;
+    switch (_difficulty) {
+        case Difficulty::EASY: difficultyMultiplier = _config.getDifficultyConfig().easy; break;
+        case Difficulty::NORMAL: difficultyMultiplier = _config.getDifficultyConfig().normal; break;
+        case Difficulty::HARD: difficultyMultiplier = _config.getDifficultyConfig().hard; break;
+        case Difficulty::IMPOSSIBLE: difficultyMultiplier = _config.getDifficultyConfig().impossible; break;
+        default: difficultyMultiplier = 1.0f; break;
+    }
+    enemySystem.setDifficultyMultiplier(difficultyMultiplier);
 
     // Print verify loaded values
     auto &hb = _config.getPlayerConfig().hitbox;

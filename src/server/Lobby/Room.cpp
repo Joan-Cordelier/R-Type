@@ -20,7 +20,7 @@ Room::Room(uint32_t id, SessionManager &session, const std::string &configPath,
 {
     // Initialize GameHandler but don't start the loop yet
     // GameHandler constructor expects running atomic ref
-    _game = std::make_unique<GameHandler>(_session, _inputQueue, _running, configPath, monitor);
+    _game = std::make_unique<GameHandler>(_session, _inputQueue, _running, configPath, monitor, _config.difficulty);
 
     // Set up callback for when players die
     _game->setOnPlayerDeath([this](uint32_t playerId) {
