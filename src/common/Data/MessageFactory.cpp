@@ -38,7 +38,7 @@ std::array<MessageFactory::Message, 256> MessageFactory::initMessageTable() {
     table[UPDATE_WEAPON] = {16, Priority::HIGH};
     table[COMPANION] = {13, Priority::HIGH};
     table[UPDATE_STATS] = {16, Priority::HIGH};
-    table[CREATE_ROOM] = {0, Priority::MEDIUM}; // No payload for now, or maybe max players later
+    table[CREATE_ROOM] = {3, Priority::MEDIUM};  // maxPlayers (1) + gameMode (1) + difficulty (1)
     table[JOIN_ROOM] = {4, Priority::MEDIUM};   // RoomID (4 bytes)
     table[LIST_ROOMS] = {0, Priority::LOW};     // No payload
     table[ROOM_LIST] = {VARIABLE_LEN, Priority::LOW};
@@ -580,6 +580,15 @@ MessageData MessageFactory::encodeMessageJoinAck(uint32_t roomId, bool success) 
 
     data.push_back(success ? 1 : 0);
 
+    return data;
+}
+
+MessageData MessageFactory::encodeMessageCreateRoom(uint8_t maxPlayers, uint8_t gameMode,
+                                                    uint8_t difficulty) const {
+    MessageData data;
+    data.push_back(maxPlayers);
+    data.push_back(gameMode);
+    data.push_back(difficulty);
     return data;
 }
 

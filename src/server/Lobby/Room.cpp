@@ -8,10 +8,12 @@
 #include "Room.hpp"
 #include "../Logs/Logger.hpp"
 
-Room::Room(uint32_t id, SessionManager &session, const std::string &configPath, PrometheusExporter& monitor)
+Room::Room(uint32_t id, SessionManager &session, const std::string &configPath, 
+           PrometheusExporter& monitor, const RoomConfig& config)
     : _id(id)
     , _session(session)
     , _monitor(monitor)
+    , _config(config)
     , _inputQueue(std::make_shared<ThreadedQueue<DecodedMessage>>())
     , _emptyTimestamp(std::chrono::steady_clock::now())
     , _wasEmpty(true)
@@ -25,7 +27,9 @@ Room::Room(uint32_t id, SessionManager &session, const std::string &configPath, 
         onPlayerDeath(playerId);
     });
 
-    LOG_INFO("Room " + std::to_string(id) + " created");
+    LOG_INFO("Room " + std::to_string(id) + " created (MaxPlayers: " + 
+             std::to_string(_config.maxPlayers) + ", Mode: " + _config.getGameModeStr() + 
+             ", Difficulty: " + _config.getDifficultyStr() + ")");
 }
 
 Room::~Room() {
@@ -63,7 +67,7 @@ size_t Room::getPlayerCount() const {
 
 bool Room::isFull() const {
     std::lock_guard<std::mutex> lock(_mutex);
-    return _players.size() >= _maxPlayers;
+    return _players.size() >= _config.maxPlayers;
 }
 
 void Room::addPlayer(uint32_t playerId) {

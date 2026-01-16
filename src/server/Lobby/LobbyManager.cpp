@@ -7,6 +7,7 @@
 
 #include "LobbyManager.hpp"
 #include "../../common/Data/MessageFactory.hpp"
+#include "../../common/Data/RoomConfig.hpp"
 #include "../Logs/Logger.hpp"
 #include <chrono>
 
@@ -144,13 +145,26 @@ void LobbyManager::dispatchMessage(DecodedMessage &msg) {
 }
 
 void LobbyManager::handleCreateRoom(const DecodedMessage &msg) {
+    // Parse room configuration from message
+    RoomConfig config;
+    if (msg.data.size() >= 3) {
+        config.maxPlayers = msg.data[0];
+        config.gameMode = static_cast<GameMode>(msg.data[1]);
+        config.difficulty = static_cast<Difficulty>(msg.data[2]);
+        
+        // Validate maxPlayers (1-4)
+        if (config.maxPlayers < 1) config.maxPlayers = 1;
+        if (config.maxPlayers > 4) config.maxPlayers = 4;
+    }
+
     uint32_t roomId = _nextRoomId++;
-    auto room = std::make_shared<Room>(roomId, _session, _configPath, _monitor);
+    auto room = std::make_shared<Room>(roomId, _session, _configPath, _monitor, config);
     _rooms[roomId] = room;
     room->start();
 
     LOG_INFO("Room " + std::to_string(roomId) + " created by player " +
-             std::to_string(msg.playerId));
+             std::to_string(msg.playerId) + " (MaxPlayers: " + std::to_string(config.maxPlayers) +
+             ", Mode: " + config.getGameModeStr() + ", Difficulty: " + config.getDifficultyStr() + ")");
 
     auto &factory = MessageFactory::getInstance();
     MessageData payload = factory.encodeMessageRoomCreated(roomId);

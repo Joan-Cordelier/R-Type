@@ -15,11 +15,13 @@
 
 #include "KeybindsManager.hpp"
 #include "LobbyMenu.hpp"
+#include "CreateRoomMenu.hpp"
 #include "SettingMenu.hpp"
 
 enum class GameState {
     MAIN_MENU,
     LOBBY,
+    CREATE_ROOM,
     IN_GAME
 };
 #include <SDL2/SDL.h>
@@ -47,6 +49,7 @@ private:
     SettingMenu _settingsMenu;
     KeybindsManager _keybindsManager;
     LobbyMenu _lobbyMenu;
+    CreateRoomMenu _createRoomMenu;
 
     NetworkManager _network;
     GameLoopConfig _config;
@@ -84,7 +87,8 @@ private:
 
     void setupLobbyCallbacks();
     void requestRoomList();
-    void createRoom();
+    void showCreateRoomMenu();
+    void createRoom(const RoomConfig& config);
     void joinRoom(uint32_t roomId);
     void registerJoinHandler(uint32_t roomId);
 

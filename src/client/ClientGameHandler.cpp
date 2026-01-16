@@ -9,7 +9,7 @@
 #include <sstream>
 
 ClientGameHandler::ClientGameHandler(bool debugMode)
-    : _settingsMenu(_reg, _keybindsManager), _lobbyMenu(_reg), _debugMode(debugMode) {
+    : _settingsMenu(_reg, _keybindsManager), _lobbyMenu(_reg), _createRoomMenu(_reg), _debugMode(debugMode) {
     // Load config (try local, then ../ for build dir)
     if (!_config.loadFromFile("yaml/main_loop.yaml")) {
         // Only try parent directory if first attempt failed
@@ -120,9 +120,11 @@ ClientGameHandler::ClientGameHandler(bool debugMode)
 
     // Initialize lobby menu (after textures are loaded)
     _lobbyMenu.init();
+    _createRoomMenu.init();
 
     // Setup lobby menu and its callbacks
     _lobbyMenu.setup(_buttonsys);
+    _createRoomMenu.setup(_buttonsys);
     setupLobbyCallbacks();
 
     _settingsMenu.setup(_reg, _slidersys, _buttonsys);
@@ -1290,9 +1292,23 @@ void ClientGameHandler::handleUpdateWeapon(const DecodedMessage &msg) {
 void ClientGameHandler::setupLobbyCallbacks() {
     _lobbyMenu.setJoinCallback([this](uint32_t roomId) { joinRoom(roomId); });
 
-    _lobbyMenu.setCreateCallback([this]() { createRoom(); });
+    _lobbyMenu.setCreateCallback([this]() { showCreateRoomMenu(); });
 
     _lobbyMenu.setRefreshCallback([this]() { requestRoomList(); });
+
+    // CreateRoomMenu callbacks
+    _createRoomMenu.setOnConfirm([this](const RoomConfig& config) {
+        createRoom(config);
+        _createRoomMenu.hide();
+        _lobbyMenu.show();
+        _gameState = GameState::LOBBY;
+    });
+
+    _createRoomMenu.setOnCancel([this]() {
+        _createRoomMenu.hide();
+        _lobbyMenu.show();
+        _gameState = GameState::LOBBY;
+    });
 }
 
 void ClientGameHandler::requestRoomList() {
@@ -1302,11 +1318,25 @@ void ClientGameHandler::requestRoomList() {
     std::cout << "Requesting room list..." << std::endl;
 }
 
-void ClientGameHandler::createRoom() {
+void ClientGameHandler::showCreateRoomMenu() {
+    std::cout << "Opening room creation menu..." << std::endl;
+    _lobbyMenu.hide();
+    _createRoomMenu.show();
+    _gameState = GameState::CREATE_ROOM;
+}
+
+void ClientGameHandler::createRoom(const RoomConfig& config) {
     MessageFactory &factory = MessageFactory::getInstance();
-    PreparedMessage createMsg = factory.createMessage(OpCode::CREATE_ROOM, {});
+    MessageData payload = factory.encodeMessageCreateRoom(
+        config.maxPlayers,
+        static_cast<uint8_t>(config.gameMode),
+        static_cast<uint8_t>(config.difficulty)
+    );
+    PreparedMessage createMsg = factory.createMessage(OpCode::CREATE_ROOM, payload);
     _network.sendTcp(createMsg);
-    std::cout << "Creating new room..." << std::endl;
+    std::cout << "Creating new room (MaxPlayers: " << (int)config.maxPlayers 
+              << ", Mode: " << config.getGameModeStr() 
+              << ", Difficulty: " << config.getDifficultyStr() << ")..." << std::endl;
 }
 
 void ClientGameHandler::joinRoom(uint32_t roomId) {
