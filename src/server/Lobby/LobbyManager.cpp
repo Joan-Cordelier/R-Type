@@ -266,12 +266,6 @@ void LobbyManager::onPlayerDisconnect(const Player &player) {
         auto it = _rooms.find(player.roomId);
         if (it != _rooms.end()) {
             it->second->removePlayer(player.id);
-
-            DecodedMessage disMsg;
-            disMsg.opCode = DISCONNECT;
-            disMsg.playerId = player.id;
-            disMsg.priority = Priority::CRITICAL;
-            it->second->pushMessage(disMsg);
         }
     }
 }

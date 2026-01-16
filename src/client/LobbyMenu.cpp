@@ -22,21 +22,21 @@ void LobbyMenu::init() {
 
     // Create "Create Room" button
     _createRoomButton = _reg.createEntity();
-    _reg.addComponent<Position>(_createRoomButton, 200.f, 500.f);
-    _reg.addComponent<Sprite>(_createRoomButton, std::string("textures/play_button/default.png"),
-                              std::string("play_button"), 200, 80, 100, 0.f, 0.f, false);
+    _reg.addComponent<Position>(_createRoomButton, 75.f, 480.f);
+    _reg.addComponent<Sprite>(_createRoomButton, std::string("textures/button/square_button.png"),
+                              std::string("square_button"), 330, 160, 100, 0.f, 0.f, false);
     _reg.addComponent<Button>(_createRoomButton, std::string("lobby_create_room"), 100, false);
 
     // Create "Refresh" button
     _refreshButton = _reg.createEntity();
-    _reg.addComponent<Position>(_refreshButton, 450.f, 500.f);
-    _reg.addComponent<Sprite>(_refreshButton, std::string("textures/play_button/default.png"),
-                              std::string("play_button"), 200, 80, 100, 0.f, 0.f, false);
+    _reg.addComponent<Position>(_refreshButton, 444.f, 480.f);
+    _reg.addComponent<Sprite>(_refreshButton, std::string("textures/button/square_button.png"),
+                              std::string("square_button"), 235, 160, 100, 0.f, 0.f, false);
     _reg.addComponent<Button>(_refreshButton, std::string("lobby_refresh"), 100, false);
 
     // Label for Create Room button
     Entity createLabel = _reg.createEntity();
-    _reg.addComponent<Position>(createLabel, 220.f, 520.f);
+    _reg.addComponent<Position>(createLabel, 210.f, 545.f);
     _reg.addComponent<Label>(createLabel, std::string("Create Room"),
                              std::string("font/josefin-sans/JosefinSans-Regular.ttf"),
                              std::string("default_font_small"), Color(255, 255, 255), 101, false);
@@ -44,7 +44,7 @@ void LobbyMenu::init() {
 
     // Label for Refresh button
     Entity refreshLabel = _reg.createEntity();
-    _reg.addComponent<Position>(refreshLabel, 490.f, 520.f);
+    _reg.addComponent<Position>(refreshLabel, 515.f, 545.f);
     _reg.addComponent<Label>(refreshLabel, std::string("Refresh"),
                              std::string("font/josefin-sans/JosefinSans-Regular.ttf"),
                              std::string("default_font_small"), Color(255, 255, 255), 101, false);
@@ -210,9 +210,9 @@ void LobbyMenu::updateRoomList(const std::vector<RoomInfo> &rooms) {
         // Join button for this room
         if (rooms[i].playerCount < rooms[i].maxPlayers) {
             Entity joinButton = _reg.createEntity();
-            _reg.addComponent<Position>(joinButton, 500.f, yPos);
-            _reg.addComponent<Sprite>(joinButton, std::string("textures/play_button/default.png"),
-                                      std::string("play_button"), 120, 50, 100, 0.f, 0.f, _visible);
+            _reg.addComponent<Position>(joinButton, 475.f, yPos - 34.f);
+            _reg.addComponent<Sprite>(joinButton, std::string("textures/button/square_button.png"),
+                                      std::string("square_button"), 160, 120, 100, 0.f, 0.f, _visible);
 
             std::string handlerName = "lobby_join_" + std::to_string(rooms[i].id);
             _reg.addComponent<Button>(joinButton, handlerName, 100, _visible);

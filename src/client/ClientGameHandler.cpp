@@ -43,6 +43,7 @@ ClientGameHandler::ClientGameHandler(bool debugMode)
                               383);
 
     _renderer.loadTexture("textures/play_button/default.png", "play_button");
+    _renderer.loadTexture("textures/button/square_button.png", "square_button");
     _renderer.loadTexture("textures/upgrades/border.png", "upgrade_border");
     _renderer.loadSpriteSheet("textures/projectiles/projectile_player.png", "projectile_player", 16,
                               16);
