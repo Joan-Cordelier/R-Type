@@ -19,19 +19,13 @@ enable_testing()
 Build instructions for different platforms
 
 git clone https://github.com/microsoft/vcpkg.git
-cd vcpkg
-./bootstrap-vcpkg.sh  # On Linux/macOS
-.\bootstrap-vcpkg.bat # On Windows
+./vcpkg/bootstrap-vcpkg.sh  # On Linux/macOS
 
 sudo dnf install -y ninja-build
 sudo apt install autoconf autoconf-archive automake libtool
 
 Linux:
-cmake -B build -S . -DCMAKE_BUILD_TYPE=Release -DCMAKE_TOOLCHAIN_FILE=/home/theo/vcpkg/scripts/buildsystems/vcpkg.cmake -DVCPKG_INSTALLED_DIR=./vcpkg_installed -G Ninja
+cmake -B build -S . -DCMAKE_BUILD_TYPE=Release -DCMAKE_TOOLCHAIN_FILE=./vcpkg/scripts/buildsystems/vcpkg.cmake -DVCPKG_INSTALLED_DIR=./vcpkg_installed -G Ninja
 cmake --build build --config Release -j$(nproc)
-
-Windows (MSVC):
-cmake -B build -S . -G "Visual Studio 17 2022" -DCMAKE_TOOLCHAIN_FILE=C:/vcpkg/scripts/buildsystems/vcpkg.cmake -DVCPKG_INSTALLED_DIR=./vcpkg_installed
-cmake --build build --config Release
 
 ]]
