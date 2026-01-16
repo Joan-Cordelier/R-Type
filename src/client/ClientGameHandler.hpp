@@ -14,12 +14,14 @@
 #include "../common/ecs/systems/weapon_system.hpp"
 
 #include "KeybindsManager.hpp"
+#include "LoginMenu.hpp"
 #include "LobbyMenu.hpp"
 #include "CreateRoomMenu.hpp"
 #include "SettingMenu.hpp"
 
 enum class GameState {
     MAIN_MENU,
+    LOGIN,
     LOBBY,
     CREATE_ROOM,
     IN_GAME
@@ -48,6 +50,7 @@ private:
 
     SettingMenu _settingsMenu;
     KeybindsManager _keybindsManager;
+    LoginMenu _loginMenu;
     LobbyMenu _lobbyMenu;
     CreateRoomMenu _createRoomMenu;
 
@@ -71,6 +74,11 @@ private:
     bool _joinedRoom = false;
     std::vector<RoomInfo> _pendingRooms;
 
+    uint32_t _userId = 0;
+    std::string _username;
+    bool _isGuest = false;
+    bool _isAuthenticated = false;
+
     // menu Entities
     Entity start_button = _reg.createEntity();
     Entity label_input = _reg.createEntity();
@@ -86,6 +94,7 @@ private:
     AudioManager _audioManager;
 
     void setupLobbyCallbacks();
+    void setupLoginCallbacks();
     void requestRoomList();
     void showCreateRoomMenu();
     void createRoom(const RoomConfig& config);

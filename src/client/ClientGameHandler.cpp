@@ -9,7 +9,7 @@
 #include <sstream>
 
 ClientGameHandler::ClientGameHandler(bool debugMode)
-    : _settingsMenu(_reg, _keybindsManager), _lobbyMenu(_reg), _createRoomMenu(_reg), _debugMode(debugMode) {
+    : _settingsMenu(_reg, _keybindsManager), _loginMenu(_reg), _lobbyMenu(_reg), _createRoomMenu(_reg), _debugMode(debugMode) {
     // Load config (try local, then ../ for build dir)
     if (!_config.loadFromFile("yaml/main_loop.yaml")) {
         // Only try parent directory if first attempt failed
@@ -115,14 +115,17 @@ ClientGameHandler::ClientGameHandler(bool debugMode)
         PreparedMessage msg = factory.createMessage(OpCode::CONNECT, {});
         _network.sendTcp(msg);
 
-        // Will transition to LOBBY state after CONNECT_ACK
+        // Will transition to LOGIN state after CONNECT_ACK
     });
 
-    // Initialize lobby menu (after textures are loaded)
+    // Initialize menus (after textures are loaded)
+    _loginMenu.init();
     _lobbyMenu.init();
     _createRoomMenu.init();
 
-    // Setup lobby menu and its callbacks
+    // Setup menus and their callbacks
+    _loginMenu.setup(_buttonsys);
+    setupLoginCallbacks();
     _lobbyMenu.setup(_buttonsys);
     _createRoomMenu.setup(_buttonsys);
     setupLobbyCallbacks();
@@ -149,6 +152,22 @@ int ClientGameHandler::run() {
             std::cout << "toggling settings menu" << std::endl;
             toggleSettingsMenu();
         }
+
+        // Handle text input for login menu
+        if (_gameState == GameState::LOGIN && _loginMenu.isVisible()) {
+            if (status.type == SDL_TEXTINPUT) {
+                if (status.text.text[0] != '\0') {
+                    _loginMenu.handleTextInput(status.text.text[0]);
+                }
+            } else if (status.type == SDL_KEYDOWN) {
+                if (status.key.keysym.sym == SDLK_BACKSPACE) {
+                    _loginMenu.handleBackspace();
+                } else if (status.key.keysym.sym == SDLK_TAB) {
+                    _loginMenu.switchInputField();
+                }
+            }
+        }
+
         _renderer.setDaltonianMode(_settingsMenu.getCurrentDaltonianMode(),
                                    _settingsMenu.getDaltonianSliderValue(_reg));
 
@@ -442,7 +461,98 @@ void ClientGameHandler::handleMessages() {
                 }
                 pendingPlayerPackets.clear();
 
-                // Transition to lobby state and show lobby menu
+                // Transition to login state and show login menu
+                _gameState = GameState::LOGIN;
+                _loginMenu.show();
+            }
+            break;
+        }
+
+        case OpCode::REGISTER_ACK: {
+            if (msg->data.size() >= 6) {
+                bool success = msg->data[0] != 0;
+                uint32_t userId = (static_cast<uint32_t>(msg->data[1]) << 24) |
+                                  (static_cast<uint32_t>(msg->data[2]) << 16) |
+                                  (static_cast<uint32_t>(msg->data[3]) << 8) |
+                                  static_cast<uint32_t>(msg->data[4]);
+                uint8_t errorLen = msg->data[5];
+                std::string errorMsg;
+                if (errorLen > 0 && msg->data.size() >= 6 + errorLen) {
+                    errorMsg = std::string(msg->data.begin() + 6, msg->data.begin() + 6 + errorLen);
+                }
+
+                if (success) {
+                    std::cout << "Registration successful! User ID: " << userId << std::endl;
+                    _loginMenu.showError("Registered! Please login.");
+                } else {
+                    std::cout << "Registration failed: " << errorMsg << std::endl;
+                    _loginMenu.showError(errorMsg.empty() ? "Registration failed" : errorMsg);
+                }
+            }
+            break;
+        }
+
+        case OpCode::LOGIN_ACK: {
+            if (msg->data.size() >= 6) {
+                bool success = msg->data[0] != 0;
+                uint32_t userId = (static_cast<uint32_t>(msg->data[1]) << 24) |
+                                  (static_cast<uint32_t>(msg->data[2]) << 16) |
+                                  (static_cast<uint32_t>(msg->data[3]) << 8) |
+                                  static_cast<uint32_t>(msg->data[4]);
+                uint8_t usernameLen = msg->data[5];
+                size_t offset = 6 + usernameLen;
+                std::string username;
+                if (usernameLen > 0 && msg->data.size() >= 6 + usernameLen) {
+                    username = std::string(msg->data.begin() + 6, msg->data.begin() + 6 + usernameLen);
+                }
+                
+                std::string errorMsg;
+                if (msg->data.size() > offset) {
+                    uint8_t errorLen = msg->data[offset];
+                    if (errorLen > 0 && msg->data.size() >= offset + 1 + errorLen) {
+                        errorMsg = std::string(msg->data.begin() + offset + 1, msg->data.begin() + offset + 1 + errorLen);
+                    }
+                }
+
+                if (success) {
+                    std::cout << "Login successful! User: " << username << " (ID: " << userId << ")" << std::endl;
+                    _userId = userId;
+                    _username = username;
+                    _isGuest = false;
+                    _isAuthenticated = true;
+                    // Transition to lobby
+                    _loginMenu.hide();
+                    _gameState = GameState::LOBBY;
+                    _lobbyMenu.show();
+                    requestRoomList();
+                } else {
+                    std::cout << "Login failed: " << errorMsg << std::endl;
+                    _loginMenu.showError(errorMsg.empty() ? "Login failed" : errorMsg);
+                }
+            }
+            break;
+        }
+
+        case OpCode::GUEST_LOGIN_ACK: {
+            if (msg->data.size() >= 5) {
+                uint32_t guestId = (static_cast<uint32_t>(msg->data[0]) << 24) |
+                                   (static_cast<uint32_t>(msg->data[1]) << 16) |
+                                   (static_cast<uint32_t>(msg->data[2]) << 8) |
+                                   static_cast<uint32_t>(msg->data[3]);
+                uint8_t nameLen = msg->data[4];
+                std::string guestName;
+                if (nameLen > 0 && msg->data.size() >= 5 + nameLen) {
+                    guestName = std::string(msg->data.begin() + 5, msg->data.begin() + 5 + nameLen);
+                }
+
+                std::cout << "Guest login successful! Name: " << guestName << " (ID: " << guestId << ")" << std::endl;
+                _userId = guestId;
+                _username = guestName;
+                _isGuest = true;
+                _isAuthenticated = true;
+
+                // Transition to lobby
+                _loginMenu.hide();
                 _gameState = GameState::LOBBY;
                 _lobbyMenu.show();
                 requestRoomList();
@@ -1288,6 +1398,31 @@ void ClientGameHandler::handleUpdateWeapon(const DecodedMessage &msg) {
                       << ")" << std::endl;
         }
     }
+}
+
+void ClientGameHandler::setupLoginCallbacks() {
+    _loginMenu.setOnLogin([this](const std::string& username, const std::string& password) {
+        std::cout << "Attempting login for: " << username << std::endl;
+        MessageFactory &factory = MessageFactory::getInstance();
+        MessageData payload = factory.encodeMessageLogin(username, password);
+        PreparedMessage msg = factory.createMessage(OpCode::LOGIN, payload);
+        _network.sendTcp(msg);
+    });
+
+    _loginMenu.setOnRegister([this](const std::string& username, const std::string& password) {
+        std::cout << "Attempting registration for: " << username << std::endl;
+        MessageFactory &factory = MessageFactory::getInstance();
+        MessageData payload = factory.encodeMessageRegister(username, password);
+        PreparedMessage msg = factory.createMessage(OpCode::REGISTER, payload);
+        _network.sendTcp(msg);
+    });
+
+    _loginMenu.setOnGuest([this]() {
+        std::cout << "Requesting guest login..." << std::endl;
+        MessageFactory &factory = MessageFactory::getInstance();
+        PreparedMessage msg = factory.createMessage(OpCode::GUEST_LOGIN, {});
+        _network.sendTcp(msg);
+    });
 }
 
 void ClientGameHandler::setupLobbyCallbacks() {
