@@ -43,6 +43,11 @@ private:
     void handleConnect(const DecodedMessage &msg);
     void handleLink(const DecodedMessage &msg);
 
+    // Authentication handlers
+    void handleRegister(const DecodedMessage &msg);
+    void handleLogin(const DecodedMessage &msg);
+    void handleGuestLogin(const DecodedMessage &msg);
+
     // Handling disconnections
     void onPlayerDisconnect(const Player &player);
 

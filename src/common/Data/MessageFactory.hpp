@@ -47,6 +47,12 @@ enum OpCode : uint8_t {
     ROOM_CREATED = 0x18,
     JOIN_ACK = 0x19,
     DISCONNECT = 0x1A,
+    REGISTER = 0x1B,
+    REGISTER_ACK = 0x1C,
+    LOGIN = 0x1D,
+    LOGIN_ACK = 0x1E,
+    GUEST_LOGIN = 0x1F,
+    GUEST_LOGIN_ACK = 0x20,
 };
 
 using MessageData = std::vector<uint8_t>;
@@ -131,6 +137,12 @@ public:
     MessageData encodeMessageRoomCreated(uint32_t roomId) const;
     MessageData encodeMessageJoinAck(uint32_t roomId, bool success) const;
     MessageData encodeMessageCreateRoom(uint8_t maxPlayers, uint8_t gameMode, uint8_t difficulty) const;
+
+    MessageData encodeMessageRegister(const std::string& username, const std::string& password) const;
+    MessageData encodeMessageRegisterAck(bool success, uint32_t userId, const std::string& errorMsg) const;
+    MessageData encodeMessageLogin(const std::string& username, const std::string& password) const;
+    MessageData encodeMessageLoginAck(bool success, uint32_t userId, const std::string& username, const std::string& errorMsg) const;
+    MessageData encodeMessageGuestLoginAck(uint32_t guestId, const std::string& guestName) const;
 
 private:
     MessageFactory();

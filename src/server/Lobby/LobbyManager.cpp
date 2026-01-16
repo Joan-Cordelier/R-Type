@@ -8,6 +8,7 @@
 #include "LobbyManager.hpp"
 #include "../../common/Data/MessageFactory.hpp"
 #include "../../common/Data/RoomConfig.hpp"
+#include "../Database/UserDatabase.hpp"
 #include "../Logs/Logger.hpp"
 #include <chrono>
 #include <tuple>
@@ -90,6 +91,15 @@ void LobbyManager::dispatchMessage(DecodedMessage &msg) {
     }
 
     switch (msg.opCode) {
+    case REGISTER:
+        handleRegister(msg);
+        return;
+    case LOGIN:
+        handleLogin(msg);
+        return;
+    case GUEST_LOGIN:
+        handleGuestLogin(msg);
+        return;
     case CREATE_ROOM:
         handleCreateRoom(msg);
         return;
@@ -322,6 +332,143 @@ void LobbyManager::cleanupEmptyRooms() {
             it->second->stop();
             _rooms.erase(it);
             LOG_INFO("Room " + std::to_string(id) + " auto-closed (empty for 5 seconds)");
+        }
+    }
+}
+
+// ==================== Authentication Handlers ====================
+
+void LobbyManager::handleRegister(const DecodedMessage &msg) {
+    if (msg.data.size() < 2) {
+        LOG_WARN("Invalid REGISTER message: too short");
+        return;
+    }
+
+    auto &factory = MessageFactory::getInstance();
+    
+    // Parse username
+    size_t offset = 0;
+    uint8_t usernameLen = msg.data[offset++];
+    if (offset + usernameLen > msg.data.size()) return;
+    std::string username(msg.data.begin() + offset, msg.data.begin() + offset + usernameLen);
+    offset += usernameLen;
+
+    // Parse password
+    if (offset >= msg.data.size()) return;
+    uint8_t passwordLen = msg.data[offset++];
+    if (offset + passwordLen > msg.data.size()) return;
+    std::string password(msg.data.begin() + offset, msg.data.begin() + offset + passwordLen);
+
+    LOG_INFO("Registration attempt: " + username);
+
+    // Try to register
+    auto &userDb = UserDatabase::getInstance();
+    uint32_t userId = userDb.registerUser(username, password);
+
+    MessageData payload;
+    if (userId > 0) {
+        payload = factory.encodeMessageRegisterAck(true, userId, "");
+        LOG_INFO("Registration successful: " + username + " (ID: " + std::to_string(userId) + ")");
+    } else {
+        payload = factory.encodeMessageRegisterAck(false, 0, "Username taken or invalid");
+        LOG_WARN("Registration failed: " + username);
+    }
+
+    PreparedMessage response = factory.createMessage(REGISTER_ACK, payload);
+    
+    // Send to the TCP connection that sent the message
+    if (msg.tcpFd > 0) {
+        auto player = _session.getPlayerByTcpFd(msg.tcpFd);
+        if (player) {
+            _session.sendTcp(player->id, response);
+        }
+    }
+}
+
+void LobbyManager::handleLogin(const DecodedMessage &msg) {
+    if (msg.data.size() < 2) {
+        LOG_WARN("Invalid LOGIN message: too short");
+        return;
+    }
+
+    auto &factory = MessageFactory::getInstance();
+    
+    // Parse username
+    size_t offset = 0;
+    uint8_t usernameLen = msg.data[offset++];
+    if (offset + usernameLen > msg.data.size()) return;
+    std::string username(msg.data.begin() + offset, msg.data.begin() + offset + usernameLen);
+    offset += usernameLen;
+
+    // Parse password
+    if (offset >= msg.data.size()) return;
+    uint8_t passwordLen = msg.data[offset++];
+    if (offset + passwordLen > msg.data.size()) return;
+    std::string password(msg.data.begin() + offset, msg.data.begin() + offset + passwordLen);
+
+    LOG_INFO("Login attempt: " + username);
+
+    // Try to login
+    auto &userDb = UserDatabase::getInstance();
+    auto userOpt = userDb.login(username, password);
+
+    MessageData payload;
+    if (userOpt.has_value()) {
+        auto &user = userOpt.value();
+        payload = factory.encodeMessageLoginAck(true, user.id, user.username, "");
+        
+        // Update the player's username in session
+        if (msg.tcpFd > 0) {
+            auto player = _session.getPlayerByTcpFd(msg.tcpFd);
+            if (player) {
+                player->username = user.username;
+                player->userId = user.id;
+                player->isGuest = false;
+            }
+        }
+        
+        LOG_INFO("Login successful: " + username + " (ID: " + std::to_string(user.id) + ")");
+    } else {
+        payload = factory.encodeMessageLoginAck(false, 0, "", "Invalid username or password");
+        LOG_WARN("Login failed: " + username);
+    }
+
+    PreparedMessage response = factory.createMessage(LOGIN_ACK, payload);
+    
+    if (msg.tcpFd > 0) {
+        auto player = _session.getPlayerByTcpFd(msg.tcpFd);
+        if (player) {
+            _session.sendTcp(player->id, response);
+        }
+    }
+}
+
+void LobbyManager::handleGuestLogin(const DecodedMessage &msg) {
+    auto &factory = MessageFactory::getInstance();
+    auto &userDb = UserDatabase::getInstance();
+
+    // Create guest user
+    User guest = userDb.createGuest();
+
+    LOG_INFO("Guest login: " + guest.username + " (ID: " + std::to_string(guest.id) + ")");
+
+    // Update the player's info in session
+    if (msg.tcpFd > 0) {
+        auto player = _session.getPlayerByTcpFd(msg.tcpFd);
+        if (player) {
+            player->username = guest.username;
+            player->userId = guest.id;
+            player->isGuest = true;
+        }
+    }
+
+    MessageData payload = factory.encodeMessageGuestLoginAck(guest.id, guest.username);
+    PreparedMessage response = factory.createMessage(GUEST_LOGIN_ACK, payload);
+    
+    if (msg.tcpFd > 0) {
+        auto player = _session.getPlayerByTcpFd(msg.tcpFd);
+        if (player) {
+            _session.sendTcp(player->id, response);
         }
     }
 }
