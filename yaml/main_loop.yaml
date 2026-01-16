@@ -9,6 +9,13 @@ game_loop:
   # Nombre minimum de joueurs pour démarrer la partie
   min_players_to_start: 1
 
+# Configuration des difficultés
+difficulty:
+  easy: 0.5
+  normal: 1.0
+  hard: 1.5
+  impossible: 3.0
+
 # Configuration du spawn des ennemis (legacy / fallback)
 enemy_spawning:
   enabled: true

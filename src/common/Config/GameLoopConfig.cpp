@@ -17,6 +17,7 @@ void GameLoopConfig::loadDefaults()
     _projectiles = ProjectilesConfig{};
     _systems = SystemsConfig{};
     _audio = AudioConfig{};
+    _difficulty = DifficultyConfig{};
     
     // Default enemy type
     EnemyTypeConfig basicEnemy;
@@ -49,6 +50,15 @@ bool GameLoopConfig::loadFromFile(const std::string& filepath)
             auto au = config["audio"];
             if (au["level_music"]) _audio.level_music = au["level_music"].as<std::string>();
             if (au["shoot_sound"]) _audio.shoot_sound = au["shoot_sound"].as<std::string>();
+        }
+
+        // Parse difficulty section
+        if (config["difficulty"]) {
+            auto diff = config["difficulty"];
+            if (diff["easy"]) _difficulty.easy = diff["easy"].as<float>();
+            if (diff["normal"]) _difficulty.normal = diff["normal"].as<float>();
+            if (diff["hard"]) _difficulty.hard = diff["hard"].as<float>();
+            if (diff["impossible"]) _difficulty.impossible = diff["impossible"].as<float>();
         }
 
         // Parse enemy_spawning section

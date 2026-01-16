@@ -82,6 +82,13 @@ struct AudioConfig {
     std::string shoot_sound = "textures/shoot.wav";
 };
 
+struct DifficultyConfig {
+    float easy = 0.5f;
+    float normal = 1.0f;
+    float hard = 1.5f;
+    float impossible = 2.0f;
+};
+
 struct GameLoopSettings {
     int tick_rate = 30;
     int max_messages_per_frame = 100;
@@ -161,6 +168,7 @@ public:
     const ProjectilesConfig& getProjectilesConfig() const { return _projectiles; }
     const SystemsConfig& getSystemsConfig() const { return _systems; }
     const AudioConfig& getAudioConfig() const { return _audio; }
+    const DifficultyConfig& getDifficultyConfig() const { return _difficulty; }
 
     const std::map<std::string, EnemyTypeConfig>& getEnemyTypes() const { return _enemyTypes; }
     const std::map<std::string, BossConfig>& getBosses() const { return _bosses; }
@@ -181,6 +189,7 @@ private:
     ProjectilesConfig _projectiles;
     SystemsConfig _systems;
     AudioConfig _audio;
+    DifficultyConfig _difficulty;
     
     std::map<std::string, EnemyTypeConfig> _enemyTypes;
     std::vector<LevelConfig> _levels;

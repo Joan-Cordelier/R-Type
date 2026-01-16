@@ -16,6 +16,7 @@
 #include "../Monitoring/PrometheusExporter.hpp"
 
 #include "../../common/Config/GameLoopConfig.hpp"
+#include "../../common/Data/RoomConfig.hpp"
 
 #include "../common/ecs/components/button.hpp"
 #include "../common/ecs/components/enemy.hpp"
@@ -51,6 +52,7 @@ private:
     EnemySystem enemySystem;
     WeaponSystem weaponSystem;
     GameLoopConfig _config;
+    Difficulty _difficulty;
 
     std::map<uint32_t, Entity> playerEntities;
     std::map<uint32_t, uint8_t> playerSkinIndices;  // Tracks each player's skin index (0-3)
@@ -71,7 +73,7 @@ private:
 
 public:
     GameHandler(SessionManager &session, std::shared_ptr<ThreadedQueue<DecodedMessage>> inputQueue,
-                std::atomic<bool> &running, const std::string &configPath, PrometheusExporter& monitor);
+                std::atomic<bool> &running, const std::string &configPath, PrometheusExporter& monitor, Difficulty difficulty);
     void run();
 
     void setOnPlayerDeath(std::function<void(uint32_t)> callback) { _onPlayerDeath = callback; }
