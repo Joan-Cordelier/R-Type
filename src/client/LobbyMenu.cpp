@@ -20,6 +20,13 @@ void LobbyMenu::init() {
                              std::string("font/josefin-sans/JosefinSans-Regular.ttf"),
                              std::string("default_font"), Color(255, 255, 255), 100, false);
 
+    // Create username label (top right corner)
+    _usernameLabel = _reg.createEntity();
+    _reg.addComponent<Position>(_usernameLabel, 750.f, 20.f);
+    _reg.addComponent<Label>(_usernameLabel, std::string(""),
+                             std::string("font/josefin-sans/JosefinSans-Regular.ttf"),
+                             std::string("default_font_small"), Color(200, 200, 200), 100, false);
+
     // Create "Create Room" button
     _createRoomButton = _reg.createEntity();
     _reg.addComponent<Position>(_createRoomButton, 125.f, 480.f);
@@ -76,6 +83,9 @@ void LobbyMenu::show() {
     // Show title
     _reg.getComponent<Label>(_titleLabel).visible = true;
 
+    // Show username label
+    _reg.getComponent<Label>(_usernameLabel).visible = true;
+
     // Show buttons
     _reg.getComponent<Sprite>(_createRoomButton).visible = true;
     _reg.getComponent<Button>(_createRoomButton).enabled = true;
@@ -117,6 +127,9 @@ void LobbyMenu::hide() {
 
     // Hide title
     _reg.getComponent<Label>(_titleLabel).visible = false;
+
+    // Hide username label
+    _reg.getComponent<Label>(_usernameLabel).visible = false;
 
     // Hide buttons
     _reg.getComponent<Sprite>(_createRoomButton).visible = false;
@@ -250,4 +263,18 @@ void LobbyMenu::createRoomEntry(size_t index, const RoomInfo &room, ButtonSystem
             _onJoinRoom(roomId);
         }
     });
+}
+
+void LobbyMenu::setUsername(const std::string &username, bool isGuest) {
+    if (_reg.hasComponent<Label>(_usernameLabel)) {
+        Label &label = _reg.getComponent<Label>(_usernameLabel);
+        if (isGuest) {
+            label.text = username + " (Guest)";
+            label.color = Color(150, 150, 150);  // Gray for guests
+        } else {
+            label.text = username;
+            label.color = Color(100, 255, 100);  // Green for registered users
+        }
+        std::cout << "[LobbyMenu] Username set to: " << label.text << std::endl;
+    }
 }

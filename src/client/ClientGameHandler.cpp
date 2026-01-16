@@ -520,8 +520,10 @@ void ClientGameHandler::handleMessages() {
                     _username = username;
                     _isGuest = false;
                     _isAuthenticated = true;
+                    
                     // Transition to lobby
                     _loginMenu.hide();
+                    _lobbyMenu.setUsername(_username, _isGuest);
                     _gameState = GameState::LOBBY;
                     _lobbyMenu.show();
                     requestRoomList();
@@ -553,6 +555,7 @@ void ClientGameHandler::handleMessages() {
 
                 // Transition to lobby
                 _loginMenu.hide();
+                _lobbyMenu.setUsername(_username, _isGuest);
                 _gameState = GameState::LOBBY;
                 _lobbyMenu.show();
                 requestRoomList();

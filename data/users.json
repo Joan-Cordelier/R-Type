@@ -1,0 +1,12 @@
+{
+  "nextUserId": 3,
+  "users": [
+    {
+      "id": 2,
+      "username": "Jojo_chats",
+      "passwordHash": "79aa5d7f9af314c5e5e91abf5ef1e2199b3f4d063b30691ce6fc7629adade36c",
+      "createdAt": 1768538388,
+      "lastLogin": 1768540740
+    }
+  ]
+}
