@@ -9,7 +9,7 @@
 #include <sstream>
 
 ClientGameHandler::ClientGameHandler(bool debugMode)
-    : _settingsMenu(_reg, _keybindsManager), _debugMode(debugMode) {
+    : _settingsMenu(_reg, _keybindsManager), _lobbyMenu(_reg), _createRoomMenu(_reg), _debugMode(debugMode) {
     // Load config (try local, then ../ for build dir)
     if (!_config.loadFromFile("yaml/main_loop.yaml")) {
         // Only try parent directory if first attempt failed
@@ -43,6 +43,7 @@ ClientGameHandler::ClientGameHandler(bool debugMode)
                               383);
 
     _renderer.loadTexture("textures/play_button/default.png", "play_button");
+    _renderer.loadTexture("textures/button/square_button.png", "square_button");
     _renderer.loadTexture("textures/upgrades/border.png", "upgrade_border");
     _renderer.loadSpriteSheet("textures/projectiles/projectile_player.png", "projectile_player", 16,
                               16);
@@ -113,7 +114,18 @@ ClientGameHandler::ClientGameHandler(bool debugMode)
         MessageFactory &factory = MessageFactory::getInstance();
         PreparedMessage msg = factory.createMessage(OpCode::CONNECT, {});
         _network.sendTcp(msg);
+
+        // Will transition to LOBBY state after CONNECT_ACK
     });
+
+    // Initialize lobby menu (after textures are loaded)
+    _lobbyMenu.init();
+    _createRoomMenu.init();
+
+    // Setup lobby menu and its callbacks
+    _lobbyMenu.setup(_buttonsys);
+    _createRoomMenu.setup(_buttonsys);
+    setupLobbyCallbacks();
 
     _settingsMenu.setup(_reg, _slidersys, _buttonsys);
 
@@ -394,6 +406,8 @@ void ClientGameHandler::handleMessages() {
                 }
             }
         }
+        std::cout << "[DEBUG] Received message OpCode: " << static_cast<int>(msg->opCode)
+                  << " Size: " << msg->data.size() << std::endl;
         switch (msg->opCode) {
         case OpCode::CONNECT_ACK: {
             if (msg->data.size() >= 4) {
@@ -428,27 +442,25 @@ void ClientGameHandler::handleMessages() {
                 }
                 pendingPlayerPackets.clear();
 
-                // Request room list to join existing room if possible
-                if (!_joinedRoom) {
-                    std::cout << "Requesting room list..." << std::endl;
-                    PreparedMessage listMsg = factory.createMessage(OpCode::LIST_ROOMS, {});
-                    _network.sendTcp(listMsg);
-                }
+                // Transition to lobby state and show lobby menu
+                _gameState = GameState::LOBBY;
+                _lobbyMenu.show();
+                requestRoomList();
             }
             break;
         }
 
         case OpCode::ROOM_LIST: {
             std::cout << "Received Room List (Size: " << msg->data.size() << ")" << std::endl;
+            std::vector<RoomInfo> rooms;
+
             if (msg->data.size() >= 1) {
                 uint8_t count = msg->data[0];
-
+                std::cout << "Room count: " << (int)count << std::endl;
                 size_t offset = 1;
-                uint32_t targetRoomId = 0;
-                bool roomFound = false;
 
                 for (uint8_t i = 0; i < count; ++i) {
-                    if (offset + 5 > msg->data.size())
+                    if (offset + 6 > msg->data.size())  // Now 6 bytes per room (4 id + 1 count + 1 max)
                         break;
 
                     uint32_t rId = (static_cast<uint32_t>(msg->data[offset]) << 24) |
@@ -456,38 +468,27 @@ void ClientGameHandler::handleMessages() {
                                    (static_cast<uint32_t>(msg->data[offset + 2]) << 8) |
                                    static_cast<uint32_t>(msg->data[offset + 3]);
                     uint8_t pCount = msg->data[offset + 4];
-                    offset += 5;
+                    uint8_t maxP = msg->data[offset + 5];
+                    offset += 6;
 
-                    std::cout << "Room " << rId << " (" << (int)pCount << "/4)" << std::endl;
+                    std::cout << "Room " << rId << " (" << (int)pCount << "/" << (int)maxP << ")" << std::endl;
 
-                    if (pCount < 4 && !roomFound) {
-                        targetRoomId = rId;
-                        roomFound = true;
-                    }
-                }
+                    RoomInfo info;
+                    info.id = rId;
+                    info.playerCount = pCount;
+                    info.maxPlayers = maxP;
+                    rooms.push_back(info);
 
-                MessageFactory &factory = MessageFactory::getInstance();
-                if (roomFound) {
-                    std::cout << "Joining Room " << targetRoomId << std::endl;
-                    std::vector<uint8_t> payload;
-                    payload.push_back(static_cast<uint8_t>((targetRoomId >> 24) & 0xFF));
-                    payload.push_back(static_cast<uint8_t>((targetRoomId >> 16) & 0xFF));
-                    payload.push_back(static_cast<uint8_t>((targetRoomId >> 8) & 0xFF));
-                    payload.push_back(static_cast<uint8_t>(targetRoomId & 0xFF));
-
-                    PreparedMessage joinMsg = factory.createMessage(OpCode::JOIN_ROOM, payload);
-                    _network.sendTcp(joinMsg);
-                } else {
-                    std::cout << "No suitable room found, creating new one..." << std::endl;
-                    PreparedMessage createMsg = factory.createMessage(OpCode::CREATE_ROOM, {});
-                    _network.sendTcp(createMsg);
+                    // Register join handler for this room
+                    registerJoinHandler(rId);
                 }
             } else {
-                std::cout << "Empty room list, creating new room..." << std::endl;
-                MessageFactory &factory = MessageFactory::getInstance();
-                PreparedMessage createMsg = factory.createMessage(OpCode::CREATE_ROOM, {});
-                _network.sendTcp(createMsg);
+                std::cout << "Empty room list data" << std::endl;
             }
+
+            std::cout << "Updating lobby menu with " << rooms.size() << " rooms" << std::endl;
+            // Update lobby menu with room list
+            _lobbyMenu.updateRoomList(rooms);
         } break;
         case OpCode::ROOM_CREATED: {
             if (msg->data.size() >= 4) {
@@ -496,17 +497,14 @@ void ClientGameHandler::handleMessages() {
                                   (static_cast<uint32_t>(msg->data[2]) << 8) |
                                   static_cast<uint32_t>(msg->data[3]);
 
-                std::cout << "Room created with ID: " << roomId << ". Joining..." << std::endl;
+                std::cout << "Room created with ID: " << roomId << ". Refreshing room list..."
+                          << std::endl;
 
-                MessageFactory &factory = MessageFactory::getInstance();
-                std::vector<uint8_t> payload;
-                payload.push_back(static_cast<uint8_t>((roomId >> 24) & 0xFF));
-                payload.push_back(static_cast<uint8_t>((roomId >> 16) & 0xFF));
-                payload.push_back(static_cast<uint8_t>((roomId >> 8) & 0xFF));
-                payload.push_back(static_cast<uint8_t>(roomId & 0xFF));
+                // Register join handler for this new room
+                registerJoinHandler(roomId);
 
-                PreparedMessage joinMsg = factory.createMessage(OpCode::JOIN_ROOM, payload);
-                _network.sendTcp(joinMsg);
+                // Refresh the room list so the player can see and join the new room
+                requestRoomList();
             }
             break;
         }
@@ -521,8 +519,12 @@ void ClientGameHandler::handleMessages() {
                 if (success) {
                     std::cout << "Successfully joined room " << roomId << std::endl;
                     _joinedRoom = true;
+                    _gameState = GameState::IN_GAME;
+                    _lobbyMenu.hide();
                 } else {
                     std::cerr << "Failed to join room " << roomId << std::endl;
+                    // Refresh room list to see updated availability
+                    requestRoomList();
                 }
             }
             break;
@@ -1003,7 +1005,7 @@ void ClientGameHandler::handleMessages() {
 }
 
 void ClientGameHandler::handlePlayerPacket(const DecodedMessage &msg) {
-    if (msg.data.size() < 16) {
+    if (msg.data.size() < 17) {
         return;
     }
     if (myPlayerId == 0) {
@@ -1021,6 +1023,8 @@ void ClientGameHandler::handlePlayerPacket(const DecodedMessage &msg) {
 
     float x = *reinterpret_cast<const float *>(&msg.data[8]);
     float y = *reinterpret_cast<const float *>(&msg.data[12]);
+    
+    uint8_t skinIndex = msg.data[16];
 
     auto it = playerEntities.find(serverEntity);
     static std::vector<std::string> shipSkins = {"player_ship", "player_ship_blue",
@@ -1029,8 +1033,7 @@ void ClientGameHandler::handlePlayerPacket(const DecodedMessage &msg) {
         // Nettoyer les anciennes références AVANT de créer la nouvelle entité
         cleanupServerEntity(serverEntity);
 
-        int nbOfPlayers = playerEntities.size();
-        std::string selectedSkin = shipSkins[nbOfPlayers % shipSkins.size()];
+        std::string selectedSkin = shipSkins[skinIndex % shipSkins.size()];
 
         Entity localEntity = _reg.createEntity();
         _reg.addComponent<Position>(localEntity, x, y);
@@ -1062,11 +1065,11 @@ void ClientGameHandler::handlePlayerPacket(const DecodedMessage &msg) {
             myEntity = localEntity;
             _input.setControlled(localEntity, _keybindsManager);
             std::cout << "Created my player entity (serverId: " << serverEntity
-                      << ", localId: " << localEntity << ") at (" << x << ", " << y << ")"
+                      << ", localId: " << localEntity << ") at (" << x << ", " << y << ") skin: " << selectedSkin
                       << std::endl;
         } else {
             std::cout << "Created other player entity (serverId: " << serverEntity
-                      << ", localId: " << localEntity << ") at (" << x << ", " << y << ")"
+                      << ", localId: " << localEntity << ") at (" << x << ", " << y << ") skin: " << selectedSkin
                       << std::endl;
         }
     } else {
@@ -1285,4 +1288,78 @@ void ClientGameHandler::handleUpdateWeapon(const DecodedMessage &msg) {
                       << ")" << std::endl;
         }
     }
+}
+
+void ClientGameHandler::setupLobbyCallbacks() {
+    _lobbyMenu.setJoinCallback([this](uint32_t roomId) { joinRoom(roomId); });
+
+    _lobbyMenu.setCreateCallback([this]() { showCreateRoomMenu(); });
+
+    _lobbyMenu.setRefreshCallback([this]() { requestRoomList(); });
+
+    // CreateRoomMenu callbacks
+    _createRoomMenu.setOnConfirm([this](const RoomConfig& config) {
+        createRoom(config);
+        _createRoomMenu.hide();
+        _lobbyMenu.show();
+        _gameState = GameState::LOBBY;
+    });
+
+    _createRoomMenu.setOnCancel([this]() {
+        _createRoomMenu.hide();
+        _lobbyMenu.show();
+        _gameState = GameState::LOBBY;
+    });
+}
+
+void ClientGameHandler::requestRoomList() {
+    MessageFactory &factory = MessageFactory::getInstance();
+    PreparedMessage listMsg = factory.createMessage(OpCode::LIST_ROOMS, {});
+    _network.sendTcp(listMsg);
+    std::cout << "Requesting room list..." << std::endl;
+}
+
+void ClientGameHandler::showCreateRoomMenu() {
+    std::cout << "Opening room creation menu..." << std::endl;
+    _lobbyMenu.hide();
+    _createRoomMenu.show();
+    _gameState = GameState::CREATE_ROOM;
+}
+
+void ClientGameHandler::createRoom(const RoomConfig& config) {
+    MessageFactory &factory = MessageFactory::getInstance();
+    MessageData payload = factory.encodeMessageCreateRoom(
+        config.maxPlayers,
+        static_cast<uint8_t>(config.gameMode),
+        static_cast<uint8_t>(config.difficulty)
+    );
+    PreparedMessage createMsg = factory.createMessage(OpCode::CREATE_ROOM, payload);
+    _network.sendTcp(createMsg);
+    std::cout << "Creating new room (MaxPlayers: " << (int)config.maxPlayers 
+              << ", Mode: " << config.getGameModeStr() 
+              << ", Difficulty: " << config.getDifficultyStr() << ")..." << std::endl;
+}
+
+void ClientGameHandler::joinRoom(uint32_t roomId) {
+    MessageFactory &factory = MessageFactory::getInstance();
+    std::vector<uint8_t> payload;
+    payload.push_back(static_cast<uint8_t>((roomId >> 24) & 0xFF));
+    payload.push_back(static_cast<uint8_t>((roomId >> 16) & 0xFF));
+    payload.push_back(static_cast<uint8_t>((roomId >> 8) & 0xFF));
+    payload.push_back(static_cast<uint8_t>(roomId & 0xFF));
+
+    PreparedMessage joinMsg = factory.createMessage(OpCode::JOIN_ROOM, payload);
+    _network.sendTcp(joinMsg);
+    std::cout << "Joining room " << roomId << "..." << std::endl;
+}
+
+void ClientGameHandler::registerJoinHandler(uint32_t roomId) {
+    std::string handlerName = "lobby_join_" + std::to_string(roomId);
+    std::cout << "[DEBUG] Registering handler: " << handlerName << std::endl;
+    _buttonsys.registerHandler(handlerName, [this, roomId](Registry &, Entity) {
+        std::cout << "[DEBUG] Join button clicked for room " << roomId << std::endl;
+        if (_lobbyMenu.isVisible()) {
+            joinRoom(roomId);
+        }
+    });
 }

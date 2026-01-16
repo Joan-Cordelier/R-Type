@@ -337,8 +337,15 @@ std::string Renderer::loadSpriteSheet(const std::string &filePath, const std::st
         return textureId;
     
     SDL_Surface *surface = IMG_Load(filePath.c_str());
+    
+    // Try fallback path if loading failed (for running from build directory)
+    if (surface == nullptr && filePath.substr(0, 3) != "../") {
+        std::string fallbackPath = "../" + filePath;
+        surface = IMG_Load(fallbackPath.c_str());
+    }
+    
     if (surface == nullptr) {
-        std::cerr << "Failed to load image: " << SDL_GetError() << " !" << std::endl;
+        std::cerr << "Failed to load image: " << filePath << " - " << SDL_GetError() << " !" << std::endl;
         return "";
     }
     
@@ -371,8 +378,15 @@ std::string Renderer::loadSpriteSheet(const std::string &filePath, const std::st
         return textureId;
     
     SDL_Surface *surface = IMG_Load(filePath.c_str());
+    
+    // Try fallback path if loading failed (for running from build directory)
+    if (surface == nullptr && filePath.substr(0, 3) != "../") {
+        std::string fallbackPath = "../" + filePath;
+        surface = IMG_Load(fallbackPath.c_str());
+    }
+    
     if (surface == nullptr) {
-        std::cerr << "Failed to load image: " << SDL_GetError() << " !" << std::endl;
+        std::cerr << "Failed to load image: " << filePath << " - " << SDL_GetError() << " !" << std::endl;
         return "";
     }
     
@@ -402,8 +416,15 @@ std::string Renderer::loadFont(const std::string &filePath, int fontSize, const 
         return fontId;
 
     TTF_Font* font = TTF_OpenFont(filePath.c_str(), fontSize);
+    
+    // Try fallback path if loading failed (for running from build directory)
+    if (font == nullptr && filePath.substr(0, 3) != "../") {
+        std::string fallbackPath = "../" + filePath;
+        font = TTF_OpenFont(fallbackPath.c_str(), fontSize);
+    }
+    
     if (font == nullptr) {
-        std::cerr << "Failed to load font: " << TTF_GetError() << std::endl;
+        std::cerr << "Failed to load font: " << filePath << " - " << TTF_GetError() << std::endl;
         return "";
     }
 
@@ -425,8 +446,15 @@ std::string Renderer::loadTexture(const std::string &filePath, const std::string
         return textureId;
     
     SDL_Surface *surface = IMG_Load(filePath.c_str());
+    
+    // Try fallback path if loading failed (for running from build directory)
+    if (surface == nullptr && filePath.substr(0, 3) != "../") {
+        std::string fallbackPath = "../" + filePath;
+        surface = IMG_Load(fallbackPath.c_str());
+    }
+    
     if (surface == nullptr) {
-        std::cerr << "Failed to load image: " << SDL_GetError() << " !" << std::endl;
+        std::cerr << "Failed to load image: " << filePath << " - " << SDL_GetError() << " !" << std::endl;
         return "";
     }
     

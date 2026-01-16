@@ -8,11 +8,13 @@
 #ifndef ROOM_HPP_
 #define ROOM_HPP_
 
+#include "../../common/Data/RoomConfig.hpp"
 #include "../../common/Data/ThreadedQueue.hpp"
 #include "../Gameplay/GameHandler.hpp"
 #include "../Session/SessionManager.hpp"
 #include "../Monitoring/PrometheusExporter.hpp"
 #include <atomic>
+#include <chrono>
 #include <memory>
 #include <mutex>
 #include <thread>
@@ -20,7 +22,8 @@
 
 class Room {
 public:
-    Room(uint32_t id, SessionManager &session, const std::string &configPath, PrometheusExporter& monitor);
+    Room(uint32_t id, SessionManager &session, const std::string &configPath, 
+         PrometheusExporter& monitor, const RoomConfig& config = RoomConfig());
     ~Room();
 
     void start();
@@ -36,16 +39,28 @@ public:
     void addPlayer(uint32_t playerId);
     void removePlayer(uint32_t playerId);
 
+    // Called by GameHandler when a player dies
+    void onPlayerDeath(uint32_t playerId);
+
     // Push message to the GameHandler's queue
     void pushMessage(const DecodedMessage &msg);
 
     std::vector<uint32_t> getPlayers() const;
+
+    // Returns true if the room has been empty for the specified duration
+    bool hasBeenEmptyFor(std::chrono::seconds duration) const;
+
+    // Get room configuration
+    const RoomConfig& getConfig() const { return _config; }
+    GameMode getGameMode() const { return _config.gameMode; }
+    Difficulty getDifficulty() const { return _config.difficulty; }
 
 private:
     uint32_t _id;
     SessionManager &_session;
     std::atomic<bool> _running{false};
     PrometheusExporter& _monitor;
+    RoomConfig _config;
 
     std::shared_ptr<ThreadedQueue<DecodedMessage>> _inputQueue;
     std::unique_ptr<GameHandler> _game;
@@ -54,7 +69,10 @@ private:
 
     mutable std::mutex _mutex;
     std::vector<uint32_t> _players;
-    uint32_t _maxPlayers = 4;
+
+    // Track when the room became empty (reset when players join)
+    std::chrono::steady_clock::time_point _emptyTimestamp;
+    bool _wasEmpty = true;  // Start as empty
 };
 
 #endif /* !ROOM_HPP_ */

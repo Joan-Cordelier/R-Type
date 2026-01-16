@@ -53,6 +53,7 @@ private:
     GameLoopConfig _config;
 
     std::map<uint32_t, Entity> playerEntities;
+    std::map<uint32_t, uint8_t> playerSkinIndices;  // Tracks each player's skin index (0-3)
     std::map<Entity, bool> wasMoving;
     Entity ScoreEntity;
     int score = 0;
@@ -61,17 +62,19 @@ private:
     std::vector<UpgradeData> _offeredUpgrades;
     std::set<uint32_t> _playersSelectedUpgrade;
 
-    std::mutex _disconnectionMutex;
-    std::vector<uint32_t> _pendingDisconnections;
     std::vector<Player> _pendingPlayers;
 
     std::shared_ptr<ThreadedQueue<DecodedMessage>> _inputQueue;
     std::thread _gameThread;
 
+    std::function<void(uint32_t)> _onPlayerDeath;
+
 public:
     GameHandler(SessionManager &session, std::shared_ptr<ThreadedQueue<DecodedMessage>> inputQueue,
                 std::atomic<bool> &running, const std::string &configPath, PrometheusExporter& monitor);
     void run();
+
+    void setOnPlayerDeath(std::function<void(uint32_t)> callback) { _onPlayerDeath = callback; }
 
     void sendUpdatedPositionToAllPlayers();
     void sendUpdatedPositionToPlayer(uint32_t playerId);

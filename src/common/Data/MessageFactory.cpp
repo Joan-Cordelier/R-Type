@@ -30,7 +30,7 @@ std::array<MessageFactory::Message, 256> MessageFactory::initMessageTable() {
     table[START] = {0, Priority::CRITICAL};
     table[JOIN] = {1, Priority::CRITICAL};
     table[CRASH] = {1, Priority::CRITICAL};
-    table[PLAYER] = {16, Priority::CRITICAL};
+    table[PLAYER] = {17, Priority::CRITICAL};  // 4 playerId + 4 entity + 4 x + 4 y + 1 skinIndex
     table[LINK] = {4, Priority::CRITICAL};
     table[ENEMY] = {28, Priority::HIGH};
     table[UPGRADE_OPTIONS] = {VARIABLE_LEN, Priority::MEDIUM};
@@ -38,7 +38,7 @@ std::array<MessageFactory::Message, 256> MessageFactory::initMessageTable() {
     table[UPDATE_WEAPON] = {16, Priority::HIGH};
     table[COMPANION] = {13, Priority::HIGH};
     table[UPDATE_STATS] = {16, Priority::HIGH};
-    table[CREATE_ROOM] = {0, Priority::MEDIUM}; // No payload for now, or maybe max players later
+    table[CREATE_ROOM] = {3, Priority::MEDIUM};  // maxPlayers (1) + gameMode (1) + difficulty (1)
     table[JOIN_ROOM] = {4, Priority::MEDIUM};   // RoomID (4 bytes)
     table[LIST_ROOMS] = {0, Priority::LOW};     // No payload
     table[ROOM_LIST] = {VARIABLE_LEN, Priority::LOW};
@@ -366,7 +366,7 @@ MessageData MessageFactory::encodeMessageEnemy(Entity entity, float x, float y,
 }
 
 MessageData MessageFactory::encodePlayerInfo(uint32_t playerId, Entity entity, float x,
-                                             float y) const {
+                                             float y, uint8_t skinIndex) const {
     MessageData data;
 
     data.push_back(static_cast<uint8_t>((playerId >> 24) & 0xFF));
@@ -384,6 +384,8 @@ MessageData MessageFactory::encodePlayerInfo(uint32_t playerId, Entity entity, f
 
     const uint8_t *py = reinterpret_cast<const uint8_t *>(&y);
     data.insert(data.end(), py, py + sizeof(float));
+
+    data.push_back(skinIndex);
 
     return data;
 }
@@ -540,18 +542,23 @@ MessageData MessageFactory::encodeMessageUpdateStats(Entity entity, int hp, int 
 }
 
 MessageData MessageFactory::encodeMessageRoomList(
-    const std::vector<std::pair<uint32_t, uint8_t>> &rooms) const {
+    const std::vector<std::tuple<uint32_t, uint8_t, uint8_t>> &rooms) const {
     MessageData data;
 
     data.push_back(static_cast<uint8_t>(rooms.size()));
 
     for (const auto &room : rooms) {
-        data.push_back(static_cast<uint8_t>((room.first >> 24) & 0xFF));
-        data.push_back(static_cast<uint8_t>((room.first >> 16) & 0xFF));
-        data.push_back(static_cast<uint8_t>((room.first >> 8) & 0xFF));
-        data.push_back(static_cast<uint8_t>(room.first & 0xFF));
+        uint32_t roomId = std::get<0>(room);
+        uint8_t playerCount = std::get<1>(room);
+        uint8_t maxPlayers = std::get<2>(room);
 
-        data.push_back(room.second);
+        data.push_back(static_cast<uint8_t>((roomId >> 24) & 0xFF));
+        data.push_back(static_cast<uint8_t>((roomId >> 16) & 0xFF));
+        data.push_back(static_cast<uint8_t>((roomId >> 8) & 0xFF));
+        data.push_back(static_cast<uint8_t>(roomId & 0xFF));
+
+        data.push_back(playerCount);
+        data.push_back(maxPlayers);
     }
 
     return data;
@@ -578,6 +585,15 @@ MessageData MessageFactory::encodeMessageJoinAck(uint32_t roomId, bool success) 
 
     data.push_back(success ? 1 : 0);
 
+    return data;
+}
+
+MessageData MessageFactory::encodeMessageCreateRoom(uint8_t maxPlayers, uint8_t gameMode,
+                                                    uint8_t difficulty) const {
+    MessageData data;
+    data.push_back(maxPlayers);
+    data.push_back(gameMode);
+    data.push_back(difficulty);
     return data;
 }
 

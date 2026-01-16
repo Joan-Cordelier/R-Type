@@ -90,27 +90,9 @@ GameHandler::GameHandler(SessionManager &session,
                 _session.sendTcp(pid, statsMsg);
             }
 
-            if (stats.hp <= 0) {
-                sendDestroyedPlayerToAllPlayers(playerEntity);
-
-                std::vector<Entity> companionsToRemove;
-                for (auto e : reg.viewEntitiesWith<Parent>()) {
-                    if (reg.getComponent<Parent>(e).entity == playerEntity) {
-                        companionsToRemove.push_back(e);
-                    }
-                }
-
-                auto &factory = MessageFactory::getInstance();
-                for (auto companion : companionsToRemove) {
-                    MessageData payload =
-                        factory.encodeMessageDeath(EntityType::COMPANION, companion);
-                    PreparedMessage msg = factory.createMessage(OpCode::DEATH, payload);
-                    for (const auto &[pid, entity] : playerEntities) {
-                        _session.sendTcp(pid, msg);
-                    }
-                    reg.destroyEntity(companion);
-                }
-            }
+            // Note: Death handling is done in checkPlayerCollisions() 
+            // to avoid duplicate logic. The hp is already updated, 
+            // and checkPlayerCollisions() will detect hp <= 0.
         }
     });
 
@@ -127,10 +109,9 @@ GameHandler::GameHandler(SessionManager &session,
     _messageHandler.setOnUpgradeSelect(
         [this](uint32_t playerId, uint8_t index) { onUpgradeSelect(playerId, index); });
 
-    // Set up session manager callback for disconnections
-    _session.setOnPlayerDisconnect([this](const Player &player) {
-        std::lock_guard<std::mutex> lock(_disconnectionMutex);
-        _pendingDisconnections.push_back(player.id);
+    // Handle DISCONNECT messages from Room's queue (when player disconnects via TCP)
+    _messageHandler.setOnPlayerDisconnect([this](const Player &player) {
+        onPlayerDisconnect(player.id);
     });
 
     ScoreEntity = reg.createEntity();
@@ -271,15 +252,6 @@ void GameHandler::sendUpdatedPositionToPlayer(uint32_t playerId) {
 }
 
 void GameHandler::processMessages() {
-    // Process pending disconnections
-    {
-        std::lock_guard<std::mutex> lock(_disconnectionMutex);
-        for (uint32_t pid : _pendingDisconnections) {
-            onPlayerDisconnect(pid);
-        }
-        _pendingDisconnections.clear();
-    }
-
     // Process up to a maximum number of messages per frame to avoid starvation
     constexpr int maxMessagesPerFrame = 100;
     int processed = 0;
@@ -425,6 +397,7 @@ void GameHandler::sendDestroyedPlayerToAllPlayers(Entity player) {
 }
 
 void GameHandler::onPlayerConnect(const Player &player) {
+    LOG_DEBUG("onPlayerConnect START for player " + std::to_string(player.id));
     if (_waitingForUpgrades) {
         LOG_INFO("Player " + std::to_string(player.id) +
                  " connected during upgrade phase. Added to pending list.");
@@ -432,16 +405,22 @@ void GameHandler::onPlayerConnect(const Player &player) {
         return;
     }
 
+    LOG_DEBUG("onPlayerConnect: getting config");
     const auto &pStats = _config.getPlayerConfig().stats;
+    LOG_DEBUG("onPlayerConnect: creating entity");
     Entity playerEntity = reg.createEntity();
+    LOG_DEBUG("onPlayerConnect: adding Position");
     reg.addComponent<Position>(playerEntity, _config.getPlayerConfig().initial_x,
                                _config.getPlayerConfig().initial_y);
+    LOG_DEBUG("onPlayerConnect: adding Velocity");
     reg.addComponent<Velocity>(playerEntity, 0.f, 0.f);
 
     // Initialize Stats from Config
+    LOG_DEBUG("onPlayerConnect: adding Stats");
     reg.addComponent<Stats>(playerEntity, pStats.health, pStats.max_health, pStats.attack_speed,
                             0.f, pStats.attack_damage, 1, pStats.speed);
 
+    LOG_DEBUG("onPlayerConnect: setting weapon type");
     weaponSystem.setWeaponType(reg, playerEntity, WeaponType::DEFAULT);
 
     // Override with config stats
@@ -455,11 +434,29 @@ void GameHandler::onPlayerConnect(const Player &player) {
 
     auto &factory = MessageFactory::getInstance();
 
+    // Find the first available skin index (0-3) that isn't already in use
+    uint8_t skinIndex = 0;
+    for (uint8_t i = 0; i < 4; ++i) {
+        bool inUse = false;
+        for (const auto &[pid, idx] : playerSkinIndices) {
+            if (idx == i) {
+                inUse = true;
+                break;
+            }
+        }
+        if (!inUse) {
+            skinIndex = i;
+            break;
+        }
+    }
+    playerSkinIndices[player.id] = skinIndex;
+
     // Send all existing players' info to the new player
     for (const auto &[existingPlayerId, existingEntity] : playerEntities) {
         Position &pos = reg.getComponent<Position>(existingEntity);
+        uint8_t existingSkinIndex = playerSkinIndices.count(existingPlayerId) ? playerSkinIndices[existingPlayerId] : 0;
         MessageData payload =
-            factory.encodePlayerInfo(existingPlayerId, existingEntity, pos.x, pos.y);
+            factory.encodePlayerInfo(existingPlayerId, existingEntity, pos.x, pos.y, existingSkinIndex);
         PreparedMessage msg = factory.createMessage(OpCode::PLAYER, payload);
         _session.sendTcp(player.id, msg);
         LOG_DEBUG("Sent existing player " + std::to_string(existingPlayerId) +
@@ -508,7 +505,7 @@ void GameHandler::onPlayerConnect(const Player &player) {
 
     Position &newPlayerPos = reg.getComponent<Position>(playerEntity);
     MessageData payload =
-        factory.encodePlayerInfo(player.id, playerEntity, newPlayerPos.x, newPlayerPos.y);
+        factory.encodePlayerInfo(player.id, playerEntity, newPlayerPos.x, newPlayerPos.y, skinIndex);
     PreparedMessage msg = factory.createMessage(OpCode::PLAYER, payload);
     for (const auto &[existingPlayerId, existingEntity] : playerEntities) {
         _session.sendTcp(existingPlayerId, msg);
@@ -545,6 +542,18 @@ void GameHandler::onPlayerDisconnect(uint32_t playerId) {
     if (it != playerEntities.end()) {
         Entity playerEntity = it->second;
 
+        // Send DEATH message for the disconnected player to all remaining players
+        auto &factory = MessageFactory::getInstance();
+        {
+            MessageData payload = factory.encodeMessageDeath(EntityType::PLAYER, playerEntity);
+            PreparedMessage msg = factory.createMessage(OpCode::DEATH, payload);
+            for (const auto &[pid, entity] : playerEntities) {
+                if (pid != playerId) {
+                    _session.sendTcp(pid, msg);
+                }
+            }
+        }
+
         std::vector<Entity> companionsToRemove;
         for (auto e : reg.viewEntitiesWith<Parent>()) {
             if (reg.getComponent<Parent>(e).entity == playerEntity) {
@@ -552,7 +561,6 @@ void GameHandler::onPlayerDisconnect(uint32_t playerId) {
             }
         }
 
-        auto &factory = MessageFactory::getInstance();
         for (auto companion : companionsToRemove) {
             MessageData payload = factory.encodeMessageDeath(EntityType::COMPANION, companion);
             PreparedMessage msg = factory.createMessage(OpCode::DEATH, payload);
@@ -566,6 +574,7 @@ void GameHandler::onPlayerDisconnect(uint32_t playerId) {
 
         reg.destroyEntity(playerEntity);
         playerEntities.erase(it);
+        playerSkinIndices.erase(playerId);  // Clean up skin index
         LOG_INFO("Player " + std::to_string(playerId) + " entity destroyed");
 
         if (_waitingForUpgrades) {
@@ -833,14 +842,40 @@ void GameHandler::checkPlayerCollisions() {
         }
     }
 
-    // Notify deaths
+    // Also check for any players killed by other means (e.g., asteroid collision)
+    for (const auto &[playerId, playerEntity] : playerEntities) {
+        if (!reg.hasComponent<Stats>(playerEntity))
+            continue;
+        Stats &stats = reg.getComponent<Stats>(playerEntity);
+        if (stats.hp <= 0) {
+            // Check if not already in playersToKill
+            bool alreadyMarked = false;
+            for (auto e : playersToKill) {
+                if (e == playerEntity) {
+                    alreadyMarked = true;
+                    break;
+                }
+            }
+            if (!alreadyMarked) {
+                playersToKill.push_back(playerEntity);
+            }
+        }
+    }
+
+    // Notify deaths and remove dead players
+    std::vector<uint32_t> playerIdsToRemove;
     for (auto player : playersToKill) {
-        // Find and invalidate player in map to prevent auto-shoot or ID reuse issues
-        for (auto &pair : playerEntities) {
+        // Find the playerId for this entity
+        uint32_t deadPlayerId = 0;
+        for (const auto &pair : playerEntities) {
             if (pair.second == player) {
-                pair.second = 0; // INVALID_ENTITY
+                deadPlayerId = pair.first;
                 break;
             }
+        }
+
+        if (deadPlayerId != 0) {
+            playerIdsToRemove.push_back(deadPlayerId);
         }
 
         sendDestroyedPlayerToAllPlayers(player);
@@ -857,11 +892,24 @@ void GameHandler::checkPlayerCollisions() {
             MessageData payload = factory.encodeMessageDeath(EntityType::COMPANION, companion);
             PreparedMessage msg = factory.createMessage(OpCode::DEATH, payload);
             for (const auto &[pid, entity] : playerEntities) {
-                _session.sendUdp(pid, msg);
+                if (entity != 0) {
+                    _session.sendUdp(pid, msg);
+                }
             }
             reg.destroyEntity(companion);
         }
         reg.destroyEntity(player);
+    }
+
+    // Remove dead players from playerEntities map
+    for (uint32_t pid : playerIdsToRemove) {
+        playerEntities.erase(pid);
+        LOG_INFO("Player " + std::to_string(pid) + " died and removed from game");
+
+        // Notify Room to remove player from its list
+        if (_onPlayerDeath) {
+            _onPlayerDeath(pid);
+        }
     }
 }
 

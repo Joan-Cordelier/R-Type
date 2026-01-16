@@ -110,7 +110,7 @@ public:
 
     MessageData encodeMessagePlayer(Entity entity) const;
     MessageData encodeMessageMovementPlayer(Entity entity, float x, float y) const;
-    MessageData encodePlayerInfo(uint32_t playerId, Entity entity, float x, float y) const;
+    MessageData encodePlayerInfo(uint32_t playerId, Entity entity, float x, float y, uint8_t skinIndex) const;
     MessageData encodeMessageServer(std::string type, Entity entity, Entity entity_changes) const;
     MessageData encodeMessageEnemy(Entity entity, float x, float y, const std::string &type) const;
     MessageData encodeMessageMove(EntityType type, Entity entity, float x, float y) const;
@@ -127,9 +127,10 @@ public:
     MessageData encodeMessageCompanion(Entity entity, float x, float y, uint8_t type) const;
     MessageData encodeMessageUpdateStats(Entity entity, int hp, int maxHp, int speed) const;
 
-    MessageData encodeMessageRoomList(const std::vector<std::pair<uint32_t, uint8_t>> &rooms) const;
+    MessageData encodeMessageRoomList(const std::vector<std::tuple<uint32_t, uint8_t, uint8_t>> &rooms) const;  // roomId, playerCount, maxPlayers
     MessageData encodeMessageRoomCreated(uint32_t roomId) const;
     MessageData encodeMessageJoinAck(uint32_t roomId, bool success) const;
+    MessageData encodeMessageCreateRoom(uint8_t maxPlayers, uint8_t gameMode, uint8_t difficulty) const;
 
 private:
     MessageFactory();
