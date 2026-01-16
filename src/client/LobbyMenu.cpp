@@ -22,7 +22,7 @@ void LobbyMenu::init() {
 
     // Create "Create Room" button
     _createRoomButton = _reg.createEntity();
-    _reg.addComponent<Position>(_createRoomButton, 75.f, 480.f);
+    _reg.addComponent<Position>(_createRoomButton, 125.f, 480.f);
     _reg.addComponent<Sprite>(_createRoomButton, std::string("textures/button/square_button.png"),
                               std::string("square_button"), 330, 160, 100, 0.f, 0.f, false);
     _reg.addComponent<Button>(_createRoomButton, std::string("lobby_create_room"), 100, false);

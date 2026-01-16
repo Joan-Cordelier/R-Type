@@ -1002,7 +1002,7 @@ void ClientGameHandler::handleMessages() {
 }
 
 void ClientGameHandler::handlePlayerPacket(const DecodedMessage &msg) {
-    if (msg.data.size() < 16) {
+    if (msg.data.size() < 17) {
         return;
     }
     if (myPlayerId == 0) {
@@ -1020,6 +1020,8 @@ void ClientGameHandler::handlePlayerPacket(const DecodedMessage &msg) {
 
     float x = *reinterpret_cast<const float *>(&msg.data[8]);
     float y = *reinterpret_cast<const float *>(&msg.data[12]);
+    
+    uint8_t skinIndex = msg.data[16];
 
     auto it = playerEntities.find(serverEntity);
     static std::vector<std::string> shipSkins = {"player_ship", "player_ship_blue",
@@ -1028,8 +1030,7 @@ void ClientGameHandler::handlePlayerPacket(const DecodedMessage &msg) {
         // Nettoyer les anciennes références AVANT de créer la nouvelle entité
         cleanupServerEntity(serverEntity);
 
-        int nbOfPlayers = playerEntities.size();
-        std::string selectedSkin = shipSkins[nbOfPlayers % shipSkins.size()];
+        std::string selectedSkin = shipSkins[skinIndex % shipSkins.size()];
 
         Entity localEntity = _reg.createEntity();
         _reg.addComponent<Position>(localEntity, x, y);
@@ -1061,11 +1062,11 @@ void ClientGameHandler::handlePlayerPacket(const DecodedMessage &msg) {
             myEntity = localEntity;
             _input.setControlled(localEntity, _keybindsManager);
             std::cout << "Created my player entity (serverId: " << serverEntity
-                      << ", localId: " << localEntity << ") at (" << x << ", " << y << ")"
+                      << ", localId: " << localEntity << ") at (" << x << ", " << y << ") skin: " << selectedSkin
                       << std::endl;
         } else {
             std::cout << "Created other player entity (serverId: " << serverEntity
-                      << ", localId: " << localEntity << ") at (" << x << ", " << y << ")"
+                      << ", localId: " << localEntity << ") at (" << x << ", " << y << ") skin: " << selectedSkin
                       << std::endl;
         }
     } else {

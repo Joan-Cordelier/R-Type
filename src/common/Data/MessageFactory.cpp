@@ -30,7 +30,7 @@ std::array<MessageFactory::Message, 256> MessageFactory::initMessageTable() {
     table[START] = {0, Priority::CRITICAL};
     table[JOIN] = {1, Priority::CRITICAL};
     table[CRASH] = {1, Priority::CRITICAL};
-    table[PLAYER] = {16, Priority::CRITICAL};
+    table[PLAYER] = {17, Priority::CRITICAL};  // 4 playerId + 4 entity + 4 x + 4 y + 1 skinIndex
     table[LINK] = {4, Priority::CRITICAL};
     table[ENEMY] = {28, Priority::HIGH};
     table[UPGRADE_OPTIONS] = {VARIABLE_LEN, Priority::MEDIUM};
@@ -366,7 +366,7 @@ MessageData MessageFactory::encodeMessageEnemy(Entity entity, float x, float y,
 }
 
 MessageData MessageFactory::encodePlayerInfo(uint32_t playerId, Entity entity, float x,
-                                             float y) const {
+                                             float y, uint8_t skinIndex) const {
     MessageData data;
 
     data.push_back(static_cast<uint8_t>((playerId >> 24) & 0xFF));
@@ -384,6 +384,8 @@ MessageData MessageFactory::encodePlayerInfo(uint32_t playerId, Entity entity, f
 
     const uint8_t *py = reinterpret_cast<const uint8_t *>(&y);
     data.insert(data.end(), py, py + sizeof(float));
+
+    data.push_back(skinIndex);
 
     return data;
 }

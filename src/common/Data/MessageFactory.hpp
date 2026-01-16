@@ -110,7 +110,7 @@ public:
 
     MessageData encodeMessagePlayer(Entity entity) const;
     MessageData encodeMessageMovementPlayer(Entity entity, float x, float y) const;
-    MessageData encodePlayerInfo(uint32_t playerId, Entity entity, float x, float y) const;
+    MessageData encodePlayerInfo(uint32_t playerId, Entity entity, float x, float y, uint8_t skinIndex) const;
     MessageData encodeMessageServer(std::string type, Entity entity, Entity entity_changes) const;
     MessageData encodeMessageEnemy(Entity entity, float x, float y, const std::string &type) const;
     MessageData encodeMessageMove(EntityType type, Entity entity, float x, float y) const;

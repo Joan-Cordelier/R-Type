@@ -53,6 +53,7 @@ private:
     GameLoopConfig _config;
 
     std::map<uint32_t, Entity> playerEntities;
+    std::map<uint32_t, uint8_t> playerSkinIndices;  // Tracks each player's skin index (0-3)
     std::map<Entity, bool> wasMoving;
     Entity ScoreEntity;
     int score = 0;
@@ -61,8 +62,6 @@ private:
     std::vector<UpgradeData> _offeredUpgrades;
     std::set<uint32_t> _playersSelectedUpgrade;
 
-    std::mutex _disconnectionMutex;
-    std::vector<uint32_t> _pendingDisconnections;
     std::vector<Player> _pendingPlayers;
 
     std::shared_ptr<ThreadedQueue<DecodedMessage>> _inputQueue;
