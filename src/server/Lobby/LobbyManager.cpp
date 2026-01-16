@@ -10,6 +10,7 @@
 #include "../../common/Data/RoomConfig.hpp"
 #include "../Logs/Logger.hpp"
 #include <chrono>
+#include <tuple>
 
 LobbyManager::LobbyManager(const std::string &configPath, PrometheusExporter& monitor) 
     : _session(monitor)
@@ -230,9 +231,9 @@ void LobbyManager::handleJoinRoom(const DecodedMessage &msg) {
 }
 
 void LobbyManager::handleListRooms(const DecodedMessage &msg) {
-    std::vector<std::pair<uint32_t, uint8_t>> roomList;
+    std::vector<std::tuple<uint32_t, uint8_t, uint8_t>> roomList;  // roomId, playerCount, maxPlayers
     for (const auto &[id, room] : _rooms) {
-        roomList.push_back({id, static_cast<uint8_t>(room->getPlayerCount())});
+        roomList.push_back({id, static_cast<uint8_t>(room->getPlayerCount()), room->getConfig().maxPlayers});
     }
 
     auto &factory = MessageFactory::getInstance();

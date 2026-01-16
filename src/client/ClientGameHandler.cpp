@@ -460,7 +460,7 @@ void ClientGameHandler::handleMessages() {
                 size_t offset = 1;
 
                 for (uint8_t i = 0; i < count; ++i) {
-                    if (offset + 5 > msg->data.size())
+                    if (offset + 6 > msg->data.size())  // Now 6 bytes per room (4 id + 1 count + 1 max)
                         break;
 
                     uint32_t rId = (static_cast<uint32_t>(msg->data[offset]) << 24) |
@@ -468,14 +468,15 @@ void ClientGameHandler::handleMessages() {
                                    (static_cast<uint32_t>(msg->data[offset + 2]) << 8) |
                                    static_cast<uint32_t>(msg->data[offset + 3]);
                     uint8_t pCount = msg->data[offset + 4];
-                    offset += 5;
+                    uint8_t maxP = msg->data[offset + 5];
+                    offset += 6;
 
-                    std::cout << "Room " << rId << " (" << (int)pCount << "/4)" << std::endl;
+                    std::cout << "Room " << rId << " (" << (int)pCount << "/" << (int)maxP << ")" << std::endl;
 
                     RoomInfo info;
                     info.id = rId;
                     info.playerCount = pCount;
-                    info.maxPlayers = 4;
+                    info.maxPlayers = maxP;
                     rooms.push_back(info);
 
                     // Register join handler for this room
