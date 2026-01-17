@@ -41,6 +41,7 @@ class EnemySystem {
         }
 
         void setPlayerCount(int count) { _playerCount = count; }
+        void setDifficultyMultiplier(float multiplier) { _difficultyMultiplier = multiplier; }
 
     private:
         void spawnBoss(Registry& reg, const std::string& bossId);
@@ -57,6 +58,7 @@ class EnemySystem {
         int wave = 0;
         bool canSpawn = false;
         int _playerCount = 1;
+        float _difficultyMultiplier = 1.0f;
         
         float _spawnInterval = 3.0f;
         int _maxEnemies = 10;

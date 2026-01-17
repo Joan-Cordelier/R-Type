@@ -119,6 +119,30 @@ upgrades:
     type: "stat_boost"
     target: "extra_projectiles"
     value: 2.0
+    rarity: "epic"
+    visuals:
+      card_color: "gold"
+
+  # --- Armement Special ---
+  - id: "side_cannons"
+    name: "Tir Lateral"
+    description: "Ajoute 2 canons tirant en diagonale qui s'ajoutent a vos tirs actuels."
+    type: "stat_boost"
+    target: "add_diagonal" 
+    value: 1.0
+    rarity: "rare"
+    visuals:
+      card_color: "purple"
+
+  - id: "legendary_multishot"
+    name: "Omni-Surcharge"
+    description: "Active les tirs en diagonale et ajoute 2 projectiles supplementaires."
+    type: "hybrid"
+    effects:
+      - target: "extra_projectiles"
+        value: 2.0
+      - target: "add_diagonal"
+        value: 1.0
     rarity: "legendary"
     visuals:
       card_color: "gold"

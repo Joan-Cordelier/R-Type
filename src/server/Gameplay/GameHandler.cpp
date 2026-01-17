@@ -11,10 +11,11 @@
 GameHandler::GameHandler(SessionManager &session,
                          std::shared_ptr<ThreadedQueue<DecodedMessage>> inputQueue,
                          std::atomic<bool> &running, const std::string &configPath, 
-                         PrometheusExporter& monitor)
+                         PrometheusExporter& monitor, Difficulty difficulty)
     : _running(running)
     , _session(session)
     , _monitor(monitor)
+    , _difficulty(difficulty)
     , _messageHandler(session, *inputQueue, running)
     , _inputQueue(inputQueue) 
 {
@@ -34,6 +35,17 @@ GameHandler::GameHandler(SessionManager &session,
     } else {
         LOG_INFO("Successfully loaded config from " + configPath);
     }
+
+    // Set difficulty multiplier
+    float difficultyMultiplier = 1.0f;
+    switch (_difficulty) {
+        case Difficulty::EASY: difficultyMultiplier = _config.getDifficultyConfig().easy; break;
+        case Difficulty::NORMAL: difficultyMultiplier = _config.getDifficultyConfig().normal; break;
+        case Difficulty::HARD: difficultyMultiplier = _config.getDifficultyConfig().hard; break;
+        case Difficulty::IMPOSSIBLE: difficultyMultiplier = _config.getDifficultyConfig().impossible; break;
+        default: difficultyMultiplier = 1.0f; break;
+    }
+    enemySystem.setDifficultyMultiplier(difficultyMultiplier);
 
     // Print verify loaded values
     auto &hb = _config.getPlayerConfig().hitbox;
@@ -961,10 +973,9 @@ void GameHandler::onUpgradeSelect(uint32_t playerId, uint8_t index) {
                     stats.attack_speed = (int)(stats.attack_speed * (1.0f + effect.value));
                     if (weapon) {
                         // Increase fire rate means decrease delay
-                        if (effect.value > -1.0f) { // Prevent division by zero or negative
+                        if (effect.value > -1.0f) // Prevent division by zero or negative
                             weapon->fireRate /= (1.0f + effect.value);
-                            weaponUpdated = true;
-                        }
+                        weaponUpdated = true;
                     }
                 } else if (effect.target == "projectile_scale") {
                     if (weapon) {
@@ -981,6 +992,13 @@ void GameHandler::onUpgradeSelect(uint32_t playerId, uint8_t index) {
                    if (weapon) {
                         weapon->nbOfBullets += (int)effect.value;
                         weaponUpdated = true;
+                   }
+                } else if (effect.target == "add_diagonal") {
+                   if (weapon) {
+                        if (weapon->nbOfBullets < 100) {
+                             weapon->nbOfBullets += 100;
+                             weaponUpdated = true;
+                        }
                    }
                 } else if (effect.target == "current_health_percent") {
                     stats.hp += (int)(stats.maxHp * (effect.value / 100.0f));

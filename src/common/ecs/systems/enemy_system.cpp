@@ -182,7 +182,7 @@ void EnemySystem::update(Registry& reg, float dt) {
                                     // Note: Enemy Component constructor usage: type, health, damage, speed, fire_rate, lastShot, y_max
                                     reg.addComponent<Enemy>(enemyEntity, 
                                         typeData.name, 
-                                        typeData.health, 
+                                        static_cast<int>(typeData.health * _difficultyMultiplier), 
                                         typeData.damage, 
                                         static_cast<float>(typeData.speed), 
                                         2.0f, // fire rate hardcoded for now
@@ -257,9 +257,9 @@ void EnemySystem::spawnBoss(Registry& reg, const std::string& bossId)
     reg.addComponent<Position>(_currentBossEntity, startX, startY);
     reg.addComponent<Velocity>(_currentBossEntity, 0.0f, 50.0f); // Move down slowly initially
     
-    int initialHealth = config.health;
+    int initialHealth = static_cast<int>(config.health * _difficultyMultiplier);
     if (_playerCount > 1) {
-        initialHealth += config.health_per_player * (_playerCount - 1);
+        initialHealth += static_cast<int>(config.health_per_player * _difficultyMultiplier * (_playerCount - 1));
     }
 
     // We reuse Enemy component but hijack it for boss stats
@@ -296,9 +296,9 @@ void EnemySystem::updateBoss(Registry& reg, float dt)
     // Phase Management
     auto& enemyState = reg.getComponent<Enemy>(_currentBossEntity);
     
-    int scaledMaxHealth = config.max_health;
+    int scaledMaxHealth = static_cast<int>(config.max_health * _difficultyMultiplier);
     if (_playerCount > 1) {
-        scaledMaxHealth += config.health_per_player * (_playerCount - 1);
+        scaledMaxHealth += static_cast<int>(config.health_per_player * _difficultyMultiplier * (_playerCount - 1));
     }
     float hpPercent = (float)enemyState.health / (float)scaledMaxHealth * 100.0f;
 

@@ -21,37 +21,73 @@ void WeaponSystem::fireWeapon(Registry &reg, Entity entity) {
     if (!isServer) {
         return;
     }
+    //server side code
+    Entity projectile = reg.createEntity();
+    reg.addComponent<Position>(projectile, 0.f, 0.f);
     auto &pos = reg.getComponent<Position>(entity);
     float spawnX = pos.x + weaponComp.offsetX;
     float spawnY = pos.y + weaponComp.offsetY;
+    
+    reg.getComponent<Position>(projectile).x = spawnX;
+    reg.getComponent<Position>(projectile).y = spawnY;
+    reg.addComponent<Velocity>(projectile, 0.f, -projSpeed);
+    reg.addComponent<Projectile>(projectile, weaponComp.damage, std::string("player"), weaponComp.projectileScale);
 
-    int n = weaponComp.nbOfBullets;
-    if (n < 1) n = 1;
+    if (projNotifier) {
+        projNotifier(entity, projectile);
+    }
+    
 
-    float spreadAngle = 30.0f * (3.14159f / 180.0f);
-    if (n == 2) spreadAngle = 15.0f * (3.14159f / 180.0f);
+    int mode = weaponComp.nbOfBullets;
+    int parallelCount = mode;
+    bool isDiagonal = false;
 
-    float startAngle = 0.0f;
-    float step = 0.0f;
-
-    if (n > 1) {
-        startAngle = -spreadAngle / 2.0f;
-        step = spreadAngle / (float)(n - 1);
+    if (mode >= 100) {
+        isDiagonal = true;
+        parallelCount = mode - 100;
+        if (parallelCount < 1) parallelCount = 1;
     }
 
-    for (int i = 0; i < n; ++i) {
-        float angle = (n > 1) ? (startAngle + i * step) : 0.0f;
+    // Parallel Shots (Center is already fired, so we spawn parallelCount - 1)
+    if (parallelCount > 1) {
+        static int offsetPerBullet = 20;
+        int remaining = parallelCount - 1;
+        
+        for (int k = 0; k < remaining; ++k) {
+            int pairIndex = (k / 2) + 1;
+            bool isLeft = (k % 2) == 0;
+            
+            Entity extraProj = reg.createEntity();
+            float offsetX = isLeft ? - (offsetPerBullet * pairIndex) : (offsetPerBullet * pairIndex);
+            
+            reg.addComponent<Position>(extraProj, spawnX + offsetX, spawnY);
+            reg.addComponent<Velocity>(extraProj, 0.0f, -projSpeed);
+            reg.addComponent<Projectile>(extraProj, weaponComp.damage, std::string("player"), weaponComp.projectileScale);
+            
+            if (projNotifier) {
+                projNotifier(entity, extraProj);
+            }
+        }
+    }
 
-        float vx = projSpeed * std::sin(angle);
-        float vy = -projSpeed * std::cos(angle);
+    // Diagonal Shots
+    if (isDiagonal) {
+        float diagVY = -projSpeed * 0.9f;
+        float diagVX = projSpeed * 0.3f; // ~18 degrees
+        
+        Entity projDiagL = reg.createEntity();
+        reg.addComponent<Position>(projDiagL, spawnX - 20, spawnY);
+        reg.addComponent<Velocity>(projDiagL, -diagVX, diagVY);
+        reg.addComponent<Projectile>(projDiagL, weaponComp.damage, std::string("player"), weaponComp.projectileScale);
 
-        Entity projectile = reg.createEntity();
-        reg.addComponent<Position>(projectile, spawnX, spawnY);
-        reg.addComponent<Velocity>(projectile, vx, vy);
-        reg.addComponent<Projectile>(projectile, weaponComp.damage, std::string("player"), weaponComp.projectileScale);
-
+        Entity projDiagR = reg.createEntity();
+        reg.addComponent<Position>(projDiagR, spawnX + 20, spawnY);
+        reg.addComponent<Velocity>(projDiagR, diagVX, diagVY);
+        reg.addComponent<Projectile>(projDiagR, weaponComp.damage, std::string("player"), weaponComp.projectileScale);
+        
         if (projNotifier) {
-            projNotifier(entity, projectile);
+            projNotifier(entity, projDiagL);
+            projNotifier(entity, projDiagR);
         }
     }
 }
@@ -59,7 +95,7 @@ void WeaponSystem::fireWeapon(Registry &reg, Entity entity) {
 void WeaponSystem::setWeaponType(Registry &reg, Entity entity, WeaponType type) {
     Weapon weapon;
     switch (type) {
-        case WeaponType::DEFAULT: //TODO: Harcoded for now need to use yaml config value
+        case WeaponType::DEFAULT:
             weapon.damage = 10;
             weapon.nbOfBullets = 1;
             weapon.fireRate = 0.5f;
