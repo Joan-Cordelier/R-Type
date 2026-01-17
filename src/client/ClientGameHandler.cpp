@@ -150,8 +150,8 @@ int ClientGameHandler::run() {
         if (status.type == SDL_QUIT)
             break;
 
-        // Handle ESC key for settings menu
-        if (status.type == SDL_KEYDOWN && status.key.keysym.sym == SDLK_ESCAPE) {
+        // Handle ESC key for settings menu (only in-game)
+        if (status.type == SDL_KEYDOWN && status.key.keysym.sym == SDLK_ESCAPE && _gameState == GameState::IN_GAME) {
             std::cout << "toggling settings menu" << std::endl;
             toggleSettingsMenu();
         }

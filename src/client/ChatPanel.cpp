@@ -95,11 +95,9 @@ void ChatPanel::show() {
             _reg.getComponent<Button>(e).visible = true;
         }
     }
-    // Update toggle button label
     if (_reg.hasComponent<Label>(_toggleButtonLabel)) {
         _reg.getComponent<Label>(_toggleButtonLabel).text = "Hide";
     }
-    // Reset unread count when showing
     _unreadCount = 0;
     updateUnreadDisplay();
     updateMessageDisplay();
@@ -166,7 +164,6 @@ void ChatPanel::handleTextInput(char c) {
     }
     if (_inputBuffer.length() >= MAX_INPUT_LENGTH) return;
     
-    // Only allow printable characters
     if (c >= 32 && c < 127) {
         _inputBuffer += c;
         updateInputDisplay();
@@ -184,23 +181,18 @@ void ChatPanel::handleBackspace() {
 void ChatPanel::handleEnter() {
     if (!_visible || !_inputFocused) return;
     
-    // If empty, just unfocus
     if (_inputBuffer.empty()) {
         unfocusInput();
         return;
     }
-
-    // Send the message
     if (_onSend) {
         _onSend(_inputBuffer);
     }
-
-    // Clear input and unfocus
     _inputBuffer.clear();
     unfocusInput();
 }
 
-void ChatPanel::focusInput() {        // Dimmed when not focused
+void ChatPanel::focusInput() {
 
     _inputFocused = true;
     _skipNextTextInput = true;
@@ -245,8 +237,6 @@ void ChatPanel::setContext(const std::string& context) {
         auto& label = _reg.getComponent<Label>(_titleLabel);
         label.text = "Chat - " + _context;
     }
-    
-    // Clear messages and show context change
     clearMessages();
     addSystemMessage("Entered " + _context);
 }
@@ -308,16 +298,13 @@ void ChatPanel::updateInputDisplay() {
     auto& label = _reg.getComponent<Label>(_inputTextLabel);
     
     if (_inputFocused) {
-        // Show cursor when focused
         std::string displayText = "> " + _inputBuffer + "_";
-        // Truncate if too long for display
         if (displayText.length() > 40) {
             displayText = "> ..." + _inputBuffer.substr(_inputBuffer.length() - 35) + "_";
         }
         label.text = displayText;
         label.color = Color(255, 255, 255);
     } else {
-        // Dimmed when not focused
         label.text = "> (Press T to chat)";
         label.color = Color(150, 150, 150);
     }
