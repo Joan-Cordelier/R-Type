@@ -160,12 +160,10 @@ void ChatPanel::setEnabled(bool enabled) {
 void ChatPanel::handleTextInput(char c) {
     if (!_visible || !_inputFocused) return;
     
-    // Skip the T character that was used to focus the input
     if (_skipNextTextInput) {
         _skipNextTextInput = false;
         return;
     }
-    
     if (_inputBuffer.length() >= MAX_INPUT_LENGTH) return;
     
     // Only allow printable characters
@@ -202,9 +200,10 @@ void ChatPanel::handleEnter() {
     unfocusInput();
 }
 
-void ChatPanel::focusInput() {
+void ChatPanel::focusInput() {        // Dimmed when not focused
+
     _inputFocused = true;
-    _skipNextTextInput = true;  // Skip the 'T' character that triggered focus
+    _skipNextTextInput = true;
     updateInputDisplay();
 }
 
