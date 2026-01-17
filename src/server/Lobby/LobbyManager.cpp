@@ -115,6 +115,9 @@ void LobbyManager::dispatchMessage(DecodedMessage &msg) {
     case LINK:
         handleLink(msg);
         return;
+    case CHAT_MESSAGE:
+        handleChatMessage(msg);
+        return;
     default:
         break;
     }
@@ -469,6 +472,65 @@ void LobbyManager::handleGuestLogin(const DecodedMessage &msg) {
         auto player = _session.getPlayerByTcpFd(msg.tcpFd);
         if (player) {
             _session.sendTcp(player->id, response);
+        }
+    }
+}
+
+void LobbyManager::handleChatMessage(const DecodedMessage &msg) {
+    auto &factory = MessageFactory::getInstance();
+
+    // Get the sender player
+    Player* sender = nullptr;
+    if (msg.playerId != 0) {
+        sender = _session.getPlayer(msg.playerId);
+    } else if (msg.tcpFd > 0) {
+        sender = _session.getPlayerByTcpFd(msg.tcpFd);
+    }
+    
+    if (!sender) {
+        LOG_WARN("CHAT_MESSAGE from unknown player");
+        return;
+    }
+
+    // Parse the chat message
+    if (msg.data.empty()) {
+        return;
+    }
+
+    uint8_t msgLen = msg.data[0];
+    if (msg.data.size() < static_cast<size_t>(1 + msgLen)) {
+        return;
+    }
+
+    std::string chatMessage;
+    for (size_t i = 0; i < msgLen; ++i) {
+        chatMessage += static_cast<char>(msg.data[1 + i]);
+    }
+    if (chatMessage.empty()) {
+        return;
+    }
+
+    LOG_INFO("Chat from " + sender->username + ": " + chatMessage);
+
+    // If sender is in a room, broadcast to room members
+    // Otherwise, they're in the lobby - broadcast to all lobby players
+    MessageData payload = factory.encodeMessageChatBroadcast(sender->userId, sender->username, chatMessage);
+    PreparedMessage broadcast = factory.createMessage(CHAT_BROADCAST, payload);
+
+    if (sender->roomId != 0) {
+        // Broadcast to room members
+        auto it = _rooms.find(sender->roomId);
+        if (it != _rooms.end()) {
+            for (uint32_t playerId : it->second->getPlayers()) {
+                _session.sendTcp(playerId, broadcast);
+            }
+        }
+    } else {
+        // Broadcast to all players in lobby (no room)
+        for (Player* player : _session.getAllPlayers()) {
+            if (player->roomId == 0) {
+                _session.sendTcp(player->id, broadcast);
+            }
         }
     }
 }

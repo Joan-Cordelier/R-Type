@@ -51,6 +51,8 @@ std::array<MessageFactory::Message, 256> MessageFactory::initMessageTable() {
     table[LOGIN_ACK] = {VARIABLE_LEN, Priority::MEDIUM};    // success + userId + username + errorMsg
     table[GUEST_LOGIN] = {0, Priority::MEDIUM};             // No payload
     table[GUEST_LOGIN_ACK] = {VARIABLE_LEN, Priority::MEDIUM}; // guestId + guestName
+    table[CHAT_MESSAGE] = {VARIABLE_LEN, Priority::MEDIUM};    // message text
+    table[CHAT_BROADCAST] = {VARIABLE_LEN, Priority::MEDIUM};  // senderId + senderName + message
 
     return table;
 }
@@ -741,5 +743,46 @@ MessageData MessageFactory::encodeMessageGuestLoginAck(uint32_t guestId, const s
     data.push_back(static_cast<uint8_t>(guestName.size()));
     for (char c : guestName) data.push_back(static_cast<uint8_t>(c));
     
+    return data;
+}
+
+MessageData MessageFactory::encodeMessageChat(const std::string& message) const {
+    MessageData data;
+    
+    // Message length (1 byte, max 255 chars)
+    uint8_t msgLen = static_cast<uint8_t>(std::min(message.size(), static_cast<size_t>(255)));
+    data.push_back(msgLen);
+
+    // Message content
+    for (size_t i = 0; i < msgLen; ++i) {
+        data.push_back(static_cast<uint8_t>(message[i]));
+    }
+
+    return data;
+}
+
+MessageData MessageFactory::encodeMessageChatBroadcast(uint32_t senderId, const std::string& senderName, const std::string& message) const {
+    MessageData data;
+
+    // Sender ID (4 bytes)
+    data.push_back(static_cast<uint8_t>((senderId >> 24) & 0xFF));
+    data.push_back(static_cast<uint8_t>((senderId >> 16) & 0xFF));
+    data.push_back(static_cast<uint8_t>((senderId >> 8) & 0xFF));
+    data.push_back(static_cast<uint8_t>(senderId & 0xFF));
+
+    // Sender name length + name
+    uint8_t nameLen = static_cast<uint8_t>(std::min(senderName.size(), static_cast<size_t>(32)));
+    data.push_back(nameLen);
+    for (size_t i = 0; i < nameLen; ++i) {
+        data.push_back(static_cast<uint8_t>(senderName[i]));
+    }
+    
+    // Message length + message
+    uint8_t msgLen = static_cast<uint8_t>(std::min(message.size(), static_cast<size_t>(255)));
+    data.push_back(msgLen);
+    for (size_t i = 0; i < msgLen; ++i) {
+        data.push_back(static_cast<uint8_t>(message[i]));
+    }
+
     return data;
 }

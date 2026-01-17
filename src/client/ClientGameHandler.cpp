@@ -9,7 +9,7 @@
 #include <sstream>
 
 ClientGameHandler::ClientGameHandler(bool debugMode)
-    : _settingsMenu(_reg, _keybindsManager), _loginMenu(_reg), _lobbyMenu(_reg), _createRoomMenu(_reg), _debugMode(debugMode) {
+    : _settingsMenu(_reg, _keybindsManager), _loginMenu(_reg), _lobbyMenu(_reg), _createRoomMenu(_reg), _chatPanel(_reg), _debugMode(debugMode) {
     // Load config (try local, then ../ for build dir)
     if (!_config.loadFromFile("yaml/main_loop.yaml")) {
         // Only try parent directory if first attempt failed
@@ -122,13 +122,16 @@ ClientGameHandler::ClientGameHandler(bool debugMode)
     _loginMenu.init();
     _lobbyMenu.init();
     _createRoomMenu.init();
+    _chatPanel.init();
 
     // Setup menus and their callbacks
     _loginMenu.setup(_buttonsys);
     setupLoginCallbacks();
     _lobbyMenu.setup(_buttonsys);
     _createRoomMenu.setup(_buttonsys);
+    _chatPanel.setup(_buttonsys);
     setupLobbyCallbacks();
+    setupChatCallbacks();
 
     _settingsMenu.setup(_reg, _slidersys, _buttonsys);
 
@@ -164,6 +167,32 @@ int ClientGameHandler::run() {
                     _loginMenu.handleBackspace();
                 } else if (status.key.keysym.sym == SDLK_TAB) {
                     _loginMenu.switchInputField();
+                }
+            }
+        }
+
+        // Handle chat input (in lobby or in-game)
+        if ((_gameState == GameState::LOBBY || _gameState == GameState::IN_GAME) && _chatPanel.isVisible()) {
+            if (_chatPanel.isInputFocused()) {
+                if (status.type == SDL_TEXTINPUT) {
+                    if (status.text.text[0] != '\0') {
+                        _chatPanel.handleTextInput(status.text.text[0]);
+                    }
+                } else if (status.type == SDL_KEYDOWN) {
+                    if (status.key.keysym.sym == SDLK_BACKSPACE) {
+                        _chatPanel.handleBackspace();
+                    } else if (status.key.keysym.sym == SDLK_RETURN) {
+                        _chatPanel.handleEnter();
+                    } else if (status.key.keysym.sym == SDLK_ESCAPE) {
+                        _chatPanel.unfocusInput();
+                    }
+                }
+            } else {
+                // Press T to focus chat input (use KEYDOWN, not TEXTINPUT to avoid typing 't')
+                if (status.type == SDL_KEYDOWN && status.key.keysym.sym == SDLK_t) {
+                    _chatPanel.focusInput();
+                    // Skip this event cycle to prevent the 't' from being typed
+                    continue;
                 }
             }
         }
@@ -526,6 +555,9 @@ void ClientGameHandler::handleMessages() {
                     _lobbyMenu.setUsername(_username, _isGuest);
                     _gameState = GameState::LOBBY;
                     _lobbyMenu.show();
+                    _chatPanel.setEnabled(true);
+                    _chatPanel.setContext("Lobby");
+                    _chatPanel.hide();
                     requestRoomList();
                 } else {
                     std::cout << "Login failed: " << errorMsg << std::endl;
@@ -558,6 +590,9 @@ void ClientGameHandler::handleMessages() {
                 _lobbyMenu.setUsername(_username, _isGuest);
                 _gameState = GameState::LOBBY;
                 _lobbyMenu.show();
+                _chatPanel.setEnabled(true);
+                _chatPanel.setContext("Lobby");
+                _chatPanel.hide();
                 requestRoomList();
             }
             break;
@@ -634,10 +669,49 @@ void ClientGameHandler::handleMessages() {
                     _joinedRoom = true;
                     _gameState = GameState::IN_GAME;
                     _lobbyMenu.hide();
+                    _chatPanel.setContext("Room " + std::to_string(roomId));
+                    _chatPanel.hide();
                 } else {
                     std::cerr << "Failed to join room " << roomId << std::endl;
                     // Refresh room list to see updated availability
                     requestRoomList();
+                }
+            }
+            break;
+        }
+        case OpCode::CHAT_BROADCAST: {
+            // Parse: senderId (4) + senderNameLen (1) + senderName + msgLen (1) + msg
+            if (msg->data.size() >= 6) {
+                uint32_t senderId = (static_cast<uint32_t>(msg->data[0]) << 24) |
+                                    (static_cast<uint32_t>(msg->data[1]) << 16) |
+                                    (static_cast<uint32_t>(msg->data[2]) << 8) |
+                                    static_cast<uint32_t>(msg->data[3]);
+                uint8_t nameLen = msg->data[4];
+                size_t offset = 5;
+
+                std::string senderName;
+                if (nameLen > 0 && msg->data.size() >= offset + nameLen + 1) {
+                    senderName = std::string(msg->data.begin() + offset, msg->data.begin() + offset + nameLen);
+                    offset += nameLen;
+                }
+
+                if (msg->data.size() > offset) {
+                    uint8_t msgLen = msg->data[offset];
+                    offset++;
+
+                    std::string chatMessage;
+                    if (msgLen > 0 && msg->data.size() >= offset + msgLen) {
+                        chatMessage = std::string(msg->data.begin() + offset, msg->data.begin() + offset + msgLen);
+                    }
+
+                    ChatMessage chatMsg;
+                    chatMsg.senderId = senderId;
+                    chatMsg.senderName = senderName;
+                    chatMsg.message = chatMessage;
+                    chatMsg.isSystem = false;
+                    _chatPanel.addMessage(chatMsg);
+
+                    std::cout << "[Chat] " << senderName << ": " << chatMessage << std::endl;
                 }
             }
             break;
@@ -1193,6 +1267,14 @@ void ClientGameHandler::handlePlayerPacket(const DecodedMessage &msg) {
 }
 
 void ClientGameHandler::toggleSettingsMenu() {
+    if (!settingsMenuOpen) {
+        _chatVisibleBeforeMenu = _chatPanel.isVisible();
+        _chatPanel.hide();
+    } else {
+        if (_chatVisibleBeforeMenu) {
+            _chatPanel.show();
+        }
+    }
     settingsMenuOpen = !settingsMenuOpen;
     _settingsMenu.toggle(_reg);
 }
@@ -1440,12 +1522,18 @@ void ClientGameHandler::setupLobbyCallbacks() {
         createRoom(config);
         _createRoomMenu.hide();
         _lobbyMenu.show();
+        if (_chatVisibleBeforeMenu) {
+            _chatPanel.show();
+        }
         _gameState = GameState::LOBBY;
     });
 
     _createRoomMenu.setOnCancel([this]() {
         _createRoomMenu.hide();
         _lobbyMenu.show();
+        if (_chatVisibleBeforeMenu) {
+            _chatPanel.show();
+        }
         _gameState = GameState::LOBBY;
     });
 }
@@ -1459,8 +1547,10 @@ void ClientGameHandler::requestRoomList() {
 
 void ClientGameHandler::showCreateRoomMenu() {
     std::cout << "Opening room creation menu..." << std::endl;
+    _chatVisibleBeforeMenu = _chatPanel.isVisible();
     _lobbyMenu.hide();
     _createRoomMenu.show();
+    _chatPanel.hide();
     _gameState = GameState::CREATE_ROOM;
 }
 
@@ -1500,4 +1590,21 @@ void ClientGameHandler::registerJoinHandler(uint32_t roomId) {
             joinRoom(roomId);
         }
     });
+}
+
+void ClientGameHandler::setupChatCallbacks() {
+    _chatPanel.setOnSend([this](const std::string& message) {
+        sendChatMessage(message);
+    });
+}
+
+void ClientGameHandler::sendChatMessage(const std::string& message) {
+    if (message.empty()) return;
+    
+    MessageFactory &factory = MessageFactory::getInstance();
+    MessageData payload = factory.encodeMessageChat(message);
+    PreparedMessage chatMsg = factory.createMessage(OpCode::CHAT_MESSAGE, payload);
+    _network.sendTcp(chatMsg);
+    
+    std::cout << "Sending chat message: " << message << std::endl;
 }

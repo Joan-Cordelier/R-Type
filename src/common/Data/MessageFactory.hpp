@@ -53,6 +53,8 @@ enum OpCode : uint8_t {
     LOGIN_ACK = 0x1E,
     GUEST_LOGIN = 0x1F,
     GUEST_LOGIN_ACK = 0x20,
+    CHAT_MESSAGE = 0x21,
+    CHAT_BROADCAST = 0x22,
 };
 
 using MessageData = std::vector<uint8_t>;
@@ -143,6 +145,9 @@ public:
     MessageData encodeMessageLogin(const std::string& username, const std::string& password) const;
     MessageData encodeMessageLoginAck(bool success, uint32_t userId, const std::string& username, const std::string& errorMsg) const;
     MessageData encodeMessageGuestLoginAck(uint32_t guestId, const std::string& guestName) const;
+
+    MessageData encodeMessageChat(const std::string& message) const;
+    MessageData encodeMessageChatBroadcast(uint32_t senderId, const std::string& senderName, const std::string& message) const;
 
 private:
     MessageFactory();

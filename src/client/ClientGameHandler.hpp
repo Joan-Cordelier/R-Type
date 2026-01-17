@@ -17,6 +17,7 @@
 #include "LoginMenu.hpp"
 #include "LobbyMenu.hpp"
 #include "CreateRoomMenu.hpp"
+#include "ChatPanel.hpp"
 #include "SettingMenu.hpp"
 
 enum class GameState {
@@ -53,6 +54,7 @@ private:
     LoginMenu _loginMenu;
     LobbyMenu _lobbyMenu;
     CreateRoomMenu _createRoomMenu;
+    ChatPanel _chatPanel;
 
     NetworkManager _network;
     GameLoopConfig _config;
@@ -73,6 +75,7 @@ private:
     bool _debugMode = false;
     bool _joinedRoom = false;
     std::vector<RoomInfo> _pendingRooms;
+    bool _chatVisibleBeforeMenu = false;
 
     uint32_t _userId = 0;
     std::string _username;
@@ -95,11 +98,13 @@ private:
 
     void setupLobbyCallbacks();
     void setupLoginCallbacks();
+    void setupChatCallbacks();
     void requestRoomList();
     void showCreateRoomMenu();
     void createRoom(const RoomConfig& config);
     void joinRoom(uint32_t roomId);
     void registerJoinHandler(uint32_t roomId);
+    void sendChatMessage(const std::string& message);
 
 public:
     uint32_t myPlayerId = 0;
