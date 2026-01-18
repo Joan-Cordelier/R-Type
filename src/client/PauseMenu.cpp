@@ -12,18 +12,12 @@ PauseMenu::PauseMenu(Registry &reg) : _reg(reg) {
 }
 
 void PauseMenu::init() {
-    // Create semi-transparent background panel (centered)
-    _backgroundPanel = _reg.createEntity();
-    _reg.addComponent<Position>(_backgroundPanel, 290.f, 15.f);
-    _reg.addComponent<Sprite>(_backgroundPanel, std::string("textures/button/square_button.png"),
-                              std::string("square_button"), 500, 400, 90, 0.f, -150.f, false);
-
     // Create "PAUSED" title
     _titleLabel = _reg.createEntity();
-    _reg.addComponent<Position>(_titleLabel, 460.f, 45.f);
+    _reg.addComponent<Position>(_titleLabel, 460.f, 190.f);
     _reg.addComponent<Label>(_titleLabel, std::string("PAUSED"),
                              std::string("font/josefin-sans/JosefinSans-Regular.ttf"),
-                             std::string("default_font"), Color(255, 255, 255), 95, false);
+                             std::string("default_font"), Color(255, 215, 0), 95, false);
 
     // Create Resume button
     _resumeButton = _reg.createEntity();
@@ -64,40 +58,59 @@ void PauseMenu::init() {
                              std::string("font/josefin-sans/JosefinSans-Regular.ttf"),
                              std::string("default_font_small"), Color(255, 255, 255), 101, false);
 
+    // Create Exit button (quit game)
+    _exitButton = _reg.createEntity();
+    _reg.addComponent<Position>(_exitButton, 390.f, 510.f);
+    _reg.addComponent<Sprite>(_exitButton, std::string("textures/button/square_button.png"),
+                              std::string("square_button"), 300, 60, 100, 0.f, 0.f, false);
+    _reg.addComponent<Button>(_exitButton, std::string("pause_exit"), 100, false);
+
+    _exitButtonLabel = _reg.createEntity();
+    _reg.addComponent<Position>(_exitButtonLabel, 505.f, 525.f);
+    _reg.addComponent<Label>(_exitButtonLabel, std::string("Exit"),
+                             std::string("font/josefin-sans/JosefinSans-Regular.ttf"),
+                             std::string("default_font_small"), Color(255, 100, 100), 101, false);
+
     std::cout << "[PauseMenu] Initialized" << std::endl;
 }
 
 void PauseMenu::setup(ButtonSystem &buttonsys) {
-    buttonsys.registerHandler("pause_resume", [this]([[maybe_unused]] Registry &r, [[maybe_unused]] Entity e) {
-        if (_onResume && _visible) {
-            std::cout << "[PauseMenu] Resume clicked" << std::endl;
-            _onResume();
-        }
-    });
+    buttonsys.registerHandler("pause_resume",
+                              [this]([[maybe_unused]] Registry &r, [[maybe_unused]] Entity e) {
+                                  if (_onResume && _visible) {
+                                      std::cout << "[PauseMenu] Resume clicked" << std::endl;
+                                      _onResume();
+                                  }
+                              });
 
-    buttonsys.registerHandler("pause_settings", [this]([[maybe_unused]] Registry &r, [[maybe_unused]] Entity e) {
-        if (_onSettings && _visible) {
-            std::cout << "[PauseMenu] Settings clicked" << std::endl;
-            _onSettings();
-        }
-    });
+    buttonsys.registerHandler("pause_settings",
+                              [this]([[maybe_unused]] Registry &r, [[maybe_unused]] Entity e) {
+                                  if (_onSettings && _visible) {
+                                      std::cout << "[PauseMenu] Settings clicked" << std::endl;
+                                      _onSettings();
+                                  }
+                              });
 
-    buttonsys.registerHandler("pause_exit_party", [this]([[maybe_unused]] Registry &r, [[maybe_unused]] Entity e) {
-        if (_onExitParty && _visible) {
-            std::cout << "[PauseMenu] Exit Party clicked" << std::endl;
-            _onExitParty();
-        }
-    });
+    buttonsys.registerHandler("pause_exit_party",
+                              [this]([[maybe_unused]] Registry &r, [[maybe_unused]] Entity e) {
+                                  if (_onExitParty && _visible) {
+                                      std::cout << "[PauseMenu] Exit Party clicked" << std::endl;
+                                      _onExitParty();
+                                  }
+                              });
+
+    buttonsys.registerHandler(
+        "pause_exit", [this]([[maybe_unused]] Registry &r, [[maybe_unused]] Entity e) {
+            if (_onExit && _visible) {
+                std::cout << "[PauseMenu] Exit clicked (quit game)" << std::endl;
+                _onExit();
+            }
+        });
 }
 
 void PauseMenu::show() {
     _visible = true;
     std::cout << "[PauseMenu] Showing pause menu" << std::endl;
-
-    // Show background
-    if (_reg.hasComponent<Sprite>(_backgroundPanel)) {
-        _reg.getComponent<Sprite>(_backgroundPanel).visible = true;
-    }
 
     // Show title
     if (_reg.hasComponent<Label>(_titleLabel)) {
@@ -136,16 +149,22 @@ void PauseMenu::show() {
     if (_reg.hasComponent<Label>(_exitPartyButtonLabel)) {
         _reg.getComponent<Label>(_exitPartyButtonLabel).visible = true;
     }
+
+    // Show Exit button
+    if (_reg.hasComponent<Sprite>(_exitButton)) {
+        _reg.getComponent<Sprite>(_exitButton).visible = true;
+    }
+    if (_reg.hasComponent<Button>(_exitButton)) {
+        _reg.getComponent<Button>(_exitButton).enabled = true;
+    }
+    if (_reg.hasComponent<Label>(_exitButtonLabel)) {
+        _reg.getComponent<Label>(_exitButtonLabel).visible = true;
+    }
 }
 
 void PauseMenu::hide() {
     _visible = false;
     std::cout << "[PauseMenu] Hiding pause menu" << std::endl;
-
-    // Hide background
-    if (_reg.hasComponent<Sprite>(_backgroundPanel)) {
-        _reg.getComponent<Sprite>(_backgroundPanel).visible = false;
-    }
 
     // Hide title
     if (_reg.hasComponent<Label>(_titleLabel)) {
@@ -183,6 +202,17 @@ void PauseMenu::hide() {
     }
     if (_reg.hasComponent<Label>(_exitPartyButtonLabel)) {
         _reg.getComponent<Label>(_exitPartyButtonLabel).visible = false;
+    }
+
+    // Hide Exit button
+    if (_reg.hasComponent<Sprite>(_exitButton)) {
+        _reg.getComponent<Sprite>(_exitButton).visible = false;
+    }
+    if (_reg.hasComponent<Button>(_exitButton)) {
+        _reg.getComponent<Button>(_exitButton).enabled = false;
+    }
+    if (_reg.hasComponent<Label>(_exitButtonLabel)) {
+        _reg.getComponent<Label>(_exitButtonLabel).visible = false;
     }
 }
 

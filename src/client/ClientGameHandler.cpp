@@ -1778,6 +1778,11 @@ void ClientGameHandler::requestScoreboard() {
 
 void ClientGameHandler::setupDeathScreenCallbacks() {
     _deathScreen.setReturnToLobbyCallback([this]() { returnToLobby(); });
+    _deathScreen.setExitCallback([]() {
+        std::cout << "[DeathScreen] Quitting game..." << std::endl;
+        SDL_Quit();
+        exit(0);
+    });
 }
 
 void ClientGameHandler::returnToLobby() {
@@ -1873,5 +1878,10 @@ void ClientGameHandler::setupPauseMenuCallbacks() {
         _pauseMenu.hide();
         _settingsOpenedFromPause = false;
         returnToLobby();
+    });
+    _pauseMenu.setExitCallback([]() {
+        std::cout << "[PauseMenu] Quitting game..." << std::endl;
+        SDL_Quit();
+        exit(0);
     });
 }
