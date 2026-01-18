@@ -153,8 +153,9 @@ void Room::onPlayerDeath(uint32_t playerId) {
                 // Game over - save scores for all players who participated
                 if (_game) {
                     int finalScore = _game->getScore();
-                    LOG_INFO("Game over in room " + std::to_string(_id) + 
-                             " with final score: " + std::to_string(finalScore));
+                    LOG_INFO("=== GAME OVER === Room " + std::to_string(_id) + 
+                             " - Final score: " + std::to_string(finalScore) +
+                             " - Participants: " + std::to_string(_allParticipants.size()));
 
                     // Update score for ALL players who participated in this game
                     auto& userDb = UserDatabase::getInstance();
@@ -163,9 +164,14 @@ void Room::onPlayerDeath(uint32_t playerId) {
                         if (participant && participant->userId > 0) {
                             userDb.updateScore(participant->userId, finalScore);
                             LOG_INFO("Updated score for participant " + participant->username + 
-                                     " (userId: " + std::to_string(participant->userId) + ")");
+                                     " (userId: " + std::to_string(participant->userId) + 
+                                     ", score: " + std::to_string(finalScore) + ")");
+                        } else if (participant) {
+                            LOG_INFO("Skipping guest player: " + participant->username);
                         }
                     }
+                } else {
+                    LOG_WARN("Game pointer is null at game over!");
                 }
             }
             break;

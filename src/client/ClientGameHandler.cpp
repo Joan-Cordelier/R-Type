@@ -674,6 +674,13 @@ void ClientGameHandler::handleMessages() {
                     _lobbyMenu.hide();
                     _chatPanel.setContext("Room " + std::to_string(roomId));
                     _chatPanel.hide();
+
+                    _currentScore = 0;
+                    _scoreLabel = _reg.createEntity();
+                    _reg.addComponent<Position>(_scoreLabel, 20.f, 20.f);
+                    _reg.addComponent<Label>(_scoreLabel, std::string("Score: 0"),
+                                             std::string("font/josefin-sans/JosefinSans-Regular.ttf"),
+                                             std::string("default_font"), Color(255, 255, 255), 200, true);
                 } else {
                     std::cerr << "Failed to join room " << roomId << std::endl;
                     // Refresh room list to see updated availability
@@ -754,6 +761,22 @@ void ClientGameHandler::handleMessages() {
             }
             
             _scoreboardMenu.updateScores(scores);
+            break;
+        }
+        case OpCode::SCORE_UPDATE: {
+            if (msg->data.size() >= 4) {
+                _currentScore = (static_cast<uint32_t>(msg->data[0]) << 24) |
+                                (static_cast<uint32_t>(msg->data[1]) << 16) |
+                                (static_cast<uint32_t>(msg->data[2]) << 8) |
+                                static_cast<uint32_t>(msg->data[3]);
+                
+                // Update the score label
+                if (_reg.hasComponent<Label>(_scoreLabel)) {
+                    _reg.getComponent<Label>(_scoreLabel).text = "Score: " + std::to_string(_currentScore);
+                }
+                
+                std::cout << "[Game] Score updated: " << _currentScore << std::endl;
+            }
             break;
         }
         case OpCode::PLAYER: {

@@ -347,13 +347,20 @@ void GameHandler::updateGame(float deltaTime) {
             auto it = enemyTypes.find(enemyComp.type);
             if (it != enemyTypes.end()) {
                 score += it->second.score;
-                LOG_DEBUG("Score increased by " + std::to_string(it->second.score) + " (Total: " + std::to_string(score) + ")");
+                LOG_INFO("Enemy '" + enemyComp.type + "' killed! Score +" + std::to_string(it->second.score) + " (Total: " + std::to_string(score) + ")");
+                sendScoreUpdateToAllPlayers();
             } else {
                 // Default score if type not found
                 score += 100;
+                LOG_WARN("Enemy type '" + enemyComp.type + "' not found in config, using default score 100 (Total: " + std::to_string(score) + ")");
+                sendScoreUpdateToAllPlayers();
             }
+        } else {
+            LOG_WARN("Dead enemy entity has no Enemy component");
         }
         sendDestroyedEnemyToAllPlayers(enemy);
+        // Destroy the enemy entity after processing
+        reg.destroyEntity(enemy);
     }
     for (const auto &projectile : enemySystem.getProjectileColliding()) {
         sendDestroyedProjectileToAllPlayers(projectile);
@@ -420,6 +427,18 @@ void GameHandler::sendDestroyedPlayerToAllPlayers(Entity player) {
     }
 
     LOG_DEBUG("Sent DEATH for player " + std::to_string(player) + " to all players");
+}
+
+void GameHandler::sendScoreUpdateToAllPlayers() {
+    auto &factory = MessageFactory::getInstance();
+    MessageData payload = factory.encodeMessageScoreUpdate(static_cast<uint32_t>(score));
+    PreparedMessage msg = factory.createMessage(OpCode::SCORE_UPDATE, payload);
+
+    for (const auto &[playerId, entity] : playerEntities) {
+        _session.sendTcp(playerId, msg);
+    }
+
+    LOG_DEBUG("Sent SCORE_UPDATE (" + std::to_string(score) + ") to all players");
 }
 
 void GameHandler::onPlayerConnect(const Player &player) {
@@ -497,6 +516,15 @@ void GameHandler::onPlayerConnect(const Player &player) {
         PreparedMessage msg = factory.createMessage(OpCode::ENEMY, payload);
         _session.sendUdp(player.id, msg);
         LOG_DEBUG("Sent existing enemy " + std::to_string(enemyEntity) + " info to new player " +
+                  std::to_string(player.id));
+    }
+
+    // Send current score to new player
+    if (score > 0) {
+        MessageData scorePayload = factory.encodeMessageScoreUpdate(static_cast<uint32_t>(score));
+        PreparedMessage scoreMsg = factory.createMessage(OpCode::SCORE_UPDATE, scorePayload);
+        _session.sendTcp(player.id, scoreMsg);
+        LOG_DEBUG("Sent current score " + std::to_string(score) + " to new player " +
                   std::to_string(player.id));
     }
 

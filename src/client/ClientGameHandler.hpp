@@ -85,6 +85,9 @@ private:
     bool _isGuest = false;
     bool _isAuthenticated = false;
 
+    Entity _scoreLabel;
+    uint32_t _currentScore = 0;
+
     // menu Entities
     Entity start_button = _reg.createEntity();
     Entity label_input = _reg.createEntity();

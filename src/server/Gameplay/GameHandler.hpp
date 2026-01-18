@@ -97,6 +97,7 @@ private:
     void sendDestroyedProjectileToAllPlayers(Entity projectile);
     void sendDestroyedEnemyToAllPlayers(Entity enemy);
     void sendDestroyedPlayerToAllPlayers(Entity player);
+    void sendScoreUpdateToAllPlayers();
     void checkPlayerCollisions();
 
     void onUpgradeSelect(uint32_t playerId, uint8_t index);

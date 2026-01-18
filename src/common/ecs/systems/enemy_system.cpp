@@ -110,13 +110,10 @@ void EnemySystem::update(Registry& reg, float dt) {
         }
     }
 
-    // Cleanup dead entities
+    // Cleanup dead entities - remove duplicates but DON'T destroy them here
+    // Let the caller (GameHandler) destroy them after processing score
     std::sort(deadEnemyEntities.begin(), deadEnemyEntities.end());
     deadEnemyEntities.erase(std::unique(deadEnemyEntities.begin(), deadEnemyEntities.end()), deadEnemyEntities.end());
-
-    for (auto e : deadEnemyEntities) {
-        reg.destroyEntity(e);
-    }
     
     // Spawn Logic
     if (canSpawn && !_levels.empty()) {
