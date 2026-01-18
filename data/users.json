@@ -1,14 +1,17 @@
 {
-  "nextUserId": 77,
+  "nextUserId": 100,
   "users": [
     {
       "id": 76,
       "username": "caca",
       "passwordHash": "9717a015f09b7674236b14a7295c70637571bcd2ef63c93869f3e1f494128de8",
       "createdAt": 1768712639,
-      "lastLogin": 1768712642,
-      "highScore": 0,
-      "totalGamesPlayed": 0
+      "lastLogin": 1768766443,
+      "highScore": 300,
+      "totalGamesPlayed": 2,
+      "endlessHighScores": {
+        "1": 4500
+      }
     },
     {
       "id": 2,
@@ -17,7 +20,158 @@
       "createdAt": 1768538388,
       "lastLogin": 1768712615,
       "highScore": 9200,
-      "totalGamesPlayed": 4
+      "totalGamesPlayed": 4,
+      "endlessHighScores": {
+        "0": 12000,
+        "1": 8500,
+        "2": 3200
+      }
+    },
+    {
+      "id": 80,
+      "username": "SpaceAce",
+      "passwordHash": "test123",
+      "createdAt": 1768500000,
+      "lastLogin": 1768700000,
+      "highScore": 5000,
+      "totalGamesPlayed": 10,
+      "endlessHighScores": {
+        "0": 25000,
+        "1": 18500,
+        "2": 9800,
+        "3": 4200
+      }
+    },
+    {
+      "id": 81,
+      "username": "LaserMaster",
+      "passwordHash": "test123",
+      "createdAt": 1768500000,
+      "lastLogin": 1768700000,
+      "highScore": 7500,
+      "totalGamesPlayed": 15,
+      "endlessHighScores": {
+        "0": 32000,
+        "1": 22000,
+        "2": 14500,
+        "3": 6100
+      }
+    },
+    {
+      "id": 82,
+      "username": "StarBlazer",
+      "passwordHash": "test123",
+      "createdAt": 1768500000,
+      "lastLogin": 1768700000,
+      "highScore": 4200,
+      "totalGamesPlayed": 8,
+      "endlessHighScores": {
+        "0": 19500,
+        "1": 12800,
+        "2": 7200
+      }
+    },
+    {
+      "id": 83,
+      "username": "PixelPilot",
+      "passwordHash": "test123",
+      "createdAt": 1768500000,
+      "lastLogin": 1768700000,
+      "highScore": 6300,
+      "totalGamesPlayed": 12,
+      "endlessHighScores": {
+        "0": 28000,
+        "1": 16300,
+        "2": 11000,
+        "3": 5500
+      }
+    },
+    {
+      "id": 84,
+      "username": "NeonNinja",
+      "passwordHash": "test123",
+      "createdAt": 1768500000,
+      "lastLogin": 1768700000,
+      "highScore": 8800,
+      "totalGamesPlayed": 20,
+      "endlessHighScores": {
+        "0": 45000,
+        "1": 35000,
+        "2": 22000,
+        "3": 12000
+      }
+    },
+    {
+      "id": 85,
+      "username": "CyberShark",
+      "passwordHash": "test123",
+      "createdAt": 1768500000,
+      "lastLogin": 1768700000,
+      "highScore": 3100,
+      "totalGamesPlayed": 5,
+      "endlessHighScores": {
+        "0": 15000,
+        "1": 9200
+      }
+    },
+    {
+      "id": 86,
+      "username": "GalaxyGuard",
+      "passwordHash": "test123",
+      "createdAt": 1768500000,
+      "lastLogin": 1768700000,
+      "highScore": 5500,
+      "totalGamesPlayed": 9,
+      "endlessHighScores": {
+        "0": 21000,
+        "1": 14100,
+        "2": 8900,
+        "3": 3800
+      }
+    },
+    {
+      "id": 87,
+      "username": "VoidViper",
+      "passwordHash": "test123",
+      "createdAt": 1768500000,
+      "lastLogin": 1768700000,
+      "highScore": 7200,
+      "totalGamesPlayed": 14,
+      "endlessHighScores": {
+        "0": 38000,
+        "1": 25500,
+        "2": 16800,
+        "3": 8500
+      }
+    },
+    {
+      "id": 88,
+      "username": "RocketRider",
+      "passwordHash": "test123",
+      "createdAt": 1768500000,
+      "lastLogin": 1768700000,
+      "highScore": 4800,
+      "totalGamesPlayed": 7,
+      "endlessHighScores": {
+        "0": 17500,
+        "1": 11000,
+        "2": 6500
+      }
+    },
+    {
+      "id": 89,
+      "username": "TurboTitan",
+      "passwordHash": "test123",
+      "createdAt": 1768500000,
+      "lastLogin": 1768700000,
+      "highScore": 9500,
+      "totalGamesPlayed": 25,
+      "endlessHighScores": {
+        "0": 52000,
+        "1": 41000,
+        "2": 28000,
+        "3": 15000
+      }
     }
   ]
 }

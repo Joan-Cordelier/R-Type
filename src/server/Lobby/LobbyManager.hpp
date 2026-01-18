@@ -8,8 +8,8 @@
 #ifndef LOBBYMANAGER_HPP_
 #define LOBBYMANAGER_HPP_
 
-#include "../Session/SessionManager.hpp"
 #include "../Monitoring/PrometheusExporter.hpp"
+#include "../Session/SessionManager.hpp"
 #include "Room.hpp"
 #include <atomic>
 #include <chrono>
@@ -19,7 +19,7 @@
 
 class LobbyManager {
 public:
-    LobbyManager(const std::string &configPath, PrometheusExporter& monitor);
+    LobbyManager(const std::string &configPath, PrometheusExporter &monitor);
     ~LobbyManager();
 
     void run();
@@ -30,7 +30,7 @@ private:
     std::map<uint32_t, std::shared_ptr<Room>> _rooms;
     std::atomic<bool> _running{true};
     std::string _configPath;
-    PrometheusExporter& _monitor;
+    PrometheusExporter &_monitor;
 
     uint32_t _nextRoomId = 1;
 
@@ -53,6 +53,9 @@ private:
 
     // Scoreboard handler
     void handleScoreboardRequest(const DecodedMessage &msg);
+
+    // Endless mode leaderboard handler
+    void handleGetLeaderboard(const DecodedMessage &msg);
 
     // Handling disconnections
     void onPlayerDisconnect(const Player &player);

@@ -13,12 +13,9 @@
 #include <chrono>
 #include <tuple>
 
-LobbyManager::LobbyManager(const std::string &configPath, PrometheusExporter& monitor) 
-    : _session(monitor)
-    , _configPath(configPath)
-    , _monitor(monitor)
-    , _lastCleanupCheck(std::chrono::steady_clock::now())
-{
+LobbyManager::LobbyManager(const std::string &configPath, PrometheusExporter &monitor)
+    : _session(monitor), _configPath(configPath), _monitor(monitor),
+      _lastCleanupCheck(std::chrono::steady_clock::now()) {
     _session.setOnPlayerDisconnect([this](const Player &player) { onPlayerDisconnect(player); });
 }
 
@@ -124,6 +121,9 @@ void LobbyManager::dispatchMessage(DecodedMessage &msg) {
     case DISCONNECT:
         handleDisconnect(msg);
         return;
+    case GET_LEADERBOARD:
+        handleGetLeaderboard(msg);
+        return;
     default:
         break;
     }
@@ -171,10 +171,12 @@ void LobbyManager::handleCreateRoom(const DecodedMessage &msg) {
         config.maxPlayers = msg.data[0];
         config.gameMode = static_cast<GameMode>(msg.data[1]);
         config.difficulty = static_cast<Difficulty>(msg.data[2]);
-        
+
         // Validate maxPlayers (1-4)
-        if (config.maxPlayers < 1) config.maxPlayers = 1;
-        if (config.maxPlayers > 4) config.maxPlayers = 4;
+        if (config.maxPlayers < 1)
+            config.maxPlayers = 1;
+        if (config.maxPlayers > 4)
+            config.maxPlayers = 4;
     }
 
     uint32_t roomId = _nextRoomId++;
@@ -184,7 +186,8 @@ void LobbyManager::handleCreateRoom(const DecodedMessage &msg) {
 
     LOG_INFO("Room " + std::to_string(roomId) + " created by player " +
              std::to_string(msg.playerId) + " (MaxPlayers: " + std::to_string(config.maxPlayers) +
-             ", Mode: " + config.getGameModeStr() + ", Difficulty: " + config.getDifficultyStr() + ")");
+             ", Mode: " + config.getGameModeStr() + ", Difficulty: " + config.getDifficultyStr() +
+             ")");
 
     auto &factory = MessageFactory::getInstance();
     MessageData payload = factory.encodeMessageRoomCreated(roomId);
@@ -253,19 +256,23 @@ void LobbyManager::handleJoinRoom(const DecodedMessage &msg) {
 }
 
 void LobbyManager::handleListRooms(const DecodedMessage &msg) {
-    std::vector<std::tuple<uint32_t, uint8_t, uint8_t>> roomList;  // roomId, playerCount, maxPlayers
+    std::vector<std::tuple<uint32_t, uint8_t, uint8_t>> roomList; // roomId, playerCount, maxPlayers
     for (const auto &[id, room] : _rooms) {
-        roomList.push_back({id, static_cast<uint8_t>(room->getPlayerCount()), room->getConfig().maxPlayers});
+        roomList.push_back(
+            {id, static_cast<uint8_t>(room->getPlayerCount()), room->getConfig().maxPlayers});
     }
 
     auto &factory = MessageFactory::getInstance();
     MessageData payload = factory.encodeMessageRoomList(roomList);
     std::cout << "[DEBUG] ROOM_LIST payload size: " << std::dec << payload.size() << " bytes: ";
-    for (auto b : payload) std::cout << std::hex << (int)b << " ";
+    for (auto b : payload)
+        std::cout << std::hex << (int)b << " ";
     std::cout << std::dec << std::endl;
     PreparedMessage response = factory.createMessage(ROOM_LIST, payload);
-    std::cout << "[DEBUG] ROOM_LIST message size: " << std::dec << response.data.size() << " bytes: ";
-    for (auto b : response.data) std::cout << std::hex << (int)b << " ";
+    std::cout << "[DEBUG] ROOM_LIST message size: " << std::dec << response.data.size()
+              << " bytes: ";
+    for (auto b : response.data)
+        std::cout << std::hex << (int)b << " ";
     std::cout << std::dec << std::endl;
     _session.sendTcp(msg.playerId, response);
 }
@@ -324,10 +331,10 @@ void LobbyManager::handleDisconnect(const DecodedMessage &msg) {
         auto it = _rooms.find(player->roomId);
         if (it != _rooms.end()) {
             it->second->removePlayer(player->id, player->userId, player->username);
-            LOG_INFO("Player " + std::to_string(player->id) + " left room " + 
+            LOG_INFO("Player " + std::to_string(player->id) + " left room " +
                      std::to_string(player->roomId) + " (Exit Party)");
         }
-        player->roomId = 0;  // Clear room assignment
+        player->roomId = 0; // Clear room assignment
     }
 }
 
@@ -381,18 +388,21 @@ void LobbyManager::handleRegister(const DecodedMessage &msg) {
     }
 
     auto &factory = MessageFactory::getInstance();
-    
+
     // Parse username
     size_t offset = 0;
     uint8_t usernameLen = msg.data[offset++];
-    if (offset + usernameLen > msg.data.size()) return;
+    if (offset + usernameLen > msg.data.size())
+        return;
     std::string username(msg.data.begin() + offset, msg.data.begin() + offset + usernameLen);
     offset += usernameLen;
 
     // Parse password
-    if (offset >= msg.data.size()) return;
+    if (offset >= msg.data.size())
+        return;
     uint8_t passwordLen = msg.data[offset++];
-    if (offset + passwordLen > msg.data.size()) return;
+    if (offset + passwordLen > msg.data.size())
+        return;
     std::string password(msg.data.begin() + offset, msg.data.begin() + offset + passwordLen);
 
     LOG_INFO("Registration attempt: " + username);
@@ -411,7 +421,7 @@ void LobbyManager::handleRegister(const DecodedMessage &msg) {
     }
 
     PreparedMessage response = factory.createMessage(REGISTER_ACK, payload);
-    
+
     // Send to the TCP connection that sent the message
     if (msg.tcpFd > 0) {
         auto player = _session.getPlayerByTcpFd(msg.tcpFd);
@@ -428,18 +438,21 @@ void LobbyManager::handleLogin(const DecodedMessage &msg) {
     }
 
     auto &factory = MessageFactory::getInstance();
-    
+
     // Parse username
     size_t offset = 0;
     uint8_t usernameLen = msg.data[offset++];
-    if (offset + usernameLen > msg.data.size()) return;
+    if (offset + usernameLen > msg.data.size())
+        return;
     std::string username(msg.data.begin() + offset, msg.data.begin() + offset + usernameLen);
     offset += usernameLen;
 
     // Parse password
-    if (offset >= msg.data.size()) return;
+    if (offset >= msg.data.size())
+        return;
     uint8_t passwordLen = msg.data[offset++];
-    if (offset + passwordLen > msg.data.size()) return;
+    if (offset + passwordLen > msg.data.size())
+        return;
     std::string password(msg.data.begin() + offset, msg.data.begin() + offset + passwordLen);
 
     LOG_INFO("Login attempt: " + username);
@@ -452,7 +465,7 @@ void LobbyManager::handleLogin(const DecodedMessage &msg) {
     if (userOpt.has_value()) {
         auto &user = userOpt.value();
         payload = factory.encodeMessageLoginAck(true, user.id, user.username, "");
-        
+
         // Update the player's username in session
         if (msg.tcpFd > 0) {
             auto player = _session.getPlayerByTcpFd(msg.tcpFd);
@@ -462,7 +475,7 @@ void LobbyManager::handleLogin(const DecodedMessage &msg) {
                 player->isGuest = false;
             }
         }
-        
+
         LOG_INFO("Login successful: " + username + " (ID: " + std::to_string(user.id) + ")");
     } else {
         payload = factory.encodeMessageLoginAck(false, 0, "", "Invalid username or password");
@@ -470,7 +483,7 @@ void LobbyManager::handleLogin(const DecodedMessage &msg) {
     }
 
     PreparedMessage response = factory.createMessage(LOGIN_ACK, payload);
-    
+
     if (msg.tcpFd > 0) {
         auto player = _session.getPlayerByTcpFd(msg.tcpFd);
         if (player) {
@@ -500,7 +513,7 @@ void LobbyManager::handleGuestLogin(const DecodedMessage &msg) {
 
     MessageData payload = factory.encodeMessageGuestLoginAck(guest.id, guest.username);
     PreparedMessage response = factory.createMessage(GUEST_LOGIN_ACK, payload);
-    
+
     if (msg.tcpFd > 0) {
         auto player = _session.getPlayerByTcpFd(msg.tcpFd);
         if (player) {
@@ -513,13 +526,13 @@ void LobbyManager::handleChatMessage(const DecodedMessage &msg) {
     auto &factory = MessageFactory::getInstance();
 
     // Get the sender player
-    Player* sender = nullptr;
+    Player *sender = nullptr;
     if (msg.playerId != 0) {
         sender = _session.getPlayer(msg.playerId);
     } else if (msg.tcpFd > 0) {
         sender = _session.getPlayerByTcpFd(msg.tcpFd);
     }
-    
+
     if (!sender) {
         LOG_WARN("CHAT_MESSAGE from unknown player");
         return;
@@ -547,7 +560,8 @@ void LobbyManager::handleChatMessage(const DecodedMessage &msg) {
 
     // If sender is in a room, broadcast to room members
     // Otherwise, they're in the lobby - broadcast to all lobby players
-    MessageData payload = factory.encodeMessageChatBroadcast(sender->userId, sender->username, chatMessage);
+    MessageData payload =
+        factory.encodeMessageChatBroadcast(sender->userId, sender->username, chatMessage);
     PreparedMessage broadcast = factory.createMessage(CHAT_BROADCAST, payload);
 
     if (sender->roomId != 0) {
@@ -560,7 +574,7 @@ void LobbyManager::handleChatMessage(const DecodedMessage &msg) {
         }
     } else {
         // Broadcast to all players in lobby (no room)
-        for (Player* player : _session.getAllPlayers()) {
+        for (Player *player : _session.getAllPlayers()) {
             if (player->roomId == 0) {
                 _session.sendTcp(player->id, broadcast);
             }
@@ -589,9 +603,52 @@ void LobbyManager::handleScoreboardRequest(const DecodedMessage &msg) {
     // Get top 10 scores
     auto topScores = userDb.getTopScores(10);
 
-    LOG_INFO("Sending scoreboard with " + std::to_string(topScores.size()) + " entries to player " + std::to_string(playerId));
+    LOG_INFO("Sending scoreboard with " + std::to_string(topScores.size()) + " entries to player " +
+             std::to_string(playerId));
 
     MessageData payload = factory.encodeMessageScoreboardResponse(topScores);
     PreparedMessage response = factory.createMessage(SCOREBOARD_RESPONSE, payload);
+    _session.sendTcp(playerId, response);
+}
+
+void LobbyManager::handleGetLeaderboard(const DecodedMessage &msg) {
+    auto &factory = MessageFactory::getInstance();
+    auto &userDb = UserDatabase::getInstance();
+
+    // Get player to respond to
+    uint32_t playerId = msg.playerId;
+    if (playerId == 0 && msg.tcpFd > 0) {
+        auto player = _session.getPlayerByTcpFd(msg.tcpFd);
+        if (player) {
+            playerId = player->id;
+        }
+    }
+
+    if (playerId == 0) {
+        LOG_WARN("GET_LEADERBOARD from unknown player");
+        return;
+    }
+
+    // Check if player is registered (guests can't view leaderboard)
+    auto player = _session.getPlayer(playerId);
+    if (!player || player->userId == 0) {
+        LOG_WARN("GET_LEADERBOARD from guest user - denied");
+        return;
+    }
+
+    // Get difficulty from message
+    uint8_t difficulty = 0;
+    if (!msg.data.empty()) {
+        difficulty = msg.data[0];
+    }
+
+    // Get top 10 endless scores for this difficulty
+    auto topScores = userDb.getEndlessTopScores(difficulty, 10);
+
+    LOG_INFO("Sending endless leaderboard (difficulty " + std::to_string(difficulty) + ") with " +
+             std::to_string(topScores.size()) + " entries to player " + std::to_string(playerId));
+
+    MessageData payload = factory.encodeMessageLeaderboardData(difficulty, topScores);
+    PreparedMessage response = factory.createMessage(LEADERBOARD_DATA, payload);
     _session.sendTcp(playerId, response);
 }

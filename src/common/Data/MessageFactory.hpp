@@ -58,7 +58,9 @@ enum OpCode : uint8_t {
     SCOREBOARD_REQUEST = 0x23,
     SCOREBOARD_RESPONSE = 0x24,
     SCORE_UPDATE = 0x25,
-    VICTORY = 0x26, // Game won - triggers victory screen
+    VICTORY = 0x26,
+    GET_LEADERBOARD = 0x27,
+    LEADERBOARD_DATA = 0x28,
 };
 
 using MessageData = std::vector<uint8_t>;
@@ -164,6 +166,11 @@ public:
         const std::vector<std::pair<std::string, uint32_t>> &scores) const;
     MessageData encodeMessageScoreUpdate(uint32_t score) const;
     MessageData encodeMessageVictory(uint32_t finalScore) const;
+
+    MessageData encodeMessageGetLeaderboard(uint8_t difficulty) const;
+    MessageData
+    encodeMessageLeaderboardData(uint8_t difficulty,
+                                 const std::vector<std::pair<std::string, uint32_t>> &scores) const;
 
 private:
     MessageFactory();

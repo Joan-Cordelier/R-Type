@@ -808,7 +808,49 @@ void ClientGameHandler::handleMessages() {
                 }
             }
 
-            _scoreboardMenu.updateScores(scores);
+            _scoreboardMenu.updateScores(scores, 0);
+            break;
+        }
+        case OpCode::LEADERBOARD_DATA: {
+            std::cout << "[Leaderboard] Received leaderboard data" << std::endl;
+            std::vector<ScoreEntry> scores;
+
+            if (msg->data.size() >= 2) {
+                uint8_t difficulty = msg->data[0];
+                uint8_t count = msg->data[1];
+                size_t offset = 2;
+
+                for (uint8_t i = 0; i < count; ++i) {
+                    if (offset >= msg->data.size())
+                        break;
+
+                    uint8_t nameLen = msg->data[offset];
+                    offset++;
+
+                    if (offset + nameLen + 4 > msg->data.size())
+                        break;
+
+                    std::string username(msg->data.begin() + offset,
+                                         msg->data.begin() + offset + nameLen);
+                    offset += nameLen;
+
+                    uint32_t highScore = (static_cast<uint32_t>(msg->data[offset]) << 24) |
+                                         (static_cast<uint32_t>(msg->data[offset + 1]) << 16) |
+                                         (static_cast<uint32_t>(msg->data[offset + 2]) << 8) |
+                                         static_cast<uint32_t>(msg->data[offset + 3]);
+                    offset += 4;
+
+                    ScoreEntry entry;
+                    entry.username = username;
+                    entry.highScore = highScore;
+                    scores.push_back(entry);
+
+                    std::cout << "[Leaderboard] #" << (int)(i + 1) << " " << username << ": "
+                              << highScore << std::endl;
+                }
+
+                _scoreboardMenu.updateScores(scores, difficulty);
+            }
             break;
         }
         case OpCode::SCORE_UPDATE: {
@@ -1779,14 +1821,22 @@ void ClientGameHandler::setupScoreboardCallbacks() {
         _gameState = GameState::LOBBY;
     });
 
-    _scoreboardMenu.setRefreshCallback([this]() { requestScoreboard(); });
+    _scoreboardMenu.setDifficultyCallback(
+        [this](uint8_t difficulty) { requestLeaderboard(difficulty); });
 }
 
 void ClientGameHandler::requestScoreboard() {
-    std::cout << "[Scoreboard] Requesting scoreboard from server" << std::endl;
+    // Request the current difficulty's leaderboard
+    requestLeaderboard(_scoreboardMenu.getCurrentDifficulty());
+}
+
+void ClientGameHandler::requestLeaderboard(uint8_t difficulty) {
+    std::cout << "[Leaderboard] Requesting endless leaderboard (difficulty " << (int)difficulty
+              << ") from server" << std::endl;
     MessageFactory &factory = MessageFactory::getInstance();
-    PreparedMessage scoreboardReq = factory.createMessage(OpCode::SCOREBOARD_REQUEST, {});
-    _network.sendTcp(scoreboardReq);
+    MessageData payload = factory.encodeMessageGetLeaderboard(difficulty);
+    PreparedMessage leaderboardReq = factory.createMessage(OpCode::GET_LEADERBOARD, payload);
+    _network.sendTcp(leaderboardReq);
 }
 
 void ClientGameHandler::setupEndGameScreenCallbacks() {

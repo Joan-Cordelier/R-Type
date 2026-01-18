@@ -110,6 +110,7 @@ private:
     void setupEndGameScreenCallbacks();
     void requestRoomList();
     void requestScoreboard();
+    void requestLeaderboard(uint8_t difficulty);
     void showCreateRoomMenu();
     void createRoom(const RoomConfig &config);
     void joinRoom(uint32_t roomId);

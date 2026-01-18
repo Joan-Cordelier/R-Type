@@ -57,6 +57,8 @@ std::array<MessageFactory::Message, 256> MessageFactory::initMessageTable() {
     table[SCOREBOARD_RESPONSE] = {VARIABLE_LEN, Priority::LOW}; // list of username + score pairs
     table[SCORE_UPDATE] = {4, Priority::MEDIUM};                // score (4 bytes)
     table[VICTORY] = {4, Priority::CRITICAL};                   // finalScore (4 bytes)
+    table[GET_LEADERBOARD] = {1, Priority::LOW};                // difficulty (1 byte)
+    table[LEADERBOARD_DATA] = {VARIABLE_LEN, Priority::LOW};    // difficulty + count + entries
 
     return table;
 }
@@ -888,6 +890,41 @@ MessageData MessageFactory::encodeMessageVictory(uint32_t finalScore) const {
     data.push_back(static_cast<uint8_t>((finalScore >> 16) & 0xFF));
     data.push_back(static_cast<uint8_t>((finalScore >> 8) & 0xFF));
     data.push_back(static_cast<uint8_t>(finalScore & 0xFF));
+
+    return data;
+}
+
+MessageData MessageFactory::encodeMessageGetLeaderboard(uint8_t difficulty) const {
+    MessageData data;
+    data.push_back(difficulty);
+    return data;
+}
+
+MessageData MessageFactory::encodeMessageLeaderboardData(
+    uint8_t difficulty, const std::vector<std::pair<std::string, uint32_t>> &scores) const {
+    MessageData data;
+
+    // Difficulty (1 byte)
+    data.push_back(difficulty);
+
+    // Number of entries (1 byte)
+    data.push_back(static_cast<uint8_t>(std::min(scores.size(), static_cast<size_t>(255))));
+
+    // Each entry: nameLength (1 byte) + name (variable) + score (4 bytes)
+    for (const auto &[username, score] : scores) {
+        // Username length + username
+        uint8_t nameLen = static_cast<uint8_t>(std::min(username.size(), static_cast<size_t>(255)));
+        data.push_back(nameLen);
+        for (size_t i = 0; i < nameLen; ++i) {
+            data.push_back(static_cast<uint8_t>(username[i]));
+        }
+
+        // Score (4 bytes, big endian)
+        data.push_back(static_cast<uint8_t>((score >> 24) & 0xFF));
+        data.push_back(static_cast<uint8_t>((score >> 16) & 0xFF));
+        data.push_back(static_cast<uint8_t>((score >> 8) & 0xFF));
+        data.push_back(static_cast<uint8_t>(score & 0xFF));
+    }
 
     return data;
 }

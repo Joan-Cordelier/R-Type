@@ -197,17 +197,30 @@ void Room::onPlayerDeath(uint32_t playerId) {
                     int finalScore = _game->getScore();
                     LOG_INFO("=== GAME OVER === Room " + std::to_string(_id) +
                              " - Final score: " + std::to_string(finalScore) +
-                             " - Participants: " + std::to_string(_allParticipants.size()));
+                             " - Participants: " + std::to_string(_allParticipants.size()) +
+                             " - Mode: " + std::to_string(static_cast<int>(_config.gameMode)));
 
                     // Update score for ALL players who participated in this game
                     auto &userDb = UserDatabase::getInstance();
                     for (uint32_t participantId : _allParticipants) {
                         auto *participant = _session.getPlayer(participantId);
                         if (participant && participant->userId > 0) {
-                            userDb.updateScore(participant->userId, finalScore);
-                            LOG_INFO("Updated score for participant " + participant->username +
-                                     " (userId: " + std::to_string(participant->userId) +
-                                     ", score: " + std::to_string(finalScore) + ")");
+                            // Use different score saving based on game mode
+                            if (_config.gameMode == GameMode::ENDLESS) {
+                                userDb.updateEndlessScore(participant->userId,
+                                                          static_cast<uint8_t>(_config.difficulty),
+                                                          static_cast<uint32_t>(finalScore));
+                                LOG_INFO("Updated endless score for participant " +
+                                         participant->username + " (userId: " +
+                                         std::to_string(participant->userId) + ", difficulty: " +
+                                         std::to_string(static_cast<int>(_config.difficulty)) +
+                                         ", score: " + std::to_string(finalScore) + ")");
+                            } else {
+                                userDb.updateScore(participant->userId, finalScore);
+                                LOG_INFO("Updated score for participant " + participant->username +
+                                         " (userId: " + std::to_string(participant->userId) +
+                                         ", score: " + std::to_string(finalScore) + ")");
+                            }
                         } else if (participant) {
                             LOG_INFO("Skipping guest player: " + participant->username);
                         }
@@ -262,10 +275,22 @@ void Room::onGameVictory(uint32_t finalScore) {
     for (uint32_t participantId : _allParticipants) {
         auto *participant = _session.getPlayer(participantId);
         if (participant && participant->userId > 0) {
-            userDb.updateScore(participant->userId, static_cast<int>(finalScore));
-            LOG_INFO("Updated victory score for " + participant->username +
-                     " (userId: " + std::to_string(participant->userId) +
-                     ", score: " + std::to_string(finalScore) + ")");
+            // Only save endless scores for Endless mode (registered users only)
+            if (_config.gameMode == GameMode::ENDLESS) {
+                userDb.updateEndlessScore(participant->userId,
+                                          static_cast<uint8_t>(_config.difficulty),
+                                          static_cast<uint32_t>(finalScore));
+                LOG_INFO("Updated endless score for " + participant->username +
+                         " (userId: " + std::to_string(participant->userId) +
+                         ", difficulty: " + std::to_string(static_cast<int>(_config.difficulty)) +
+                         ", score: " + std::to_string(finalScore) + ")");
+            } else {
+                // Other modes use regular high score
+                userDb.updateScore(participant->userId, static_cast<uint32_t>(finalScore));
+                LOG_INFO("Updated victory score for " + participant->username +
+                         " (userId: " + std::to_string(participant->userId) +
+                         ", score: " + std::to_string(finalScore) + ")");
+            }
         }
     }
 }
