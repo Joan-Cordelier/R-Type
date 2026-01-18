@@ -144,6 +144,24 @@ void EnemySystem::update(Registry &reg, float dt) {
             if (_currentWaveIndex < (int)level.waves.size()) {
                 WaveData &wave = level.waves[_currentWaveIndex];
 
+                // BOSS_RUSH mode: Skip waves that don't have bosses
+                if (_gameMode == GameMode::BOSS_RUSH) {
+                    if (wave.boss_id.empty()) {
+                        // No boss in this wave, skip to next
+                        _currentWaveIndex++;
+                        _currentGroupIndex = 0;
+                        _waveTime = 0.0f;
+                        return; // Skip processing this wave
+                    } else {
+                        // Wave has boss - skip straight to boss, ignore groups
+                        if (enemiesAlive <= 0 && !_bossActive) {
+                            spawnBoss(reg, wave.boss_id);
+                            _waveTime = 0.0f;
+                            return;
+                        }
+                    }
+                }
+
                 if (!_isWavePaused) {
                     _waveTime += dt;
 
@@ -185,8 +203,13 @@ void EnemySystem::update(Registry &reg, float dt) {
                                         float spawnY = -60.0f;
 
                                         reg.addComponent<Position>(enemyEntity, spawnX, spawnY);
-                                        reg.addComponent<Velocity>(enemyEntity, typeData.velocity_x,
-                                                                   typeData.velocity_y);
+
+                                        // SPEEDY mode: enemies move 1.5x faster
+                                        float speedMultiplier =
+                                            (_gameMode == GameMode::SPEEDY) ? 1.5f : 1.0f;
+                                        reg.addComponent<Velocity>(
+                                            enemyEntity, typeData.velocity_x * speedMultiplier,
+                                            typeData.velocity_y * speedMultiplier);
                                         // Note: Enemy Component constructor usage: type, health,
                                         // damage, speed, fire_rate, lastShot, y_max
                                         reg.addComponent<Enemy>(
