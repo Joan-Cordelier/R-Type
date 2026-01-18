@@ -45,6 +45,14 @@ std::array<MessageFactory::Message, 256> MessageFactory::initMessageTable() {
     table[ROOM_CREATED] = {4, Priority::MEDIUM}; // RoomID
     table[JOIN_ACK] = {5, Priority::MEDIUM};     // RoomID (4) + Success (1)
     table[DISCONNECT] = {0, Priority::CRITICAL};
+    table[REGISTER] = {VARIABLE_LEN, Priority::MEDIUM};     // username + password
+    table[REGISTER_ACK] = {VARIABLE_LEN, Priority::MEDIUM}; // success + userId + errorMsg
+    table[LOGIN] = {VARIABLE_LEN, Priority::MEDIUM};        // username + password
+    table[LOGIN_ACK] = {VARIABLE_LEN, Priority::MEDIUM};    // success + userId + username + errorMsg
+    table[GUEST_LOGIN] = {0, Priority::MEDIUM};             // No payload
+    table[GUEST_LOGIN_ACK] = {VARIABLE_LEN, Priority::MEDIUM}; // guestId + guestName
+    table[CHAT_MESSAGE] = {VARIABLE_LEN, Priority::MEDIUM};    // message text
+    table[CHAT_BROADCAST] = {VARIABLE_LEN, Priority::MEDIUM};  // senderId + senderName + message
 
     return table;
 }
@@ -652,6 +660,129 @@ std::string MessageFactory::getOpCodeName(OpCode opCode) const {
         case UPDATE_STATS:    return "UPDATE_STATS";
         case UPGRADE_OPTIONS: return "UPGRADE_OPTIONS";
         case UPGRADE_SELECT:  return "UPGRADE_SELECT";
+        case REGISTER:        return "REGISTER";
+        case REGISTER_ACK:    return "REGISTER_ACK";
+        case LOGIN:           return "LOGIN";
+        case LOGIN_ACK:       return "LOGIN_ACK";
+        case GUEST_LOGIN:     return "GUEST_LOGIN";
+        case GUEST_LOGIN_ACK: return "GUEST_LOGIN_ACK";
         default:              return "UNKNOWN_" + std::to_string(static_cast<int>(opCode));
     }
+}
+
+// ==================== Authentication Messages ====================
+
+MessageData MessageFactory::encodeMessageRegister(const std::string& username, const std::string& password) const {
+    MessageData data;
+    
+    // Username length (1 byte) + username + password length (1 byte) + password
+    data.push_back(static_cast<uint8_t>(username.size()));
+    for (char c : username) data.push_back(static_cast<uint8_t>(c));
+    
+    data.push_back(static_cast<uint8_t>(password.size()));
+    for (char c : password) data.push_back(static_cast<uint8_t>(c));
+    
+    return data;
+}
+
+MessageData MessageFactory::encodeMessageRegisterAck(bool success, uint32_t userId, const std::string& errorMsg) const {
+    MessageData data;
+    
+    data.push_back(success ? 1 : 0);
+    
+    // User ID (4 bytes)
+    data.push_back(static_cast<uint8_t>((userId >> 24) & 0xFF));
+    data.push_back(static_cast<uint8_t>((userId >> 16) & 0xFF));
+    data.push_back(static_cast<uint8_t>((userId >> 8) & 0xFF));
+    data.push_back(static_cast<uint8_t>(userId & 0xFF));
+    
+    // Error message (if any)
+    data.push_back(static_cast<uint8_t>(errorMsg.size()));
+    for (char c : errorMsg) data.push_back(static_cast<uint8_t>(c));
+    
+    return data;
+}
+
+MessageData MessageFactory::encodeMessageLogin(const std::string& username, const std::string& password) const {
+    // Same format as register
+    return encodeMessageRegister(username, password);
+}
+
+MessageData MessageFactory::encodeMessageLoginAck(bool success, uint32_t userId, const std::string& username, const std::string& errorMsg) const {
+    MessageData data;
+    
+    data.push_back(success ? 1 : 0);
+    
+    // User ID (4 bytes)
+    data.push_back(static_cast<uint8_t>((userId >> 24) & 0xFF));
+    data.push_back(static_cast<uint8_t>((userId >> 16) & 0xFF));
+    data.push_back(static_cast<uint8_t>((userId >> 8) & 0xFF));
+    data.push_back(static_cast<uint8_t>(userId & 0xFF));
+    
+    // Username
+    data.push_back(static_cast<uint8_t>(username.size()));
+    for (char c : username) data.push_back(static_cast<uint8_t>(c));
+    
+    // Error message
+    data.push_back(static_cast<uint8_t>(errorMsg.size()));
+    for (char c : errorMsg) data.push_back(static_cast<uint8_t>(c));
+    
+    return data;
+}
+
+MessageData MessageFactory::encodeMessageGuestLoginAck(uint32_t guestId, const std::string& guestName) const {
+    MessageData data;
+    
+    // Guest ID (4 bytes)
+    data.push_back(static_cast<uint8_t>((guestId >> 24) & 0xFF));
+    data.push_back(static_cast<uint8_t>((guestId >> 16) & 0xFF));
+    data.push_back(static_cast<uint8_t>((guestId >> 8) & 0xFF));
+    data.push_back(static_cast<uint8_t>(guestId & 0xFF));
+    
+    // Guest name
+    data.push_back(static_cast<uint8_t>(guestName.size()));
+    for (char c : guestName) data.push_back(static_cast<uint8_t>(c));
+    
+    return data;
+}
+
+MessageData MessageFactory::encodeMessageChat(const std::string& message) const {
+    MessageData data;
+    
+    // Message length (1 byte, max 255 chars)
+    uint8_t msgLen = static_cast<uint8_t>(std::min(message.size(), static_cast<size_t>(255)));
+    data.push_back(msgLen);
+
+    // Message content
+    for (size_t i = 0; i < msgLen; ++i) {
+        data.push_back(static_cast<uint8_t>(message[i]));
+    }
+
+    return data;
+}
+
+MessageData MessageFactory::encodeMessageChatBroadcast(uint32_t senderId, const std::string& senderName, const std::string& message) const {
+    MessageData data;
+
+    // Sender ID (4 bytes)
+    data.push_back(static_cast<uint8_t>((senderId >> 24) & 0xFF));
+    data.push_back(static_cast<uint8_t>((senderId >> 16) & 0xFF));
+    data.push_back(static_cast<uint8_t>((senderId >> 8) & 0xFF));
+    data.push_back(static_cast<uint8_t>(senderId & 0xFF));
+
+    // Sender name length + name
+    uint8_t nameLen = static_cast<uint8_t>(std::min(senderName.size(), static_cast<size_t>(32)));
+    data.push_back(nameLen);
+    for (size_t i = 0; i < nameLen; ++i) {
+        data.push_back(static_cast<uint8_t>(senderName[i]));
+    }
+    
+    // Message length + message
+    uint8_t msgLen = static_cast<uint8_t>(std::min(message.size(), static_cast<size_t>(255)));
+    data.push_back(msgLen);
+    for (size_t i = 0; i < msgLen; ++i) {
+        data.push_back(static_cast<uint8_t>(message[i]));
+    }
+
+    return data;
 }

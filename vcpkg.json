@@ -9,6 +9,7 @@
     "sdl2-mixer",
     "yaml-cpp",
     "zlib",
-    "prometheus-cpp"
+    "prometheus-cpp",
+    "openssl"
   ]
 }

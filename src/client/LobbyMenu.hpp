@@ -36,6 +36,7 @@ public:
     void hide();
     bool isVisible() const { return _visible; }
 
+    void setUsername(const std::string &username, bool isGuest);
     void updateRoomList(const std::vector<RoomInfo> &rooms);
     void setJoinCallback(JoinRoomCallback callback) { _onJoinRoom = callback; }
     void setCreateCallback(CreateRoomCallback callback) { _onCreateRoom = callback; }
@@ -49,6 +50,7 @@ private:
 
     // UI Entities
     Entity _titleLabel;
+    Entity _usernameLabel;
     Entity _createRoomButton;
     Entity _refreshButton;
     std::vector<Entity> _roomEntities;

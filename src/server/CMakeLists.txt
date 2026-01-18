@@ -35,6 +35,9 @@ target_compile_definitions(r-type_server PRIVATE BUILD_SERVER)
 if(NOT TARGET ZLIB::ZLIB)
     find_package(ZLIB REQUIRED)
 endif()
-target_link_libraries(r-type_server PRIVATE yaml-cpp::yaml-cpp ZLIB::ZLIB prometheus-cpp::pull prometheus-cpp::core prometheus-cpp::util)
+
+find_package(OpenSSL REQUIRED)
+
+target_link_libraries(r-type_server PRIVATE yaml-cpp::yaml-cpp ZLIB::ZLIB prometheus-cpp::pull prometheus-cpp::core prometheus-cpp::util OpenSSL::Crypto)
 
 set_target_properties(r-type_server PROPERTIES OUTPUT_NAME "r-type_server")
