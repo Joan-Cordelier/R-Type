@@ -86,7 +86,7 @@ private:
 
     Entity _scoreLabel = 0;
     uint32_t _currentScore = 0;
-    uint8_t _participantCount = 1; // For calculating final score (score / participants)
+    uint8_t _participantCount = 1;
 
     // menu Entities
     Entity start_button = _reg.createEntity();
