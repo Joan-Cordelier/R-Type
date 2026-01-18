@@ -121,6 +121,9 @@ void LobbyManager::dispatchMessage(DecodedMessage &msg) {
     case SCOREBOARD_REQUEST:
         handleScoreboardRequest(msg);
         return;
+    case DISCONNECT:
+        handleDisconnect(msg);
+        return;
     default:
         break;
     }
@@ -301,6 +304,30 @@ void LobbyManager::onPlayerDisconnect(const Player &player) {
         if (it != _rooms.end()) {
             it->second->removePlayer(player.id, player.userId, player.username);
         }
+    }
+}
+
+void LobbyManager::handleDisconnect(const DecodedMessage &msg) {
+    // Player wants to leave their current room (Exit Party)
+    if (msg.playerId == 0) {
+        LOG_WARN("DISCONNECT message with no playerId");
+        return;
+    }
+
+    auto player = _session.getPlayer(msg.playerId);
+    if (!player) {
+        LOG_WARN("DISCONNECT from unknown player " + std::to_string(msg.playerId));
+        return;
+    }
+
+    if (player->roomId != 0) {
+        auto it = _rooms.find(player->roomId);
+        if (it != _rooms.end()) {
+            it->second->removePlayer(player->id, player->userId, player->username);
+            LOG_INFO("Player " + std::to_string(player->id) + " left room " + 
+                     std::to_string(player->roomId) + " (Exit Party)");
+        }
+        player->roomId = 0;  // Clear room assignment
     }
 }
 

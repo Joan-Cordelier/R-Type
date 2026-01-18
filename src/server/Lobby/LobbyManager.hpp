@@ -56,6 +56,7 @@ private:
 
     // Handling disconnections
     void onPlayerDisconnect(const Player &player);
+    void handleDisconnect(const DecodedMessage &msg);
 
     // Auto-cleanup empty rooms
     void cleanupEmptyRooms();

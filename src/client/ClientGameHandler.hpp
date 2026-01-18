@@ -21,6 +21,7 @@
 #include "SettingMenu.hpp"
 #include "ScoreboardMenu.hpp"
 #include "DeathScreen.hpp"
+#include "PauseMenu.hpp"
 
 enum class GameState {
     MAIN_MENU,
@@ -61,6 +62,7 @@ private:
     ChatPanel _chatPanel;
     ScoreboardMenu _scoreboardMenu;
     DeathScreen _deathScreen;
+    PauseMenu _pauseMenu;
 
     NetworkManager _network;
     GameLoopConfig _config;
@@ -76,6 +78,8 @@ private:
     double animationClock = 0.0;
     bool running = true;
     bool settingsMenuOpen = false;
+    bool pauseMenuOpen = false;
+    bool _settingsOpenedFromPause = false;
 
     std::string ip_adress = "127.0.0.1";
     bool _debugMode = false;
@@ -97,6 +101,8 @@ private:
     Entity background = _reg.createEntity();
 
     void toggleSettingsMenu();
+    void togglePauseMenu();
+    void setupPauseMenuCallbacks();
 
     void handleMessages();
     void handlePlayerPacket(const DecodedMessage &msg);
