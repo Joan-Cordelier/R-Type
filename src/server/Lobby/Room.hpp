@@ -11,8 +11,8 @@
 #include "../../common/Data/RoomConfig.hpp"
 #include "../../common/Data/ThreadedQueue.hpp"
 #include "../Gameplay/GameHandler.hpp"
-#include "../Session/SessionManager.hpp"
 #include "../Monitoring/PrometheusExporter.hpp"
+#include "../Session/SessionManager.hpp"
 #include <atomic>
 #include <chrono>
 #include <memory>
@@ -23,8 +23,8 @@
 
 class Room {
 public:
-    Room(uint32_t id, SessionManager &session, const std::string &configPath, 
-         PrometheusExporter& monitor, const RoomConfig& config = RoomConfig());
+    Room(uint32_t id, SessionManager &session, const std::string &configPath,
+         PrometheusExporter &monitor, const RoomConfig &config = RoomConfig());
     ~Room();
 
     void start();
@@ -39,7 +39,7 @@ public:
     // Add player to room references
     void addPlayer(uint32_t playerId);
     void removePlayer(uint32_t playerId);
-    void removePlayer(uint32_t playerId, uint32_t userId, const std::string& username);
+    void removePlayer(uint32_t playerId, uint32_t userId, const std::string &username);
 
     // Ban system - players who die or disconnect cannot rejoin
     void banPlayer(uint32_t playerId);
@@ -47,6 +47,9 @@ public:
 
     // Called by GameHandler when a player dies
     void onPlayerDeath(uint32_t playerId);
+
+    // Called by GameHandler when game is won (victory)
+    void onGameVictory(uint32_t finalScore);
 
     // Push message to the GameHandler's queue
     void pushMessage(const DecodedMessage &msg);
@@ -57,15 +60,21 @@ public:
     bool hasBeenEmptyFor(std::chrono::seconds duration) const;
 
     // Get room configuration
-    const RoomConfig& getConfig() const { return _config; }
-    GameMode getGameMode() const { return _config.gameMode; }
-    Difficulty getDifficulty() const { return _config.difficulty; }
+    const RoomConfig &getConfig() const {
+        return _config;
+    }
+    GameMode getGameMode() const {
+        return _config.gameMode;
+    }
+    Difficulty getDifficulty() const {
+        return _config.difficulty;
+    }
 
 private:
     uint32_t _id;
     SessionManager &_session;
     std::atomic<bool> _running{false};
-    PrometheusExporter& _monitor;
+    PrometheusExporter &_monitor;
     RoomConfig _config;
 
     std::shared_ptr<ThreadedQueue<DecodedMessage>> _inputQueue;
@@ -75,12 +84,13 @@ private:
 
     mutable std::mutex _mutex;
     std::vector<uint32_t> _players;
-    std::vector<uint32_t> _allParticipants;  // All players who joined (for scoring)
-    std::set<std::string> _bannedUsers;  // User identifiers ("user:id" or "guest:name") banned from rejoining
+    std::vector<uint32_t> _allParticipants; // All players who joined (for scoring)
+    std::set<std::string>
+        _bannedUsers; // User identifiers ("user:id" or "guest:name") banned from rejoining
 
     // Track when the room became empty (reset when players join)
     std::chrono::steady_clock::time_point _emptyTimestamp;
-    bool _wasEmpty = true;  // Start as empty
+    bool _wasEmpty = true; // Start as empty
 };
 
 #endif /* !ROOM_HPP_ */

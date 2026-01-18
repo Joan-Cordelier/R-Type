@@ -30,7 +30,7 @@ std::array<MessageFactory::Message, 256> MessageFactory::initMessageTable() {
     table[START] = {0, Priority::CRITICAL};
     table[JOIN] = {1, Priority::CRITICAL};
     table[CRASH] = {1, Priority::CRITICAL};
-    table[PLAYER] = {17, Priority::CRITICAL};  // 4 playerId + 4 entity + 4 x + 4 y + 1 skinIndex
+    table[PLAYER] = {17, Priority::CRITICAL}; // 4 playerId + 4 entity + 4 x + 4 y + 1 skinIndex
     table[LINK] = {4, Priority::CRITICAL};
     table[ENEMY] = {28, Priority::HIGH};
     table[UPGRADE_OPTIONS] = {VARIABLE_LEN, Priority::MEDIUM};
@@ -38,7 +38,7 @@ std::array<MessageFactory::Message, 256> MessageFactory::initMessageTable() {
     table[UPDATE_WEAPON] = {16, Priority::HIGH};
     table[COMPANION] = {13, Priority::HIGH};
     table[UPDATE_STATS] = {16, Priority::HIGH};
-    table[CREATE_ROOM] = {3, Priority::MEDIUM};  // maxPlayers (1) + gameMode (1) + difficulty (1)
+    table[CREATE_ROOM] = {3, Priority::MEDIUM}; // maxPlayers (1) + gameMode (1) + difficulty (1)
     table[JOIN_ROOM] = {4, Priority::MEDIUM};   // RoomID (4 bytes)
     table[LIST_ROOMS] = {0, Priority::LOW};     // No payload
     table[ROOM_LIST] = {VARIABLE_LEN, Priority::LOW};
@@ -48,14 +48,15 @@ std::array<MessageFactory::Message, 256> MessageFactory::initMessageTable() {
     table[REGISTER] = {VARIABLE_LEN, Priority::MEDIUM};     // username + password
     table[REGISTER_ACK] = {VARIABLE_LEN, Priority::MEDIUM}; // success + userId + errorMsg
     table[LOGIN] = {VARIABLE_LEN, Priority::MEDIUM};        // username + password
-    table[LOGIN_ACK] = {VARIABLE_LEN, Priority::MEDIUM};    // success + userId + username + errorMsg
-    table[GUEST_LOGIN] = {0, Priority::MEDIUM};             // No payload
-    table[GUEST_LOGIN_ACK] = {VARIABLE_LEN, Priority::MEDIUM}; // guestId + guestName
-    table[CHAT_MESSAGE] = {VARIABLE_LEN, Priority::MEDIUM};    // message text
-    table[CHAT_BROADCAST] = {VARIABLE_LEN, Priority::MEDIUM};  // senderId + senderName + message
-    table[SCOREBOARD_REQUEST] = {0, Priority::LOW};            // No payload - just request
+    table[LOGIN_ACK] = {VARIABLE_LEN, Priority::MEDIUM}; // success + userId + username + errorMsg
+    table[GUEST_LOGIN] = {0, Priority::MEDIUM};          // No payload
+    table[GUEST_LOGIN_ACK] = {VARIABLE_LEN, Priority::MEDIUM};  // guestId + guestName
+    table[CHAT_MESSAGE] = {VARIABLE_LEN, Priority::MEDIUM};     // message text
+    table[CHAT_BROADCAST] = {VARIABLE_LEN, Priority::MEDIUM};   // senderId + senderName + message
+    table[SCOREBOARD_REQUEST] = {0, Priority::LOW};             // No payload - just request
     table[SCOREBOARD_RESPONSE] = {VARIABLE_LEN, Priority::LOW}; // list of username + score pairs
-    table[SCORE_UPDATE] = {4, Priority::MEDIUM};               // score (4 bytes)
+    table[SCORE_UPDATE] = {4, Priority::MEDIUM};                // score (4 bytes)
+    table[VICTORY] = {4, Priority::CRITICAL};                   // finalScore (4 bytes)
 
     return table;
 }
@@ -376,8 +377,8 @@ MessageData MessageFactory::encodeMessageEnemy(Entity entity, float x, float y,
     return data;
 }
 
-MessageData MessageFactory::encodePlayerInfo(uint32_t playerId, Entity entity, float x,
-                                             float y, uint8_t skinIndex) const {
+MessageData MessageFactory::encodePlayerInfo(uint32_t playerId, Entity entity, float x, float y,
+                                             uint8_t skinIndex) const {
     MessageData data;
 
     data.push_back(static_cast<uint8_t>((playerId >> 24) & 0xFF));
@@ -637,121 +638,168 @@ MessageData MessageFactory::decompress(const MessageData &data,
 
 std::string MessageFactory::getOpCodeName(OpCode opCode) const {
     switch (opCode) {
-        case INCOMPLETE:      return "INCOMPLETE";
-        case PARSING_ERROR:   return "PARSING_ERROR";
-        case CRASH:           return "CRASH";
-        case CONNECT:         return "CONNECT";
-        case CONNECT_ACK:     return "CONNECT_ACK";
-        case DISCONNECT:      return "DISCONNECT";
-        case LINK:            return "LINK";
-        case CREATE_ROOM:     return "CREATE_ROOM";
-        case JOIN_ROOM:       return "JOIN_ROOM";
-        case JOIN_ACK:        return "JOIN_ACK";
-        case LIST_ROOMS:      return "LIST_ROOMS";
-        case ROOM_LIST:       return "ROOM_LIST";
-        case ROOM_CREATED:    return "ROOM_CREATED";
-        case START:           return "START";
-        case JOIN:            return "JOIN";
-        case PLAYER:          return "PLAYER";
-        case ENEMY:           return "ENEMY";
-        case DEATH:           return "DEATH";
-        case SHOOT:           return "SHOOT";
-        case MOVE_SYNC:       return "MOVE_SYNC";
-        case MOVE_INPUT:      return "MOVE_INPUT";
-        case COMPANION:       return "COMPANION";
-        case UPDATE_WEAPON:   return "UPDATE_WEAPON";
-        case UPDATE_STATS:    return "UPDATE_STATS";
-        case UPGRADE_OPTIONS: return "UPGRADE_OPTIONS";
-        case UPGRADE_SELECT:  return "UPGRADE_SELECT";
-        case REGISTER:        return "REGISTER";
-        case REGISTER_ACK:    return "REGISTER_ACK";
-        case LOGIN:           return "LOGIN";
-        case LOGIN_ACK:       return "LOGIN_ACK";
-        case GUEST_LOGIN:     return "GUEST_LOGIN";
-        case GUEST_LOGIN_ACK: return "GUEST_LOGIN_ACK";
-        default:              return "UNKNOWN_" + std::to_string(static_cast<int>(opCode));
+    case INCOMPLETE:
+        return "INCOMPLETE";
+    case PARSING_ERROR:
+        return "PARSING_ERROR";
+    case CRASH:
+        return "CRASH";
+    case CONNECT:
+        return "CONNECT";
+    case CONNECT_ACK:
+        return "CONNECT_ACK";
+    case DISCONNECT:
+        return "DISCONNECT";
+    case LINK:
+        return "LINK";
+    case CREATE_ROOM:
+        return "CREATE_ROOM";
+    case JOIN_ROOM:
+        return "JOIN_ROOM";
+    case JOIN_ACK:
+        return "JOIN_ACK";
+    case LIST_ROOMS:
+        return "LIST_ROOMS";
+    case ROOM_LIST:
+        return "ROOM_LIST";
+    case ROOM_CREATED:
+        return "ROOM_CREATED";
+    case START:
+        return "START";
+    case JOIN:
+        return "JOIN";
+    case PLAYER:
+        return "PLAYER";
+    case ENEMY:
+        return "ENEMY";
+    case DEATH:
+        return "DEATH";
+    case SHOOT:
+        return "SHOOT";
+    case MOVE_SYNC:
+        return "MOVE_SYNC";
+    case MOVE_INPUT:
+        return "MOVE_INPUT";
+    case COMPANION:
+        return "COMPANION";
+    case UPDATE_WEAPON:
+        return "UPDATE_WEAPON";
+    case UPDATE_STATS:
+        return "UPDATE_STATS";
+    case UPGRADE_OPTIONS:
+        return "UPGRADE_OPTIONS";
+    case UPGRADE_SELECT:
+        return "UPGRADE_SELECT";
+    case REGISTER:
+        return "REGISTER";
+    case REGISTER_ACK:
+        return "REGISTER_ACK";
+    case LOGIN:
+        return "LOGIN";
+    case LOGIN_ACK:
+        return "LOGIN_ACK";
+    case GUEST_LOGIN:
+        return "GUEST_LOGIN";
+    case GUEST_LOGIN_ACK:
+        return "GUEST_LOGIN_ACK";
+    case VICTORY:
+        return "VICTORY";
+    default:
+        return "UNKNOWN_" + std::to_string(static_cast<int>(opCode));
     }
 }
 
 // ==================== Authentication Messages ====================
 
-MessageData MessageFactory::encodeMessageRegister(const std::string& username, const std::string& password) const {
+MessageData MessageFactory::encodeMessageRegister(const std::string &username,
+                                                  const std::string &password) const {
     MessageData data;
-    
+
     // Username length (1 byte) + username + password length (1 byte) + password
     data.push_back(static_cast<uint8_t>(username.size()));
-    for (char c : username) data.push_back(static_cast<uint8_t>(c));
-    
+    for (char c : username)
+        data.push_back(static_cast<uint8_t>(c));
+
     data.push_back(static_cast<uint8_t>(password.size()));
-    for (char c : password) data.push_back(static_cast<uint8_t>(c));
-    
+    for (char c : password)
+        data.push_back(static_cast<uint8_t>(c));
+
     return data;
 }
 
-MessageData MessageFactory::encodeMessageRegisterAck(bool success, uint32_t userId, const std::string& errorMsg) const {
+MessageData MessageFactory::encodeMessageRegisterAck(bool success, uint32_t userId,
+                                                     const std::string &errorMsg) const {
     MessageData data;
-    
+
     data.push_back(success ? 1 : 0);
-    
+
     // User ID (4 bytes)
     data.push_back(static_cast<uint8_t>((userId >> 24) & 0xFF));
     data.push_back(static_cast<uint8_t>((userId >> 16) & 0xFF));
     data.push_back(static_cast<uint8_t>((userId >> 8) & 0xFF));
     data.push_back(static_cast<uint8_t>(userId & 0xFF));
-    
+
     // Error message (if any)
     data.push_back(static_cast<uint8_t>(errorMsg.size()));
-    for (char c : errorMsg) data.push_back(static_cast<uint8_t>(c));
-    
+    for (char c : errorMsg)
+        data.push_back(static_cast<uint8_t>(c));
+
     return data;
 }
 
-MessageData MessageFactory::encodeMessageLogin(const std::string& username, const std::string& password) const {
+MessageData MessageFactory::encodeMessageLogin(const std::string &username,
+                                               const std::string &password) const {
     // Same format as register
     return encodeMessageRegister(username, password);
 }
 
-MessageData MessageFactory::encodeMessageLoginAck(bool success, uint32_t userId, const std::string& username, const std::string& errorMsg) const {
+MessageData MessageFactory::encodeMessageLoginAck(bool success, uint32_t userId,
+                                                  const std::string &username,
+                                                  const std::string &errorMsg) const {
     MessageData data;
-    
+
     data.push_back(success ? 1 : 0);
-    
+
     // User ID (4 bytes)
     data.push_back(static_cast<uint8_t>((userId >> 24) & 0xFF));
     data.push_back(static_cast<uint8_t>((userId >> 16) & 0xFF));
     data.push_back(static_cast<uint8_t>((userId >> 8) & 0xFF));
     data.push_back(static_cast<uint8_t>(userId & 0xFF));
-    
+
     // Username
     data.push_back(static_cast<uint8_t>(username.size()));
-    for (char c : username) data.push_back(static_cast<uint8_t>(c));
-    
+    for (char c : username)
+        data.push_back(static_cast<uint8_t>(c));
+
     // Error message
     data.push_back(static_cast<uint8_t>(errorMsg.size()));
-    for (char c : errorMsg) data.push_back(static_cast<uint8_t>(c));
-    
+    for (char c : errorMsg)
+        data.push_back(static_cast<uint8_t>(c));
+
     return data;
 }
 
-MessageData MessageFactory::encodeMessageGuestLoginAck(uint32_t guestId, const std::string& guestName) const {
+MessageData MessageFactory::encodeMessageGuestLoginAck(uint32_t guestId,
+                                                       const std::string &guestName) const {
     MessageData data;
-    
+
     // Guest ID (4 bytes)
     data.push_back(static_cast<uint8_t>((guestId >> 24) & 0xFF));
     data.push_back(static_cast<uint8_t>((guestId >> 16) & 0xFF));
     data.push_back(static_cast<uint8_t>((guestId >> 8) & 0xFF));
     data.push_back(static_cast<uint8_t>(guestId & 0xFF));
-    
+
     // Guest name
     data.push_back(static_cast<uint8_t>(guestName.size()));
-    for (char c : guestName) data.push_back(static_cast<uint8_t>(c));
-    
+    for (char c : guestName)
+        data.push_back(static_cast<uint8_t>(c));
+
     return data;
 }
 
-MessageData MessageFactory::encodeMessageChat(const std::string& message) const {
+MessageData MessageFactory::encodeMessageChat(const std::string &message) const {
     MessageData data;
-    
+
     // Message length (1 byte, max 255 chars)
     uint8_t msgLen = static_cast<uint8_t>(std::min(message.size(), static_cast<size_t>(255)));
     data.push_back(msgLen);
@@ -764,7 +812,9 @@ MessageData MessageFactory::encodeMessageChat(const std::string& message) const 
     return data;
 }
 
-MessageData MessageFactory::encodeMessageChatBroadcast(uint32_t senderId, const std::string& senderName, const std::string& message) const {
+MessageData MessageFactory::encodeMessageChatBroadcast(uint32_t senderId,
+                                                       const std::string &senderName,
+                                                       const std::string &message) const {
     MessageData data;
 
     // Sender ID (4 bytes)
@@ -779,7 +829,7 @@ MessageData MessageFactory::encodeMessageChatBroadcast(uint32_t senderId, const 
     for (size_t i = 0; i < nameLen; ++i) {
         data.push_back(static_cast<uint8_t>(senderName[i]));
     }
-    
+
     // Message length + message
     uint8_t msgLen = static_cast<uint8_t>(std::min(message.size(), static_cast<size_t>(255)));
     data.push_back(msgLen);
@@ -790,7 +840,8 @@ MessageData MessageFactory::encodeMessageChatBroadcast(uint32_t senderId, const 
     return data;
 }
 
-MessageData MessageFactory::encodeMessageScoreboardResponse(const std::vector<std::pair<std::string, uint32_t>>& scores) const {
+MessageData MessageFactory::encodeMessageScoreboardResponse(
+    const std::vector<std::pair<std::string, uint32_t>> &scores) const {
     MessageData data;
 
     // Number of entries (1 byte, max 255)
@@ -798,7 +849,7 @@ MessageData MessageFactory::encodeMessageScoreboardResponse(const std::vector<st
     data.push_back(count);
 
     for (size_t i = 0; i < count; ++i) {
-        const auto& [username, score] = scores[i];
+        const auto &[username, score] = scores[i];
 
         // Username length + username
         uint8_t nameLen = static_cast<uint8_t>(std::min(username.size(), static_cast<size_t>(32)));
@@ -825,6 +876,18 @@ MessageData MessageFactory::encodeMessageScoreUpdate(uint32_t score) const {
     data.push_back(static_cast<uint8_t>((score >> 16) & 0xFF));
     data.push_back(static_cast<uint8_t>((score >> 8) & 0xFF));
     data.push_back(static_cast<uint8_t>(score & 0xFF));
+
+    return data;
+}
+
+MessageData MessageFactory::encodeMessageVictory(uint32_t finalScore) const {
+    MessageData data;
+
+    // Final score (4 bytes)
+    data.push_back(static_cast<uint8_t>((finalScore >> 24) & 0xFF));
+    data.push_back(static_cast<uint8_t>((finalScore >> 16) & 0xFF));
+    data.push_back(static_cast<uint8_t>((finalScore >> 8) & 0xFF));
+    data.push_back(static_cast<uint8_t>(finalScore & 0xFF));
 
     return data;
 }

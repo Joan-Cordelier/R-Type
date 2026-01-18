@@ -828,6 +828,19 @@ void ClientGameHandler::handleMessages() {
             }
             break;
         }
+        case OpCode::VICTORY: {
+            if (msg->data.size() >= 4) {
+                uint32_t finalScore = (static_cast<uint32_t>(msg->data[0]) << 24) |
+                                      (static_cast<uint32_t>(msg->data[1]) << 16) |
+                                      (static_cast<uint32_t>(msg->data[2]) << 8) |
+                                      static_cast<uint32_t>(msg->data[3]);
+
+                std::cout << "[Game] VICTORY! Final score: " << finalScore << std::endl;
+                _endGameScreen.showVictory(finalScore);
+                _gameState = GameState::DEAD;
+            }
+            break;
+        }
         case OpCode::PLAYER: {
             handlePlayerPacket(*msg);
             break;

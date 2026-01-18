@@ -6,30 +6,27 @@
 */
 
 #include "Room.hpp"
-#include "../Logs/Logger.hpp"
 #include "../Database/UserDatabase.hpp"
+#include "../Logs/Logger.hpp"
 
-Room::Room(uint32_t id, SessionManager &session, const std::string &configPath, 
-           PrometheusExporter& monitor, const RoomConfig& config)
-    : _id(id)
-    , _session(session)
-    , _monitor(monitor)
-    , _config(config)
-    , _inputQueue(std::make_shared<ThreadedQueue<DecodedMessage>>())
-    , _emptyTimestamp(std::chrono::steady_clock::now())
-    , _wasEmpty(true)
-{
+Room::Room(uint32_t id, SessionManager &session, const std::string &configPath,
+           PrometheusExporter &monitor, const RoomConfig &config)
+    : _id(id), _session(session), _monitor(monitor), _config(config),
+      _inputQueue(std::make_shared<ThreadedQueue<DecodedMessage>>()),
+      _emptyTimestamp(std::chrono::steady_clock::now()), _wasEmpty(true) {
     // Initialize GameHandler but don't start the loop yet
     // GameHandler constructor expects running atomic ref
-    _game = std::make_unique<GameHandler>(_session, _inputQueue, _running, configPath, monitor, _config.difficulty);
+    _game = std::make_unique<GameHandler>(_session, _inputQueue, _running, configPath, monitor,
+                                          _config.difficulty, _config.gameMode);
 
     // Set up callback for when players die
-    _game->setOnPlayerDeath([this](uint32_t playerId) {
-        onPlayerDeath(playerId);
-    });
+    _game->setOnPlayerDeath([this](uint32_t playerId) { onPlayerDeath(playerId); });
 
-    LOG_INFO("Room " + std::to_string(id) + " created (MaxPlayers: " + 
-             std::to_string(_config.maxPlayers) + ", Mode: " + _config.getGameModeStr() + 
+    // Set up callback for when game is won (victory)
+    _game->setOnGameVictory([this](uint32_t finalScore) { onGameVictory(finalScore); });
+
+    LOG_INFO("Room " + std::to_string(id) + " created (MaxPlayers: " +
+             std::to_string(_config.maxPlayers) + ", Mode: " + _config.getGameModeStr() +
              ", Difficulty: " + _config.getDifficultyStr() + ")");
 }
 
@@ -74,7 +71,7 @@ bool Room::isFull() const {
 void Room::addPlayer(uint32_t playerId) {
     std::lock_guard<std::mutex> lock(_mutex);
     _players.push_back(playerId);
-    
+
     // Track all participants for scoring at game end
     bool alreadyParticipant = false;
     for (auto pid : _allParticipants) {
@@ -86,8 +83,8 @@ void Room::addPlayer(uint32_t playerId) {
     if (!alreadyParticipant) {
         _allParticipants.push_back(playerId);
     }
-    
-    _wasEmpty = false;  // Room is no longer empty
+
+    _wasEmpty = false; // Room is no longer empty
 
     // Notify session manager to update player's room ID if needed,
     // but usually LobbyManager handles that mapping.
@@ -96,7 +93,7 @@ void Room::addPlayer(uint32_t playerId) {
 
 void Room::removePlayer(uint32_t playerId) {
     // Lookup player info and call the overloaded version
-    auto* player = _session.getPlayer(playerId);
+    auto *player = _session.getPlayer(playerId);
     if (player) {
         removePlayer(playerId, player->userId, player->username);
     } else {
@@ -105,7 +102,7 @@ void Room::removePlayer(uint32_t playerId) {
         for (auto it = _players.begin(); it != _players.end(); ++it) {
             if (*it == playerId) {
                 _players.erase(it);
-                
+
                 if (_players.empty() && !_wasEmpty) {
                     _emptyTimestamp = std::chrono::steady_clock::now();
                     _wasEmpty = true;
@@ -122,7 +119,7 @@ void Room::removePlayer(uint32_t playerId) {
     }
 }
 
-void Room::removePlayer(uint32_t playerId, uint32_t userId, const std::string& username) {
+void Room::removePlayer(uint32_t playerId, uint32_t userId, const std::string &username) {
     std::lock_guard<std::mutex> lock(_mutex);
     for (auto it = _players.begin(); it != _players.end(); ++it) {
         if (*it == playerId) {
@@ -130,12 +127,10 @@ void Room::removePlayer(uint32_t playerId, uint32_t userId, const std::string& u
 
             // Ban player from rejoining this room (no come back policy)
             // Use userId for registered users, username for guests
-            std::string banId = userId > 0 
-                ? "user:" + std::to_string(userId)
-                : "guest:" + username;
+            std::string banId = userId > 0 ? "user:" + std::to_string(userId) : "guest:" + username;
             _bannedUsers.insert(banId);
-            LOG_INFO("User " + banId + " banned from room " +
-                     std::to_string(_id) + " (disconnected/left)");
+            LOG_INFO("User " + banId + " banned from room " + std::to_string(_id) +
+                     " (disconnected/left)");
 
             // Track when room becomes empty
             if (_players.empty() && !_wasEmpty) {
@@ -179,17 +174,15 @@ void Room::onPlayerDeath(uint32_t playerId) {
     for (auto it = _players.begin(); it != _players.end(); ++it) {
         if (*it == playerId) {
             _players.erase(it);
-            
+
             // Ban player from rejoining this room (no come back policy)
             // Use userId for registered users, username for guests
-            auto* player = _session.getPlayer(playerId);
+            auto *player = _session.getPlayer(playerId);
             if (player) {
-                std::string banId = player->userId > 0 
-                    ? "user:" + std::to_string(player->userId)
-                    : "guest:" + player->username;
+                std::string banId = player->userId > 0 ? "user:" + std::to_string(player->userId)
+                                                       : "guest:" + player->username;
                 _bannedUsers.insert(banId);
-                LOG_INFO("User " + banId + " banned from room " +
-                         std::to_string(_id) + " (died)");
+                LOG_INFO("User " + banId + " banned from room " + std::to_string(_id) + " (died)");
             }
             LOG_INFO("Player " + std::to_string(playerId) + " removed from room " +
                      std::to_string(_id) + " after death");
@@ -202,18 +195,18 @@ void Room::onPlayerDeath(uint32_t playerId) {
                 // Game over - save scores for all players who participated
                 if (_game) {
                     int finalScore = _game->getScore();
-                    LOG_INFO("=== GAME OVER === Room " + std::to_string(_id) + 
+                    LOG_INFO("=== GAME OVER === Room " + std::to_string(_id) +
                              " - Final score: " + std::to_string(finalScore) +
                              " - Participants: " + std::to_string(_allParticipants.size()));
 
                     // Update score for ALL players who participated in this game
-                    auto& userDb = UserDatabase::getInstance();
+                    auto &userDb = UserDatabase::getInstance();
                     for (uint32_t participantId : _allParticipants) {
-                        auto* participant = _session.getPlayer(participantId);
+                        auto *participant = _session.getPlayer(participantId);
                         if (participant && participant->userId > 0) {
                             userDb.updateScore(participant->userId, finalScore);
-                            LOG_INFO("Updated score for participant " + participant->username + 
-                                     " (userId: " + std::to_string(participant->userId) + 
+                            LOG_INFO("Updated score for participant " + participant->username +
+                                     " (userId: " + std::to_string(participant->userId) +
                                      ", score: " + std::to_string(finalScore) + ")");
                         } else if (participant) {
                             LOG_INFO("Skipping guest player: " + participant->username);
@@ -230,11 +223,10 @@ void Room::onPlayerDeath(uint32_t playerId) {
 
 void Room::banPlayer(uint32_t playerId) {
     std::lock_guard<std::mutex> lock(_mutex);
-    auto* player = _session.getPlayer(playerId);
+    auto *player = _session.getPlayer(playerId);
     if (player) {
-        std::string banId = player->userId > 0 
-            ? "user:" + std::to_string(player->userId)
-            : "guest:" + player->username;
+        std::string banId = player->userId > 0 ? "user:" + std::to_string(player->userId)
+                                               : "guest:" + player->username;
         _bannedUsers.insert(banId);
         LOG_INFO("User " + banId + " manually banned from room " + std::to_string(_id));
     }
@@ -242,11 +234,38 @@ void Room::banPlayer(uint32_t playerId) {
 
 bool Room::isPlayerBanned(uint32_t playerId) {
     std::lock_guard<std::mutex> lock(_mutex);
-    auto* player = _session.getPlayer(playerId);
-    if (!player) return false;
-    
-    std::string banId = player->userId > 0 
-        ? "user:" + std::to_string(player->userId)
-        : "guest:" + player->username;
+    auto *player = _session.getPlayer(playerId);
+    if (!player)
+        return false;
+
+    std::string banId =
+        player->userId > 0 ? "user:" + std::to_string(player->userId) : "guest:" + player->username;
     return _bannedUsers.find(banId) != _bannedUsers.end();
+}
+
+void Room::onGameVictory(uint32_t finalScore) {
+    LOG_INFO("=== VICTORY === Room " + std::to_string(_id) +
+             " - Final score: " + std::to_string(finalScore));
+
+    // Send VICTORY message to all players
+    auto &factory = MessageFactory::getInstance();
+    MessageData payload = factory.encodeMessageVictory(finalScore);
+    PreparedMessage msg = factory.createMessage(OpCode::VICTORY, payload);
+
+    std::lock_guard<std::mutex> lock(_mutex);
+    for (uint32_t playerId : _players) {
+        _session.sendTcp(playerId, msg);
+    }
+
+    // Save scores for all participants
+    auto &userDb = UserDatabase::getInstance();
+    for (uint32_t participantId : _allParticipants) {
+        auto *participant = _session.getPlayer(participantId);
+        if (participant && participant->userId > 0) {
+            userDb.updateScore(participant->userId, static_cast<int>(finalScore));
+            LOG_INFO("Updated victory score for " + participant->username +
+                     " (userId: " + std::to_string(participant->userId) +
+                     ", score: " + std::to_string(finalScore) + ")");
+        }
+    }
 }
