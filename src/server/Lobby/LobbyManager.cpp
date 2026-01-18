@@ -361,20 +361,25 @@ void LobbyManager::handleLink(const DecodedMessage &msg) {
 void LobbyManager::cleanupEmptyRooms() {
     std::vector<uint32_t> roomsToRemove;
 
-    // Find rooms that have been empty for too long
+    // Find rooms that have been empty for too long OR have completed their game
     for (const auto &[id, room] : _rooms) {
-        if (room->hasBeenEmptyFor(EMPTY_ROOM_TIMEOUT)) {
+        if (room->isGameComplete() || room->hasBeenEmptyFor(EMPTY_ROOM_TIMEOUT)) {
             roomsToRemove.push_back(id);
         }
     }
 
-    // Remove empty rooms
+    // Remove rooms
     for (uint32_t id : roomsToRemove) {
         auto it = _rooms.find(id);
         if (it != _rooms.end()) {
+            bool wasComplete = it->second->isGameComplete();
             it->second->stop();
             _rooms.erase(it);
-            LOG_INFO("Room " + std::to_string(id) + " auto-closed (empty for 5 seconds)");
+            if (wasComplete) {
+                LOG_INFO("Room " + std::to_string(id) + " closed (game complete - victory)");
+            } else {
+                LOG_INFO("Room " + std::to_string(id) + " auto-closed (empty for 5 seconds)");
+            }
         }
     }
 }

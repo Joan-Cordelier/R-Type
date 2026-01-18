@@ -175,59 +175,55 @@ void Room::onPlayerDeath(uint32_t playerId) {
         if (*it == playerId) {
             _players.erase(it);
 
-            // Ban player from rejoining this room (no come back policy)
-            // Use userId for registered users, username for guests
             auto *player = _session.getPlayer(playerId);
             if (player) {
+                // Ban player from rejoining this room (no come back policy)
                 std::string banId = player->userId > 0 ? "user:" + std::to_string(player->userId)
                                                        : "guest:" + player->username;
                 _bannedUsers.insert(banId);
                 LOG_INFO("User " + banId + " banned from room " + std::to_string(_id) + " (died)");
+
+                // === SAVE THIS PLAYER'S SCORE IMMEDIATELY ===
+                // Get current score at the moment of death
+                if (_game && player->userId > 0) {
+                    int rawScore = _game->getScore();
+
+                    // Calculate adjusted score: divide by total participants who ever joined
+                    size_t participantCount = _allParticipants.size();
+                    if (participantCount == 0)
+                        participantCount = 1;
+                    uint32_t adjustedScore =
+                        static_cast<uint32_t>(rawScore) / static_cast<uint32_t>(participantCount);
+
+                    LOG_INFO("=== PLAYER DEATH === " + player->username +
+                             " - Raw score: " + std::to_string(rawScore) +
+                             " - Participants: " + std::to_string(participantCount) +
+                             " - Adjusted score: " + std::to_string(adjustedScore));
+
+                    auto &userDb = UserDatabase::getInstance();
+                    if (_config.gameMode == GameMode::ENDLESS) {
+                        userDb.updateEndlessScore(player->userId,
+                                                  static_cast<uint8_t>(_config.difficulty),
+                                                  adjustedScore);
+                        LOG_INFO("Saved endless score for " + player->username + " (difficulty: " +
+                                 std::to_string(static_cast<int>(_config.difficulty)) +
+                                 ", adjusted: " + std::to_string(adjustedScore) + ")");
+                    } else {
+                        userDb.updateScore(player->userId, adjustedScore);
+                        LOG_INFO("Saved score for " + player->username +
+                                 " (adjusted: " + std::to_string(adjustedScore) + ")");
+                    }
+                }
             }
+
             LOG_INFO("Player " + std::to_string(playerId) + " removed from room " +
                      std::to_string(_id) + " after death");
 
-            // Track when room becomes empty (game over)
+            // Track when room becomes empty
             if (_players.empty() && !_wasEmpty) {
                 _emptyTimestamp = std::chrono::steady_clock::now();
                 _wasEmpty = true;
-
-                // Game over - save scores for all players who participated
-                if (_game) {
-                    int finalScore = _game->getScore();
-                    LOG_INFO("=== GAME OVER === Room " + std::to_string(_id) +
-                             " - Final score: " + std::to_string(finalScore) +
-                             " - Participants: " + std::to_string(_allParticipants.size()) +
-                             " - Mode: " + std::to_string(static_cast<int>(_config.gameMode)));
-
-                    // Update score for ALL players who participated in this game
-                    auto &userDb = UserDatabase::getInstance();
-                    for (uint32_t participantId : _allParticipants) {
-                        auto *participant = _session.getPlayer(participantId);
-                        if (participant && participant->userId > 0) {
-                            // Use different score saving based on game mode
-                            if (_config.gameMode == GameMode::ENDLESS) {
-                                userDb.updateEndlessScore(participant->userId,
-                                                          static_cast<uint8_t>(_config.difficulty),
-                                                          static_cast<uint32_t>(finalScore));
-                                LOG_INFO("Updated endless score for participant " +
-                                         participant->username + " (userId: " +
-                                         std::to_string(participant->userId) + ", difficulty: " +
-                                         std::to_string(static_cast<int>(_config.difficulty)) +
-                                         ", score: " + std::to_string(finalScore) + ")");
-                            } else {
-                                userDb.updateScore(participant->userId, finalScore);
-                                LOG_INFO("Updated score for participant " + participant->username +
-                                         " (userId: " + std::to_string(participant->userId) +
-                                         ", score: " + std::to_string(finalScore) + ")");
-                            }
-                        } else if (participant) {
-                            LOG_INFO("Skipping guest player: " + participant->username);
-                        }
-                    }
-                } else {
-                    LOG_WARN("Game pointer is null at game over!");
-                }
+                LOG_INFO("=== GAME OVER === Room " + std::to_string(_id) + " - All players dead");
             }
             break;
         }
@@ -257,20 +253,31 @@ bool Room::isPlayerBanned(uint32_t playerId) {
 }
 
 void Room::onGameVictory(uint32_t finalScore) {
-    LOG_INFO("=== VICTORY === Room " + std::to_string(_id) +
-             " - Final score: " + std::to_string(finalScore));
+    std::lock_guard<std::mutex> lock(_mutex);
 
-    // Send VICTORY message to all players
+    // Mark game as complete for immediate cleanup
+    _gameComplete = true;
+
+    // Calculate adjusted score: divide by number of participants who joined
+    size_t participantCount = _allParticipants.size();
+    if (participantCount == 0)
+        participantCount = 1;
+    uint32_t adjustedScore = finalScore / static_cast<uint32_t>(participantCount);
+
+    LOG_INFO("=== VICTORY === Room " + std::to_string(_id) + " - Raw score: " +
+             std::to_string(finalScore) + " - Participants: " + std::to_string(participantCount) +
+             " - Adjusted score: " + std::to_string(adjustedScore));
+
+    // Send VICTORY message with adjusted score to all players
     auto &factory = MessageFactory::getInstance();
-    MessageData payload = factory.encodeMessageVictory(finalScore);
+    MessageData payload = factory.encodeMessageVictory(adjustedScore);
     PreparedMessage msg = factory.createMessage(OpCode::VICTORY, payload);
 
-    std::lock_guard<std::mutex> lock(_mutex);
     for (uint32_t playerId : _players) {
         _session.sendTcp(playerId, msg);
     }
 
-    // Save scores for all participants
+    // Save adjusted scores for all participants
     auto &userDb = UserDatabase::getInstance();
     for (uint32_t participantId : _allParticipants) {
         auto *participant = _session.getPlayer(participantId);
@@ -278,19 +285,24 @@ void Room::onGameVictory(uint32_t finalScore) {
             // Only save endless scores for Endless mode (registered users only)
             if (_config.gameMode == GameMode::ENDLESS) {
                 userDb.updateEndlessScore(participant->userId,
-                                          static_cast<uint8_t>(_config.difficulty),
-                                          static_cast<uint32_t>(finalScore));
+                                          static_cast<uint8_t>(_config.difficulty), adjustedScore);
                 LOG_INFO("Updated endless score for " + participant->username +
                          " (userId: " + std::to_string(participant->userId) +
                          ", difficulty: " + std::to_string(static_cast<int>(_config.difficulty)) +
-                         ", score: " + std::to_string(finalScore) + ")");
+                         ", adjusted score: " + std::to_string(adjustedScore) + ")");
             } else {
                 // Other modes use regular high score
-                userDb.updateScore(participant->userId, static_cast<uint32_t>(finalScore));
+                userDb.updateScore(participant->userId, adjustedScore);
                 LOG_INFO("Updated victory score for " + participant->username +
                          " (userId: " + std::to_string(participant->userId) +
-                         ", score: " + std::to_string(finalScore) + ")");
+                         ", adjusted score: " + std::to_string(adjustedScore) + ")");
             }
         }
     }
+
+    // Clear players to trigger immediate empty state for cleanup
+    _players.clear();
+    _wasEmpty = true;
+    _emptyTimestamp =
+        std::chrono::steady_clock::now() - std::chrono::hours(1); // Immediately expired
 }

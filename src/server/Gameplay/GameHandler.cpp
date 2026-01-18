@@ -448,18 +448,24 @@ void GameHandler::sendDestroyedPlayerToAllPlayers(Entity player) {
 
 void GameHandler::sendScoreUpdateToAllPlayers() {
     auto &factory = MessageFactory::getInstance();
-    MessageData payload = factory.encodeMessageScoreUpdate(static_cast<uint32_t>(score));
+    MessageData payload =
+        factory.encodeMessageScoreUpdate(static_cast<uint32_t>(score), _participantCount);
     PreparedMessage msg = factory.createMessage(OpCode::SCORE_UPDATE, payload);
 
     for (const auto &[playerId, entity] : playerEntities) {
         _session.sendTcp(playerId, msg);
     }
 
-    LOG_DEBUG("Sent SCORE_UPDATE (" + std::to_string(score) + ") to all players");
+    LOG_DEBUG("Sent SCORE_UPDATE (" + std::to_string(score) + " / " +
+              std::to_string(_participantCount) + ") to all players");
 }
 
 void GameHandler::onPlayerConnect(const Player &player) {
     LOG_DEBUG("onPlayerConnect START for player " + std::to_string(player.id));
+
+    // Increment participant count (total players who ever joined)
+    _participantCount++;
+
     if (_waitingForUpgrades) {
         LOG_INFO("Player " + std::to_string(player.id) +
                  " connected during upgrade phase. Added to pending list.");
@@ -539,10 +545,12 @@ void GameHandler::onPlayerConnect(const Player &player) {
 
     // Send current score to new player
     if (score > 0) {
-        MessageData scorePayload = factory.encodeMessageScoreUpdate(static_cast<uint32_t>(score));
+        MessageData scorePayload =
+            factory.encodeMessageScoreUpdate(static_cast<uint32_t>(score), _participantCount);
         PreparedMessage scoreMsg = factory.createMessage(OpCode::SCORE_UPDATE, scorePayload);
         _session.sendTcp(player.id, scoreMsg);
-        LOG_DEBUG("Sent current score " + std::to_string(score) + " to new player " +
+        LOG_DEBUG("Sent current score " + std::to_string(score) + " / " +
+                  std::to_string(_participantCount) + " to new player " +
                   std::to_string(player.id));
     }
 

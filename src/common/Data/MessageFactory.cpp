@@ -55,10 +55,10 @@ std::array<MessageFactory::Message, 256> MessageFactory::initMessageTable() {
     table[CHAT_BROADCAST] = {VARIABLE_LEN, Priority::MEDIUM};   // senderId + senderName + message
     table[SCOREBOARD_REQUEST] = {0, Priority::LOW};             // No payload - just request
     table[SCOREBOARD_RESPONSE] = {VARIABLE_LEN, Priority::LOW}; // list of username + score pairs
-    table[SCORE_UPDATE] = {4, Priority::MEDIUM};                // score (4 bytes)
-    table[VICTORY] = {4, Priority::CRITICAL};                   // finalScore (4 bytes)
-    table[GET_LEADERBOARD] = {1, Priority::LOW};                // difficulty (1 byte)
-    table[LEADERBOARD_DATA] = {VARIABLE_LEN, Priority::LOW};    // difficulty + count + entries
+    table[SCORE_UPDATE] = {5, Priority::MEDIUM}; // score (4 bytes) + participantCount (1 byte)
+    table[VICTORY] = {4, Priority::CRITICAL};    // finalScore (4 bytes)
+    table[GET_LEADERBOARD] = {1, Priority::LOW}; // difficulty (1 byte)
+    table[LEADERBOARD_DATA] = {VARIABLE_LEN, Priority::LOW}; // difficulty + count + entries
 
     return table;
 }
@@ -870,7 +870,8 @@ MessageData MessageFactory::encodeMessageScoreboardResponse(
     return data;
 }
 
-MessageData MessageFactory::encodeMessageScoreUpdate(uint32_t score) const {
+MessageData MessageFactory::encodeMessageScoreUpdate(uint32_t score,
+                                                     uint8_t participantCount) const {
     MessageData data;
 
     // Score (4 bytes)
@@ -878,6 +879,9 @@ MessageData MessageFactory::encodeMessageScoreUpdate(uint32_t score) const {
     data.push_back(static_cast<uint8_t>((score >> 16) & 0xFF));
     data.push_back(static_cast<uint8_t>((score >> 8) & 0xFF));
     data.push_back(static_cast<uint8_t>(score & 0xFF));
+
+    // Participant count (1 byte)
+    data.push_back(participantCount);
 
     return data;
 }

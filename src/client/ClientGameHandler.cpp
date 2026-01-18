@@ -854,19 +854,24 @@ void ClientGameHandler::handleMessages() {
             break;
         }
         case OpCode::SCORE_UPDATE: {
-            if (msg->data.size() >= 4) {
+            if (msg->data.size() >= 5) {
                 _currentScore = (static_cast<uint32_t>(msg->data[0]) << 24) |
                                 (static_cast<uint32_t>(msg->data[1]) << 16) |
                                 (static_cast<uint32_t>(msg->data[2]) << 8) |
                                 static_cast<uint32_t>(msg->data[3]);
+                _participantCount = msg->data[4];
+                if (_participantCount == 0)
+                    _participantCount = 1;
 
-                // Update the score label
+                // Update the score label with "SCORE: XXX / X" format
                 if (_reg.hasComponent<Label>(_scoreLabel)) {
                     _reg.getComponent<Label>(_scoreLabel).text =
-                        "Score: " + std::to_string(_currentScore);
+                        "SCORE: " + std::to_string(_currentScore) + " / " +
+                        std::to_string(_participantCount);
                 }
 
-                std::cout << "[Game] Score updated: " << _currentScore << std::endl;
+                std::cout << "[Game] Score updated: " << _currentScore << " / "
+                          << (int)_participantCount << std::endl;
             }
             break;
         }
@@ -1336,7 +1341,11 @@ void ClientGameHandler::handleMessages() {
                         // Check if this is the local player
                         if (itPlayer->second == myEntity) {
                             std::cout << "Local player died! Showing death screen." << std::endl;
-                            _endGameScreen.showDeath(_currentScore);
+                            // Calculate final score: raw score / participant count
+                            uint32_t finalScore = _currentScore / _participantCount;
+                            std::cout << "Final score: " << _currentScore << " / "
+                                      << (int)_participantCount << " = " << finalScore << std::endl;
+                            _endGameScreen.showDeath(finalScore);
                             _gameState = GameState::DEAD;
                         }
                         _reg.destroyEntity(itPlayer->second);

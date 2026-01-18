@@ -60,7 +60,7 @@ private:
     std::map<Entity, bool> wasMoving;
     Entity ScoreEntity;
     int score = 0;
-
+    uint8_t _participantCount = 0;
     bool _waitingForUpgrades = false;
     std::vector<UpgradeData> _offeredUpgrades;
     std::set<uint32_t> _playersSelectedUpgrade;

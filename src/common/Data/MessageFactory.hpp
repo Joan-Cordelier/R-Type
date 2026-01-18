@@ -164,7 +164,7 @@ public:
 
     MessageData encodeMessageScoreboardResponse(
         const std::vector<std::pair<std::string, uint32_t>> &scores) const;
-    MessageData encodeMessageScoreUpdate(uint32_t score) const;
+    MessageData encodeMessageScoreUpdate(uint32_t score, uint8_t participantCount) const;
     MessageData encodeMessageVictory(uint32_t finalScore) const;
 
     MessageData encodeMessageGetLeaderboard(uint8_t difficulty) const;

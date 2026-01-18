@@ -90,7 +90,14 @@ private:
 
     // Track when the room became empty (reset when players join)
     std::chrono::steady_clock::time_point _emptyTimestamp;
-    bool _wasEmpty = true; // Start as empty
+    bool _wasEmpty = true;      // Start as empty
+    bool _gameComplete = false; // Set true when game is won - triggers immediate cleanup
+
+public:
+    // Check if game is complete (victory achieved) - room should be closed immediately
+    bool isGameComplete() const {
+        return _gameComplete;
+    }
 };
 
 #endif /* !ROOM_HPP_ */
