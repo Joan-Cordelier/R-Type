@@ -17,6 +17,7 @@
 #include <chrono>
 #include <memory>
 #include <mutex>
+#include <set>
 #include <thread>
 #include <vector>
 
@@ -38,6 +39,11 @@ public:
     // Add player to room references
     void addPlayer(uint32_t playerId);
     void removePlayer(uint32_t playerId);
+    void removePlayer(uint32_t playerId, uint32_t userId, const std::string& username);
+
+    // Ban system - players who die or disconnect cannot rejoin
+    void banPlayer(uint32_t playerId);
+    bool isPlayerBanned(uint32_t playerId);
 
     // Called by GameHandler when a player dies
     void onPlayerDeath(uint32_t playerId);
@@ -70,6 +76,7 @@ private:
     mutable std::mutex _mutex;
     std::vector<uint32_t> _players;
     std::vector<uint32_t> _allParticipants;  // All players who joined (for scoring)
+    std::set<std::string> _bannedUsers;  // User identifiers ("user:id" or "guest:name") banned from rejoining
 
     // Track when the room became empty (reset when players join)
     std::chrono::steady_clock::time_point _emptyTimestamp;

@@ -205,7 +205,10 @@ void LobbyManager::handleJoinRoom(const DecodedMessage &msg) {
     bool success = false;
 
     if (it != _rooms.end()) {
-        if (!it->second->isFull()) {
+        if (it->second->isPlayerBanned(msg.playerId)) {
+            LOG_INFO("Player " + std::to_string(msg.playerId) + " denied entry to room " +
+                     std::to_string(roomId) + " (banned - no come back policy)");
+        } else if (!it->second->isFull()) {
             auto player = _session.getPlayer(msg.playerId);
             if (player) {
                 // Leave old room if any
@@ -296,7 +299,7 @@ void LobbyManager::onPlayerDisconnect(const Player &player) {
     if (player.roomId != 0) {
         auto it = _rooms.find(player.roomId);
         if (it != _rooms.end()) {
-            it->second->removePlayer(player.id);
+            it->second->removePlayer(player.id, player.userId, player.username);
         }
     }
 }

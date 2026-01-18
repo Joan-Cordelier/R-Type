@@ -95,10 +95,47 @@ void Room::addPlayer(uint32_t playerId) {
 }
 
 void Room::removePlayer(uint32_t playerId) {
+    // Lookup player info and call the overloaded version
+    auto* player = _session.getPlayer(playerId);
+    if (player) {
+        removePlayer(playerId, player->userId, player->username);
+    } else {
+        // Player already gone, just remove from list without banning
+        std::lock_guard<std::mutex> lock(_mutex);
+        for (auto it = _players.begin(); it != _players.end(); ++it) {
+            if (*it == playerId) {
+                _players.erase(it);
+                
+                if (_players.empty() && !_wasEmpty) {
+                    _emptyTimestamp = std::chrono::steady_clock::now();
+                    _wasEmpty = true;
+                }
+
+                DecodedMessage disMsg;
+                disMsg.opCode = DISCONNECT;
+                disMsg.playerId = playerId;
+                disMsg.priority = Priority::CRITICAL;
+                _inputQueue->push(Priority::CRITICAL, disMsg);
+                break;
+            }
+        }
+    }
+}
+
+void Room::removePlayer(uint32_t playerId, uint32_t userId, const std::string& username) {
     std::lock_guard<std::mutex> lock(_mutex);
     for (auto it = _players.begin(); it != _players.end(); ++it) {
         if (*it == playerId) {
             _players.erase(it);
+
+            // Ban player from rejoining this room (no come back policy)
+            // Use userId for registered users, username for guests
+            std::string banId = userId > 0 
+                ? "user:" + std::to_string(userId)
+                : "guest:" + username;
+            _bannedUsers.insert(banId);
+            LOG_INFO("User " + banId + " banned from room " +
+                     std::to_string(_id) + " (disconnected/left)");
 
             // Track when room becomes empty
             if (_players.empty() && !_wasEmpty) {
@@ -142,6 +179,18 @@ void Room::onPlayerDeath(uint32_t playerId) {
     for (auto it = _players.begin(); it != _players.end(); ++it) {
         if (*it == playerId) {
             _players.erase(it);
+            
+            // Ban player from rejoining this room (no come back policy)
+            // Use userId for registered users, username for guests
+            auto* player = _session.getPlayer(playerId);
+            if (player) {
+                std::string banId = player->userId > 0 
+                    ? "user:" + std::to_string(player->userId)
+                    : "guest:" + player->username;
+                _bannedUsers.insert(banId);
+                LOG_INFO("User " + banId + " banned from room " +
+                         std::to_string(_id) + " (died)");
+            }
             LOG_INFO("Player " + std::to_string(playerId) + " removed from room " +
                      std::to_string(_id) + " after death");
 
@@ -177,4 +226,27 @@ void Room::onPlayerDeath(uint32_t playerId) {
             break;
         }
     }
+}
+
+void Room::banPlayer(uint32_t playerId) {
+    std::lock_guard<std::mutex> lock(_mutex);
+    auto* player = _session.getPlayer(playerId);
+    if (player) {
+        std::string banId = player->userId > 0 
+            ? "user:" + std::to_string(player->userId)
+            : "guest:" + player->username;
+        _bannedUsers.insert(banId);
+        LOG_INFO("User " + banId + " manually banned from room " + std::to_string(_id));
+    }
+}
+
+bool Room::isPlayerBanned(uint32_t playerId) {
+    std::lock_guard<std::mutex> lock(_mutex);
+    auto* player = _session.getPlayer(playerId);
+    if (!player) return false;
+    
+    std::string banId = player->userId > 0 
+        ? "user:" + std::to_string(player->userId)
+        : "guest:" + player->username;
+    return _bannedUsers.find(banId) != _bannedUsers.end();
 }

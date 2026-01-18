@@ -88,7 +88,7 @@ private:
     bool _isGuest = false;
     bool _isAuthenticated = false;
 
-    Entity _scoreLabel;
+    Entity _scoreLabel = 0;
     uint32_t _currentScore = 0;
 
     // menu Entities

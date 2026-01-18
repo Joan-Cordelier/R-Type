@@ -150,6 +150,9 @@ int ClientGameHandler::run() {
     _input.setControlled(label_input, _keybindsManager);
     _audioManager.playMusic(_config.getAudioConfig().level_music);
 
+    _renderer.clear();
+    _renderer.render();
+
     while (running) {
         _renderer.window.processSDLEvents();
         SDL_Event status = _renderer.window.pollEvent();
