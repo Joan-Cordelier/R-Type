@@ -27,6 +27,7 @@ public:
     using CreateRoomCallback = std::function<void()>;
     using RefreshCallback = std::function<void()>;
     using ScoreboardCallback = std::function<void()>;
+    using LogoutCallback = std::function<void()>;
 
     LobbyMenu(Registry &reg);
     ~LobbyMenu() = default;
@@ -43,6 +44,7 @@ public:
     void setCreateCallback(CreateRoomCallback callback) { _onCreateRoom = callback; }
     void setRefreshCallback(RefreshCallback callback) { _onRefresh = callback; }
     void setScoreboardCallback(ScoreboardCallback callback) { _onScoreboard = callback; }
+    void setLogoutCallback(LogoutCallback callback) { _onLogout = callback; }
 
     void clearRoomEntities();
 
@@ -56,6 +58,7 @@ private:
     Entity _createRoomButton;
     Entity _refreshButton;
     Entity _scoreboardButton;
+    Entity _logoutButton;
     std::vector<Entity> _roomEntities;
     std::vector<Entity> _joinButtonEntities;
 
@@ -67,6 +70,7 @@ private:
     CreateRoomCallback _onCreateRoom;
     RefreshCallback _onRefresh;
     ScoreboardCallback _onScoreboard;
+    LogoutCallback _onLogout;
 
     void createRoomEntry(size_t index, const RoomInfo &room, ButtonSystem &buttonsys);
 };

@@ -1602,6 +1602,27 @@ void ClientGameHandler::setupLobbyCallbacks() {
         _gameState = GameState::SCOREBOARD;
     });
 
+    _lobbyMenu.setLogoutCallback([this]() {
+        std::cout << "Logging out..." << std::endl;
+        
+        // Hide lobby UI
+        _lobbyMenu.hide();
+        _chatPanel.hide();
+        _chatPanel.setEnabled(false);
+        
+        // Clear authentication state
+        _userId = 0;
+        _username.clear();
+        _isGuest = false;
+        _isAuthenticated = false;
+        
+        // Show login menu
+        _loginMenu.show();
+        _gameState = GameState::LOGIN;
+        
+        std::cout << "Logged out successfully" << std::endl;
+    });
+
     // CreateRoomMenu callbacks
     _createRoomMenu.setOnConfirm([this](const RoomConfig& config) {
         createRoom(config);
