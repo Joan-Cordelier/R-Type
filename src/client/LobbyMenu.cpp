@@ -76,21 +76,21 @@ void LobbyMenu::init() {
 }
 
 void LobbyMenu::setup(ButtonSystem &buttonsys) {
-    buttonsys.registerHandler("lobby_create_room", [this](Registry &r, Entity e) {
+    buttonsys.registerHandler("lobby_create_room", [this]([[maybe_unused]] Registry &r, [[maybe_unused]] Entity e) {
         if (_onCreateRoom && _visible) {
             std::cout << "[LobbyMenu] Create Room clicked" << std::endl;
             _onCreateRoom();
         }
     });
 
-    buttonsys.registerHandler("lobby_refresh", [this](Registry &r, Entity e) {
+    buttonsys.registerHandler("lobby_refresh", [this]([[maybe_unused]] Registry &r, [[maybe_unused]] Entity e) {
         if (_onRefresh && _visible) {
             std::cout << "[LobbyMenu] Refresh clicked" << std::endl;
             _onRefresh();
         }
     });
 
-    buttonsys.registerHandler("lobby_scoreboard", [this](Registry &r, Entity e) {
+    buttonsys.registerHandler("lobby_scoreboard", [this]([[maybe_unused]] Registry &r, [[maybe_unused]] Entity e) {
         if (_onScoreboard && _visible) {
             std::cout << "[LobbyMenu] Scoreboard clicked" << std::endl;
             _onScoreboard();
@@ -279,11 +279,11 @@ void LobbyMenu::updateRoomList(const std::vector<RoomInfo> &rooms) {
     std::cout << "[LobbyMenu] Room list update complete" << std::endl;
 }
 
-void LobbyMenu::createRoomEntry(size_t index, const RoomInfo &room, ButtonSystem &buttonsys) {
+void LobbyMenu::createRoomEntry([[maybe_unused]] size_t index, const RoomInfo &room, ButtonSystem &buttonsys) {
     uint32_t roomId = room.id;
     std::string handlerName = "lobby_join_" + std::to_string(roomId);
 
-    buttonsys.registerHandler(handlerName, [this, roomId](Registry &r, Entity e) {
+    buttonsys.registerHandler(handlerName, [this, roomId]([[maybe_unused]] Registry &r, [[maybe_unused]] Entity e) {
         if (_onJoinRoom && _visible) {
             std::cout << "[LobbyMenu] Joining room " << roomId << std::endl;
             _onJoinRoom(roomId);

@@ -515,7 +515,7 @@ void ClientGameHandler::handleMessages() {
                                   static_cast<uint32_t>(msg->data[4]);
                 uint8_t errorLen = msg->data[5];
                 std::string errorMsg;
-                if (errorLen > 0 && msg->data.size() >= 6 + errorLen) {
+                if (errorLen > 0 && msg->data.size() >= static_cast<size_t>(6 + errorLen)) {
                     errorMsg = std::string(msg->data.begin() + 6, msg->data.begin() + 6 + errorLen);
                 }
 
@@ -540,7 +540,7 @@ void ClientGameHandler::handleMessages() {
                 uint8_t usernameLen = msg->data[5];
                 size_t offset = 6 + usernameLen;
                 std::string username;
-                if (usernameLen > 0 && msg->data.size() >= 6 + usernameLen) {
+                if (usernameLen > 0 && msg->data.size() >= static_cast<size_t>(6 + usernameLen)) {
                     username = std::string(msg->data.begin() + 6, msg->data.begin() + 6 + usernameLen);
                 }
                 
@@ -584,7 +584,7 @@ void ClientGameHandler::handleMessages() {
                                    static_cast<uint32_t>(msg->data[3]);
                 uint8_t nameLen = msg->data[4];
                 std::string guestName;
-                if (nameLen > 0 && msg->data.size() >= 5 + nameLen) {
+                if (nameLen > 0 && msg->data.size() >= static_cast<size_t>(5 + nameLen)) {
                     guestName = std::string(msg->data.begin() + 5, msg->data.begin() + 5 + nameLen);
                 }
 

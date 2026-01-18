@@ -50,7 +50,7 @@ void DeathScreen::init() {
 }
 
 void DeathScreen::setup(ButtonSystem &buttonsys) {
-    buttonsys.registerHandler("death_return_lobby", [this](Registry &r, Entity e) {
+    buttonsys.registerHandler("death_return_lobby", [this]([[maybe_unused]] Registry &r, [[maybe_unused]] Entity e) {
         if (_onReturnToLobby && _visible) {
             std::cout << "[DeathScreen] Return to Lobby clicked" << std::endl;
             _onReturnToLobby();

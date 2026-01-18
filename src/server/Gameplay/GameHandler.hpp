@@ -44,6 +44,7 @@ private:
     std::atomic<bool> &_running;
     SessionManager &_session;
     PrometheusExporter& _monitor;
+    Difficulty _difficulty;
     MessageHandler _messageHandler;
 
     Registry reg;
@@ -52,7 +53,6 @@ private:
     EnemySystem enemySystem;
     WeaponSystem weaponSystem;
     GameLoopConfig _config;
-    Difficulty _difficulty;
 
     std::map<uint32_t, Entity> playerEntities;
     std::map<uint32_t, uint8_t> playerSkinIndices;  // Tracks each player's skin index (0-3)

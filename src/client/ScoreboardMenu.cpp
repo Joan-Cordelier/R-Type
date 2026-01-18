@@ -81,14 +81,14 @@ void ScoreboardMenu::init() {
 }
 
 void ScoreboardMenu::setup(ButtonSystem &buttonsys) {
-    buttonsys.registerHandler("scoreboard_close", [this](Registry &r, Entity e) {
+    buttonsys.registerHandler("scoreboard_close", [this]([[maybe_unused]] Registry &r, [[maybe_unused]] Entity e) {
         if (_onClose && _visible) {
             std::cout << "[ScoreboardMenu] Close clicked" << std::endl;
             _onClose();
         }
     });
 
-    buttonsys.registerHandler("scoreboard_refresh", [this](Registry &r, Entity e) {
+    buttonsys.registerHandler("scoreboard_refresh", [this]([[maybe_unused]] Registry &r, [[maybe_unused]] Entity e) {
         if (_onRefresh && _visible) {
             std::cout << "[ScoreboardMenu] Refresh clicked" << std::endl;
             _onRefresh();
