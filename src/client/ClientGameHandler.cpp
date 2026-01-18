@@ -9,7 +9,7 @@
 #include <sstream>
 
 ClientGameHandler::ClientGameHandler(bool debugMode)
-    : _settingsMenu(_reg, _keybindsManager), _loginMenu(_reg), _lobbyMenu(_reg), _createRoomMenu(_reg), _chatPanel(_reg), _debugMode(debugMode) {
+    : _settingsMenu(_reg, _keybindsManager), _loginMenu(_reg), _lobbyMenu(_reg), _createRoomMenu(_reg), _chatPanel(_reg), _scoreboardMenu(_reg), _debugMode(debugMode) {
     // Load config (try local, then ../ for build dir)
     if (!_config.loadFromFile("yaml/main_loop.yaml")) {
         // Only try parent directory if first attempt failed
@@ -123,6 +123,7 @@ ClientGameHandler::ClientGameHandler(bool debugMode)
     _lobbyMenu.init();
     _createRoomMenu.init();
     _chatPanel.init();
+    _scoreboardMenu.init();
 
     // Setup menus and their callbacks
     _loginMenu.setup(_buttonsys);
@@ -130,8 +131,10 @@ ClientGameHandler::ClientGameHandler(bool debugMode)
     _lobbyMenu.setup(_buttonsys);
     _createRoomMenu.setup(_buttonsys);
     _chatPanel.setup(_buttonsys);
+    _scoreboardMenu.setup(_buttonsys);
     setupLobbyCallbacks();
     setupChatCallbacks();
+    setupScoreboardCallbacks();
 
     _settingsMenu.setup(_reg, _slidersys, _buttonsys);
 
@@ -714,6 +717,43 @@ void ClientGameHandler::handleMessages() {
                     std::cout << "[Chat] " << senderName << ": " << chatMessage << std::endl;
                 }
             }
+            break;
+        }
+        case OpCode::SCOREBOARD_RESPONSE: {
+            std::cout << "[Scoreboard] Received scoreboard response" << std::endl;
+            std::vector<ScoreEntry> scores;
+            
+            if (msg->data.size() >= 1) {
+                uint8_t count = msg->data[0];
+                size_t offset = 1;
+                
+                for (uint8_t i = 0; i < count; ++i) {
+                    if (offset >= msg->data.size()) break;
+                    
+                    uint8_t nameLen = msg->data[offset];
+                    offset++;
+                    
+                    if (offset + nameLen + 4 > msg->data.size()) break;
+                    
+                    std::string username(msg->data.begin() + offset, msg->data.begin() + offset + nameLen);
+                    offset += nameLen;
+                    
+                    uint32_t highScore = (static_cast<uint32_t>(msg->data[offset]) << 24) |
+                                         (static_cast<uint32_t>(msg->data[offset + 1]) << 16) |
+                                         (static_cast<uint32_t>(msg->data[offset + 2]) << 8) |
+                                         static_cast<uint32_t>(msg->data[offset + 3]);
+                    offset += 4;
+                    
+                    ScoreEntry entry;
+                    entry.username = username;
+                    entry.highScore = highScore;
+                    scores.push_back(entry);
+                    
+                    std::cout << "[Scoreboard] #" << (int)(i + 1) << " " << username << ": " << highScore << std::endl;
+                }
+            }
+            
+            _scoreboardMenu.updateScores(scores);
             break;
         }
         case OpCode::PLAYER: {
@@ -1517,6 +1557,16 @@ void ClientGameHandler::setupLobbyCallbacks() {
 
     _lobbyMenu.setRefreshCallback([this]() { requestRoomList(); });
 
+    _lobbyMenu.setScoreboardCallback([this]() { 
+        std::cout << "Opening scoreboard menu..." << std::endl;
+        _chatVisibleBeforeMenu = _chatPanel.isVisible();
+        _lobbyMenu.hide();
+        _chatPanel.hide();
+        requestScoreboard();
+        _scoreboardMenu.show();
+        _gameState = GameState::SCOREBOARD;
+    });
+
     // CreateRoomMenu callbacks
     _createRoomMenu.setOnConfirm([this](const RoomConfig& config) {
         createRoom(config);
@@ -1607,4 +1657,26 @@ void ClientGameHandler::sendChatMessage(const std::string& message) {
     _network.sendTcp(chatMsg);
     
     std::cout << "Sending chat message: " << message << std::endl;
+}
+
+void ClientGameHandler::setupScoreboardCallbacks() {
+    _scoreboardMenu.setCloseCallback([this]() {
+        _scoreboardMenu.hide();
+        _lobbyMenu.show();
+        if (_chatVisibleBeforeMenu) {
+            _chatPanel.show();
+        }
+        _gameState = GameState::LOBBY;
+    });
+
+    _scoreboardMenu.setRefreshCallback([this]() {
+        requestScoreboard();
+    });
+}
+
+void ClientGameHandler::requestScoreboard() {
+    std::cout << "[Scoreboard] Requesting scoreboard from server" << std::endl;
+    MessageFactory &factory = MessageFactory::getInstance();
+    PreparedMessage scoreboardReq = factory.createMessage(OpCode::SCOREBOARD_REQUEST, {});
+    _network.sendTcp(scoreboardReq);
 }

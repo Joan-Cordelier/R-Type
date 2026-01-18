@@ -118,6 +118,9 @@ void LobbyManager::dispatchMessage(DecodedMessage &msg) {
     case CHAT_MESSAGE:
         handleChatMessage(msg);
         return;
+    case SCOREBOARD_REQUEST:
+        handleScoreboardRequest(msg);
+        return;
     default:
         break;
     }
@@ -533,4 +536,32 @@ void LobbyManager::handleChatMessage(const DecodedMessage &msg) {
             }
         }
     }
+}
+
+void LobbyManager::handleScoreboardRequest(const DecodedMessage &msg) {
+    auto &factory = MessageFactory::getInstance();
+    auto &userDb = UserDatabase::getInstance();
+
+    // Get player to respond to
+    uint32_t playerId = msg.playerId;
+    if (playerId == 0 && msg.tcpFd > 0) {
+        auto player = _session.getPlayerByTcpFd(msg.tcpFd);
+        if (player) {
+            playerId = player->id;
+        }
+    }
+
+    if (playerId == 0) {
+        LOG_WARN("SCOREBOARD_REQUEST from unknown player");
+        return;
+    }
+
+    // Get top 10 scores
+    auto topScores = userDb.getTopScores(10);
+
+    LOG_INFO("Sending scoreboard with " + std::to_string(topScores.size()) + " entries to player " + std::to_string(playerId));
+
+    MessageData payload = factory.encodeMessageScoreboardResponse(topScores);
+    PreparedMessage response = factory.createMessage(SCOREBOARD_RESPONSE, payload);
+    _session.sendTcp(playerId, response);
 }

@@ -69,6 +69,7 @@ private:
 
     mutable std::mutex _mutex;
     std::vector<uint32_t> _players;
+    std::vector<uint32_t> _allParticipants;  // All players who joined (for scoring)
 
     // Track when the room became empty (reset when players join)
     std::chrono::steady_clock::time_point _emptyTimestamp;

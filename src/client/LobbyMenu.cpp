@@ -57,6 +57,21 @@ void LobbyMenu::init() {
                              std::string("default_font_small"), Color(255, 255, 255), 101, false);
     _roomEntities.push_back(refreshLabel);
 
+    // Create "Scoreboard" button
+    _scoreboardButton = _reg.createEntity();
+    _reg.addComponent<Position>(_scoreboardButton, 668.f, 480.f);
+    _reg.addComponent<Sprite>(_scoreboardButton, std::string("textures/button/square_button.png"),
+                              std::string("square_button"), 280, 160, 100, 0.f, 0.f, false);
+    _reg.addComponent<Button>(_scoreboardButton, std::string("lobby_scoreboard"), 100, false);
+
+    // Label for Scoreboard button
+    Entity scoreboardLabel = _reg.createEntity();
+    _reg.addComponent<Position>(scoreboardLabel, 755.f, 545.f);
+    _reg.addComponent<Label>(scoreboardLabel, std::string("Scoreboard"),
+                             std::string("font/josefin-sans/JosefinSans-Regular.ttf"),
+                             std::string("default_font_small"), Color(255, 255, 255), 101, false);
+    _roomEntities.push_back(scoreboardLabel);
+
     std::cout << "[LobbyMenu] Initialized" << std::endl;
 }
 
@@ -72,6 +87,13 @@ void LobbyMenu::setup(ButtonSystem &buttonsys) {
         if (_onRefresh && _visible) {
             std::cout << "[LobbyMenu] Refresh clicked" << std::endl;
             _onRefresh();
+        }
+    });
+
+    buttonsys.registerHandler("lobby_scoreboard", [this](Registry &r, Entity e) {
+        if (_onScoreboard && _visible) {
+            std::cout << "[LobbyMenu] Scoreboard clicked" << std::endl;
+            _onScoreboard();
         }
     });
 }
@@ -91,6 +113,8 @@ void LobbyMenu::show() {
     _reg.getComponent<Button>(_createRoomButton).enabled = true;
     _reg.getComponent<Sprite>(_refreshButton).visible = true;
     _reg.getComponent<Button>(_refreshButton).enabled = true;
+    _reg.getComponent<Sprite>(_scoreboardButton).visible = true;
+    _reg.getComponent<Button>(_scoreboardButton).enabled = true;
 
     // Show static room entities (button labels)
     std::cout << "[LobbyMenu] Showing " << _roomEntities.size() << " room entities" << std::endl;
@@ -136,6 +160,8 @@ void LobbyMenu::hide() {
     _reg.getComponent<Button>(_createRoomButton).enabled = false;
     _reg.getComponent<Sprite>(_refreshButton).visible = false;
     _reg.getComponent<Button>(_refreshButton).enabled = false;
+    _reg.getComponent<Sprite>(_scoreboardButton).visible = false;
+    _reg.getComponent<Button>(_scoreboardButton).enabled = false;
 
     // Hide all room entities
     for (auto &entity : _roomEntities) {
@@ -164,8 +190,8 @@ void LobbyMenu::hide() {
 }
 
 void LobbyMenu::clearRoomEntities() {
-    // Keep the first two entities (button labels), destroy the rest
-    while (_roomEntities.size() > 2) {
+    // Keep the first three entities (button labels: Create Room, Refresh, Scoreboard), destroy the rest
+    while (_roomEntities.size() > 3) {
         _reg.destroyEntity(_roomEntities.back());
         _roomEntities.pop_back();
     }

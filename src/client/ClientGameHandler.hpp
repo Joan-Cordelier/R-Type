@@ -19,12 +19,14 @@
 #include "CreateRoomMenu.hpp"
 #include "ChatPanel.hpp"
 #include "SettingMenu.hpp"
+#include "ScoreboardMenu.hpp"
 
 enum class GameState {
     MAIN_MENU,
     LOGIN,
     LOBBY,
     CREATE_ROOM,
+    SCOREBOARD,
     IN_GAME
 };
 #include <SDL2/SDL.h>
@@ -55,6 +57,7 @@ private:
     LobbyMenu _lobbyMenu;
     CreateRoomMenu _createRoomMenu;
     ChatPanel _chatPanel;
+    ScoreboardMenu _scoreboardMenu;
 
     NetworkManager _network;
     GameLoopConfig _config;
@@ -99,7 +102,9 @@ private:
     void setupLobbyCallbacks();
     void setupLoginCallbacks();
     void setupChatCallbacks();
+    void setupScoreboardCallbacks();
     void requestRoomList();
+    void requestScoreboard();
     void showCreateRoomMenu();
     void createRoom(const RoomConfig& config);
     void joinRoom(uint32_t roomId);

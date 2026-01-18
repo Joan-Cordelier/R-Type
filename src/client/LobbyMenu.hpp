@@ -26,6 +26,7 @@ public:
     using JoinRoomCallback = std::function<void(uint32_t roomId)>;
     using CreateRoomCallback = std::function<void()>;
     using RefreshCallback = std::function<void()>;
+    using ScoreboardCallback = std::function<void()>;
 
     LobbyMenu(Registry &reg);
     ~LobbyMenu() = default;
@@ -41,6 +42,7 @@ public:
     void setJoinCallback(JoinRoomCallback callback) { _onJoinRoom = callback; }
     void setCreateCallback(CreateRoomCallback callback) { _onCreateRoom = callback; }
     void setRefreshCallback(RefreshCallback callback) { _onRefresh = callback; }
+    void setScoreboardCallback(ScoreboardCallback callback) { _onScoreboard = callback; }
 
     void clearRoomEntities();
 
@@ -53,6 +55,7 @@ private:
     Entity _usernameLabel;
     Entity _createRoomButton;
     Entity _refreshButton;
+    Entity _scoreboardButton;
     std::vector<Entity> _roomEntities;
     std::vector<Entity> _joinButtonEntities;
 
@@ -63,6 +66,7 @@ private:
     JoinRoomCallback _onJoinRoom;
     CreateRoomCallback _onCreateRoom;
     RefreshCallback _onRefresh;
+    ScoreboardCallback _onScoreboard;
 
     void createRoomEntry(size_t index, const RoomInfo &room, ButtonSystem &buttonsys);
 };

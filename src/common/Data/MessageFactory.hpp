@@ -55,6 +55,9 @@ enum OpCode : uint8_t {
     GUEST_LOGIN_ACK = 0x20,
     CHAT_MESSAGE = 0x21,
     CHAT_BROADCAST = 0x22,
+    SCOREBOARD_REQUEST = 0x23,
+    SCOREBOARD_RESPONSE = 0x24,
+    SCORE_UPDATE = 0x25,
 };
 
 using MessageData = std::vector<uint8_t>;
@@ -148,6 +151,9 @@ public:
 
     MessageData encodeMessageChat(const std::string& message) const;
     MessageData encodeMessageChatBroadcast(uint32_t senderId, const std::string& senderName, const std::string& message) const;
+
+    MessageData encodeMessageScoreboardResponse(const std::vector<std::pair<std::string, uint32_t>>& scores) const;
+    MessageData encodeMessageScoreUpdate(uint32_t score) const;
 
 private:
     MessageFactory();

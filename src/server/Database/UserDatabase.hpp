@@ -13,6 +13,8 @@
 #include <unordered_map>
 #include <mutex>
 #include <cstdint>
+#include <vector>
+#include <utility>
 
 struct User {
     uint32_t id;
@@ -21,6 +23,8 @@ struct User {
     uint64_t createdAt;      // Unix timestamp
     uint64_t lastLogin;      // Unix timestamp
     bool isGuest;
+    uint32_t highScore = 0;      // Best score achieved
+    uint32_t totalGamesPlayed = 0;  // Number of games played
 };
 
 class UserDatabase {
@@ -44,6 +48,10 @@ public:
     void updateLastLogin(uint32_t userId);
     void save();
     void load();
+
+    // Score management
+    void updateScore(uint32_t userId, uint32_t score);  // Updates high score if higher
+    std::vector<std::pair<std::string, uint32_t>> getTopScores(size_t limit = 10);  // Returns username, highScore pairs
 
 private:
     UserDatabase();

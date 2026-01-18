@@ -51,6 +51,9 @@ private:
     // Chat handler
     void handleChatMessage(const DecodedMessage &msg);
 
+    // Scoreboard handler
+    void handleScoreboardRequest(const DecodedMessage &msg);
+
     // Handling disconnections
     void onPlayerDisconnect(const Player &player);
 

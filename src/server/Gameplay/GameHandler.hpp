@@ -78,6 +78,8 @@ public:
 
     void setOnPlayerDeath(std::function<void(uint32_t)> callback) { _onPlayerDeath = callback; }
 
+    int getScore() const { return score; }
+
     void sendUpdatedPositionToAllPlayers();
     void sendUpdatedPositionToPlayer(uint32_t playerId);
     void sendNewProjectilesToAllPlayers(Entity player, Entity projectile);

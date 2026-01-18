@@ -215,7 +215,9 @@ void UserDatabase::save() {
         file << "      \"username\": \"" << user.username << "\",\n";
         file << "      \"passwordHash\": \"" << user.passwordHash << "\",\n";
         file << "      \"createdAt\": " << user.createdAt << ",\n";
-        file << "      \"lastLogin\": " << user.lastLogin << "\n";
+        file << "      \"lastLogin\": " << user.lastLogin << ",\n";
+        file << "      \"highScore\": " << user.highScore << ",\n";
+        file << "      \"totalGamesPlayed\": " << user.totalGamesPlayed << "\n";
         file << "    }";
     }
 
@@ -303,6 +305,20 @@ void UserDatabase::load() {
             user.lastLogin = std::stoull(userStr.substr(pos));
         }
 
+        // Parse highScore
+        pos = userStr.find("\"highScore\":");
+        if (pos != std::string::npos) {
+            pos += 12;
+            user.highScore = std::stoul(userStr.substr(pos));
+        }
+
+        // Parse totalGamesPlayed
+        pos = userStr.find("\"totalGamesPlayed\":");
+        if (pos != std::string::npos) {
+            pos += 19;
+            user.totalGamesPlayed = std::stoul(userStr.substr(pos));
+        }
+
         if (user.id > 0 && !user.username.empty()) {
             _users[user.id] = user;
             _usernameIndex[user.username] = user.id;
@@ -313,4 +329,42 @@ void UserDatabase::load() {
     }
 
     std::cout << "[UserDB] Loaded " << _users.size() << " users from " << _filePath << std::endl;
+}
+
+void UserDatabase::updateScore(uint32_t userId, uint32_t score) {
+    std::lock_guard<std::mutex> lock(_mutex);
+    
+    auto it = _users.find(userId);
+    if (it != _users.end()) {
+        it->second.totalGamesPlayed++;
+        if (score > it->second.highScore) {
+            it->second.highScore = score;
+            std::cout << "[UserDB] New high score for " << it->second.username << ": " << score << std::endl;
+        }
+        save();
+    }
+}
+
+std::vector<std::pair<std::string, uint32_t>> UserDatabase::getTopScores(size_t limit) {
+    std::lock_guard<std::mutex> lock(_mutex);
+    
+    // Collect all non-guest users with their scores
+    std::vector<std::pair<std::string, uint32_t>> scores;
+    for (const auto& [id, user] : _users) {
+        if (!user.isGuest && user.highScore > 0) {
+            scores.emplace_back(user.username, user.highScore);
+        }
+    }
+    
+    // Sort by score descending
+    std::sort(scores.begin(), scores.end(), [](const auto& a, const auto& b) {
+        return a.second > b.second;
+    });
+    
+    // Limit results
+    if (scores.size() > limit) {
+        scores.resize(limit);
+    }
+    
+    return scores;
 }

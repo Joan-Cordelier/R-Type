@@ -7,6 +7,7 @@
 
 #include "Room.hpp"
 #include "../Logs/Logger.hpp"
+#include "../Database/UserDatabase.hpp"
 
 Room::Room(uint32_t id, SessionManager &session, const std::string &configPath, 
            PrometheusExporter& monitor, const RoomConfig& config)
@@ -73,6 +74,19 @@ bool Room::isFull() const {
 void Room::addPlayer(uint32_t playerId) {
     std::lock_guard<std::mutex> lock(_mutex);
     _players.push_back(playerId);
+    
+    // Track all participants for scoring at game end
+    bool alreadyParticipant = false;
+    for (auto pid : _allParticipants) {
+        if (pid == playerId) {
+            alreadyParticipant = true;
+            break;
+        }
+    }
+    if (!alreadyParticipant) {
+        _allParticipants.push_back(playerId);
+    }
+    
     _wasEmpty = false;  // Room is no longer empty
 
     // Notify session manager to update player's room ID if needed,
@@ -131,10 +145,28 @@ void Room::onPlayerDeath(uint32_t playerId) {
             LOG_INFO("Player " + std::to_string(playerId) + " removed from room " +
                      std::to_string(_id) + " after death");
 
-            // Track when room becomes empty
+            // Track when room becomes empty (game over)
             if (_players.empty() && !_wasEmpty) {
                 _emptyTimestamp = std::chrono::steady_clock::now();
                 _wasEmpty = true;
+
+                // Game over - save scores for all players who participated
+                if (_game) {
+                    int finalScore = _game->getScore();
+                    LOG_INFO("Game over in room " + std::to_string(_id) + 
+                             " with final score: " + std::to_string(finalScore));
+
+                    // Update score for ALL players who participated in this game
+                    auto& userDb = UserDatabase::getInstance();
+                    for (uint32_t participantId : _allParticipants) {
+                        auto* participant = _session.getPlayer(participantId);
+                        if (participant && participant->userId > 0) {
+                            userDb.updateScore(participant->userId, finalScore);
+                            LOG_INFO("Updated score for participant " + participant->username + 
+                                     " (userId: " + std::to_string(participant->userId) + ")");
+                        }
+                    }
+                }
             }
             break;
         }

@@ -339,6 +339,20 @@ void GameHandler::updateGame(float deltaTime) {
     }
 
     for (const auto &enemy : enemySystem.getDeadEnemyEntities()) {
+        // Add score for killed enemy
+        if (reg.hasComponent<Enemy>(enemy)) {
+            auto& enemyComp = reg.getComponent<Enemy>(enemy);
+            // Look up score from config by enemy type
+            const auto& enemyTypes = _config.getEnemyTypes();
+            auto it = enemyTypes.find(enemyComp.type);
+            if (it != enemyTypes.end()) {
+                score += it->second.score;
+                LOG_DEBUG("Score increased by " + std::to_string(it->second.score) + " (Total: " + std::to_string(score) + ")");
+            } else {
+                // Default score if type not found
+                score += 100;
+            }
+        }
         sendDestroyedEnemyToAllPlayers(enemy);
     }
     for (const auto &projectile : enemySystem.getProjectileColliding()) {

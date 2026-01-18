@@ -11,6 +11,7 @@ struct Enemy {
     float shootInterval = 3.0f;
     float timeSinceLastShot = 0.0f;
     int y_max_position = 800;
+    int score = 100;  // Points awarded when killed
     
     // Movement pattern parameters
     float move_amplitude = 0.0f;
