@@ -264,16 +264,8 @@ void LobbyManager::handleListRooms(const DecodedMessage &msg) {
 
     auto &factory = MessageFactory::getInstance();
     MessageData payload = factory.encodeMessageRoomList(roomList);
-    std::cout << "[DEBUG] ROOM_LIST payload size: " << std::dec << payload.size() << " bytes: ";
-    for (auto b : payload)
-        std::cout << std::hex << (int)b << " ";
-    std::cout << std::dec << std::endl;
     PreparedMessage response = factory.createMessage(ROOM_LIST, payload);
-    std::cout << "[DEBUG] ROOM_LIST message size: " << std::dec << response.data.size()
-              << " bytes: ";
-    for (auto b : response.data)
-        std::cout << std::hex << (int)b << " ";
-    std::cout << std::dec << std::endl;
+    LOG_DEBUG("ROOM_LIST sent (" + std::to_string(response.data.size()) + " bytes)");
     _session.sendTcp(msg.playerId, response);
 }
 
@@ -469,19 +461,28 @@ void LobbyManager::handleLogin(const DecodedMessage &msg) {
     MessageData payload;
     if (userOpt.has_value()) {
         auto &user = userOpt.value();
-        payload = factory.encodeMessageLoginAck(true, user.id, user.username, "");
 
-        // Update the player's username in session
-        if (msg.tcpFd > 0) {
-            auto player = _session.getPlayerByTcpFd(msg.tcpFd);
-            if (player) {
-                player->username = user.username;
-                player->userId = user.id;
-                player->isGuest = false;
+        // Check if user is banned
+        if (userDb.isUserBanned(user.id)) {
+            payload =
+                factory.encodeMessageLoginAck(false, 0, "", "You are banned from this server");
+            LOG_WARN("Login rejected (banned): " + username + " (ID: " + std::to_string(user.id) +
+                     ")");
+        } else {
+            payload = factory.encodeMessageLoginAck(true, user.id, user.username, "");
+
+            // Update the player's username in session
+            if (msg.tcpFd > 0) {
+                auto player = _session.getPlayerByTcpFd(msg.tcpFd);
+                if (player) {
+                    player->username = user.username;
+                    player->userId = user.id;
+                    player->isGuest = false;
+                }
             }
-        }
 
-        LOG_INFO("Login successful: " + username + " (ID: " + std::to_string(user.id) + ")");
+            LOG_INFO("Login successful: " + username + " (ID: " + std::to_string(user.id) + ")");
+        }
     } else {
         payload = factory.encodeMessageLoginAck(false, 0, "", "Invalid username or password");
         LOG_WARN("Login failed: " + username);
@@ -656,4 +657,98 @@ void LobbyManager::handleGetLeaderboard(const DecodedMessage &msg) {
     MessageData payload = factory.encodeMessageLeaderboardData(difficulty, topScores);
     PreparedMessage response = factory.createMessage(LEADERBOARD_DATA, payload);
     _session.sendTcp(playerId, response);
+}
+
+// Admin Console Methods
+
+std::vector<LobbyManager::RoomInfo> LobbyManager::getAdminRoomList() {
+    std::vector<RoomInfo> result;
+    for (const auto &[id, room] : _rooms) {
+        RoomInfo info;
+        info.id = id;
+        info.playerCount = room->getPlayerCount();
+        info.gameMode = RoomConfig::gameModeToString(room->getGameMode());
+        info.difficulty = RoomConfig::difficultyToString(room->getDifficulty());
+        result.push_back(info);
+    }
+    return result;
+}
+
+std::vector<LobbyManager::UserInfo> LobbyManager::getAdminUserList() {
+    std::vector<UserInfo> result;
+    auto players = _session.getPlayerSessions();
+    for (const auto &[playerId, player] : players) {
+        UserInfo info;
+        info.playerId = playerId;
+        info.userId = player.userId;
+        info.username = player.username;
+        info.roomId = player.roomId;
+        info.isGuest = (player.userId == 0);
+        result.push_back(info);
+    }
+    return result;
+}
+
+bool LobbyManager::kickUser(uint32_t playerId) {
+    auto *player = _session.getPlayer(playerId);
+    if (!player) {
+        return false;
+    }
+
+    LOG_INFO("Admin kicked player " + std::to_string(playerId) + " (" + player->username + ")");
+
+    // Remove from room if in one
+    if (player->roomId > 0) {
+        auto it = _rooms.find(player->roomId);
+        if (it != _rooms.end()) {
+            it->second->removePlayer(playerId, player->userId, player->username);
+        }
+    }
+
+    // Disconnect the player
+    _session.disconnectPlayer(playerId);
+    return true;
+}
+
+bool LobbyManager::banUser(uint32_t playerId) {
+    auto *player = _session.getPlayer(playerId);
+    if (!player) {
+        return false;
+    }
+
+    LOG_INFO("Admin banned player " + std::to_string(playerId) + " (" + player->username + ")");
+
+    // Add to ban list (if registered user)
+    if (player->userId > 0) {
+        auto &userDb = UserDatabase::getInstance();
+        userDb.banUser(player->userId);
+    }
+
+    // Kick them after banning
+    return kickUser(playerId);
+}
+
+bool LobbyManager::unbanUser(uint32_t userId) {
+    auto &userDb = UserDatabase::getInstance();
+    return userDb.unbanUser(userId);
+}
+
+size_t LobbyManager::getTotalConnections() const {
+    return _session.getTotalConnections();
+}
+
+std::vector<LobbyManager::UserInfo> LobbyManager::getBannedUsers() {
+    auto &userDb = UserDatabase::getInstance();
+    auto bannedIds = userDb.getBannedUserIds();
+    std::vector<UserInfo> result;
+    for (uint32_t userId : bannedIds) {
+        UserInfo info;
+        info.playerId = 0; // Not connected
+        info.userId = userId;
+        info.username = userDb.getUsername(userId);
+        info.roomId = 0;
+        info.isGuest = false;
+        result.push_back(info);
+    }
+    return result;
 }

@@ -16,6 +16,7 @@
 #include <map>
 #include <memory>
 #include <thread>
+#include <vector>
 
 class LobbyManager {
 public:
@@ -65,6 +66,30 @@ private:
     void cleanupEmptyRooms();
     std::chrono::steady_clock::time_point _lastCleanupCheck;
     static constexpr std::chrono::seconds EMPTY_ROOM_TIMEOUT{5};
+
+public:
+    // Admin console methods
+    struct RoomInfo {
+        uint32_t id;
+        size_t playerCount;
+        std::string gameMode;
+        std::string difficulty;
+    };
+    struct UserInfo {
+        uint32_t playerId;
+        uint32_t userId;
+        std::string username;
+        uint32_t roomId;
+        bool isGuest;
+    };
+
+    std::vector<RoomInfo> getAdminRoomList();
+    std::vector<UserInfo> getAdminUserList();
+    bool kickUser(uint32_t playerId);
+    bool banUser(uint32_t playerId);
+    bool unbanUser(uint32_t userId);
+    size_t getTotalConnections() const;
+    std::vector<UserInfo> getBannedUsers();
 };
 
 #endif /* !LOBBYMANAGER_HPP_ */

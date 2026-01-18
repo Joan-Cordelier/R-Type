@@ -1,12 +1,12 @@
 {
-  "nextUserId": 100,
+  "nextUserId": 101,
   "users": [
     {
       "id": 76,
       "username": "caca",
       "passwordHash": "9717a015f09b7674236b14a7295c70637571bcd2ef63c93869f3e1f494128de8",
       "createdAt": 1768712639,
-      "lastLogin": 1768768798,
+      "lastLogin": 1768777901,
       "highScore": 300,
       "totalGamesPlayed": 4,
       "endlessHighScores": {"1": 4500, "3": 250}
@@ -26,7 +26,7 @@
       "username": "Jojo_chats",
       "passwordHash": "79aa5d7f9af314c5e5e91abf5ef1e2199b3f4d063b30691ce6fc7629adade36c",
       "createdAt": 1768538388,
-      "lastLogin": 1768768809,
+      "lastLogin": 1768776713,
       "highScore": 9200,
       "totalGamesPlayed": 6,
       "endlessHighScores": {"0": 12000, "1": 8500, "2": 3200, "3": 400}

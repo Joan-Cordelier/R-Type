@@ -12,6 +12,7 @@
 #include <map>
 #include <mutex>
 #include <optional>
+#include <set>
 #include <string>
 #include <unordered_map>
 #include <utility>
@@ -74,10 +75,19 @@ private:
 
     std::unordered_map<uint32_t, User> _users;
     std::unordered_map<std::string, uint32_t> _usernameIndex;
-    std::mutex _mutex;
+    std::set<uint32_t> _bannedUserIds;
+    mutable std::mutex _mutex;
     uint32_t _nextUserId = 1;
     uint32_t _nextGuestNumber = 1; //(Guest_1, Guest_2, ...)
     std::string _filePath = "data/users.json";
+
+public:
+    // Admin ban methods
+    void banUser(uint32_t userId);
+    bool unbanUser(uint32_t userId);
+    bool isUserBanned(uint32_t userId) const;
+    std::set<uint32_t> getBannedUserIds() const;
+    std::string getUsername(uint32_t userId) const;
 };
 
 #endif // USERDATABASE_HPP_

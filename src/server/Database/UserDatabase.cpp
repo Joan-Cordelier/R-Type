@@ -6,6 +6,7 @@
 */
 
 #include "UserDatabase.hpp"
+#include "../Logs/Logger.hpp"
 #include <algorithm>
 #include <cctype>
 #include <chrono>
@@ -70,17 +71,15 @@ uint32_t UserDatabase::registerUser(const std::string &username, const std::stri
     std::lock_guard<std::mutex> lock(_mutex);
 
     if (!isValidUsername(username)) {
-        std::cout << "[UserDB] Registration failed: invalid username '" << username << "'"
-                  << std::endl;
+        LOG_WARN("Registration failed: invalid username '" + username + "'");
         return 0;
     }
     if (_usernameIndex.find(username) != _usernameIndex.end()) {
-        std::cout << "[UserDB] Registration failed: username '" << username << "' already exists"
-                  << std::endl;
+        LOG_WARN("Registration failed: username '" + username + "' already exists");
         return 0;
     }
     if (password.length() < 4) {
-        std::cout << "[UserDB] Registration failed: password too short" << std::endl;
+        LOG_WARN("Registration failed: password too short");
         return 0;
     }
 
@@ -97,8 +96,7 @@ uint32_t UserDatabase::registerUser(const std::string &username, const std::stri
     _users[user.id] = user;
     _usernameIndex[username] = user.id;
 
-    std::cout << "[UserDB] User registered: " << username << " (ID: " << user.id << ")"
-              << std::endl;
+    LOG_DEBUG("User registered: " + username + " (ID: " + std::to_string(user.id) + ")");
 
     save();
     return user.id;
@@ -109,14 +107,14 @@ std::optional<User> UserDatabase::login(const std::string &username, const std::
 
     auto it = _usernameIndex.find(username);
     if (it == _usernameIndex.end()) {
-        std::cout << "[UserDB] Login failed: user '" << username << "' not found" << std::endl;
+        LOG_DEBUG("Login failed: user '" + username + "' not found");
         return std::nullopt;
     }
 
     User &user = _users[it->second];
 
     if (user.passwordHash != hashPassword(password)) {
-        std::cout << "[UserDB] Login failed: wrong password for '" << username << "'" << std::endl;
+        LOG_DEBUG("Login failed: wrong password for '" + username + "'");
         return std::nullopt;
     }
 
@@ -124,7 +122,7 @@ std::optional<User> UserDatabase::login(const std::string &username, const std::
                          std::chrono::system_clock::now().time_since_epoch())
                          .count();
 
-    std::cout << "[UserDB] User logged in: " << username << " (ID: " << user.id << ")" << std::endl;
+    LOG_DEBUG("User logged in: " + username + " (ID: " + std::to_string(user.id) + ")");
 
     save();
     return user;
@@ -146,8 +144,7 @@ User UserDatabase::createGuest() {
     _users[guest.id] = guest;
     _usernameIndex[guest.username] = guest.id;
 
-    std::cout << "[UserDB] Guest created: " << guest.username << " (ID: " << guest.id << ")"
-              << std::endl;
+    LOG_DEBUG("Guest created: " + guest.username + " (ID: " + std::to_string(guest.id) + ")");
 
     return guest;
 }
@@ -202,7 +199,7 @@ void UserDatabase::save() {
 
     std::ofstream file(_filePath);
     if (!file.is_open()) {
-        std::cerr << "[UserDB] Failed to save: cannot open " << _filePath << std::endl;
+        LOG_ERROR("Failed to save database: cannot open " + _filePath);
         return;
     }
 
@@ -244,13 +241,13 @@ void UserDatabase::save() {
     file << "}\n";
 
     file.close();
-    std::cout << "[UserDB] Database saved to " << _filePath << std::endl;
+    LOG_DEBUG("Database saved to " + _filePath);
 }
 
 void UserDatabase::load() {
     std::ifstream file(_filePath);
     if (!file.is_open()) {
-        std::cout << "[UserDB] No existing database found, starting fresh" << std::endl;
+        LOG_DEBUG("No existing database found, starting fresh");
         return;
     }
 
@@ -376,14 +373,13 @@ void UserDatabase::load() {
         if (user.id > 0 && !user.username.empty()) {
             _users[user.id] = user;
             _usernameIndex[user.username] = user.id;
-            std::cout << "[UserDB] Loaded user: " << user.username << " (ID: " << user.id << ")"
-                      << std::endl;
+            LOG_DEBUG("Loaded user: " + user.username + " (ID: " + std::to_string(user.id) + ")");
         }
 
         objStart = objEnd + 1;
     }
 
-    std::cout << "[UserDB] Loaded " << _users.size() << " users from " << _filePath << std::endl;
+    LOG_INFO("Loaded " + std::to_string(_users.size()) + " users from " + _filePath);
 }
 
 void UserDatabase::updateScore(uint32_t userId, uint32_t score) {
@@ -394,8 +390,7 @@ void UserDatabase::updateScore(uint32_t userId, uint32_t score) {
         it->second.totalGamesPlayed++;
         if (score > it->second.highScore) {
             it->second.highScore = score;
-            std::cout << "[UserDB] New high score for " << it->second.username << ": " << score
-                      << std::endl;
+            LOG_DEBUG("New high score for " + it->second.username + ": " + std::to_string(score));
         }
         save();
     }
@@ -431,7 +426,7 @@ void UserDatabase::updateEndlessScore(uint32_t userId, uint8_t difficulty, uint3
     if (it != _users.end()) {
         // Only save for registered users (not guests)
         if (it->second.isGuest) {
-            std::cout << "[UserDB] Skipping endless score for guest user" << std::endl;
+            LOG_DEBUG("Skipping endless score for guest user");
             return;
         }
 
@@ -439,9 +434,8 @@ void UserDatabase::updateEndlessScore(uint32_t userId, uint8_t difficulty, uint3
         uint32_t currentBest = it->second.endlessHighScores[difficulty];
         if (score > currentBest) {
             it->second.endlessHighScores[difficulty] = score;
-            std::cout << "[UserDB] New endless high score for " << it->second.username
-                      << " (difficulty " << static_cast<int>(difficulty) << "): " << score
-                      << std::endl;
+            LOG_DEBUG("New endless high score for " + it->second.username + " (difficulty " +
+                      std::to_string(static_cast<int>(difficulty)) + "): " + std::to_string(score));
         }
         save();
     }
@@ -472,4 +466,42 @@ std::vector<std::pair<std::string, uint32_t>> UserDatabase::getEndlessTopScores(
     }
 
     return scores;
+}
+
+// Admin ban methods
+
+void UserDatabase::banUser(uint32_t userId) {
+    std::lock_guard<std::mutex> lock(_mutex);
+    _bannedUserIds.insert(userId);
+    std::cout << "[UserDatabase] Banned user ID: " << userId << std::endl;
+}
+
+bool UserDatabase::unbanUser(uint32_t userId) {
+    std::lock_guard<std::mutex> lock(_mutex);
+    auto it = _bannedUserIds.find(userId);
+    if (it != _bannedUserIds.end()) {
+        _bannedUserIds.erase(it);
+        std::cout << "[UserDatabase] Unbanned user ID: " << userId << std::endl;
+        return true;
+    }
+    return false;
+}
+
+bool UserDatabase::isUserBanned(uint32_t userId) const {
+    std::lock_guard<std::mutex> lock(_mutex);
+    return _bannedUserIds.count(userId) > 0;
+}
+
+std::set<uint32_t> UserDatabase::getBannedUserIds() const {
+    std::lock_guard<std::mutex> lock(_mutex);
+    return _bannedUserIds;
+}
+
+std::string UserDatabase::getUsername(uint32_t userId) const {
+    std::lock_guard<std::mutex> lock(_mutex);
+    auto it = _users.find(userId);
+    if (it != _users.end()) {
+        return it->second.username;
+    }
+    return "Unknown";
 }
