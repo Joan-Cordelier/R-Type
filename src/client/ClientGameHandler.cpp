@@ -9,7 +9,7 @@
 #include <sstream>
 
 ClientGameHandler::ClientGameHandler(bool debugMode)
-    : _settingsMenu(_reg, _keybindsManager), _loginMenu(_reg), _lobbyMenu(_reg), _createRoomMenu(_reg), _chatPanel(_reg), _scoreboardMenu(_reg), _debugMode(debugMode) {
+    : _settingsMenu(_reg, _keybindsManager), _loginMenu(_reg), _lobbyMenu(_reg), _createRoomMenu(_reg), _chatPanel(_reg), _scoreboardMenu(_reg), _deathScreen(_reg), _debugMode(debugMode) {
     // Load config (try local, then ../ for build dir)
     if (!_config.loadFromFile("yaml/main_loop.yaml")) {
         // Only try parent directory if first attempt failed
@@ -124,6 +124,7 @@ ClientGameHandler::ClientGameHandler(bool debugMode)
     _createRoomMenu.init();
     _chatPanel.init();
     _scoreboardMenu.init();
+    _deathScreen.init();
 
     // Setup menus and their callbacks
     _loginMenu.setup(_buttonsys);
@@ -132,9 +133,11 @@ ClientGameHandler::ClientGameHandler(bool debugMode)
     _createRoomMenu.setup(_buttonsys);
     _chatPanel.setup(_buttonsys);
     _scoreboardMenu.setup(_buttonsys);
+    _deathScreen.setup(_buttonsys);
     setupLobbyCallbacks();
     setupChatCallbacks();
     setupScoreboardCallbacks();
+    setupDeathScreenCallbacks();
 
     _settingsMenu.setup(_reg, _slidersys, _buttonsys);
 
@@ -1229,6 +1232,12 @@ void ClientGameHandler::handleMessages() {
                 case EntityType::PLAYER: {
                     auto itPlayer = playerEntities.find(serverEntity);
                     if (itPlayer != playerEntities.end()) {
+                        // Check if this is the local player
+                        if (itPlayer->second == myEntity) {
+                            std::cout << "Local player died! Showing death screen." << std::endl;
+                            _deathScreen.show(_currentScore);
+                            _gameState = GameState::DEAD;
+                        }
                         _reg.destroyEntity(itPlayer->second);
                         playerEntities.erase(itPlayer);
                         std::cout << "Player " << serverEntity << " destroyed" << std::endl;
@@ -1702,4 +1711,66 @@ void ClientGameHandler::requestScoreboard() {
     MessageFactory &factory = MessageFactory::getInstance();
     PreparedMessage scoreboardReq = factory.createMessage(OpCode::SCOREBOARD_REQUEST, {});
     _network.sendTcp(scoreboardReq);
+}
+
+void ClientGameHandler::setupDeathScreenCallbacks() {
+    _deathScreen.setReturnToLobbyCallback([this]() {
+        returnToLobby();
+    });
+}
+
+void ClientGameHandler::returnToLobby() {
+    std::cout << "[Game] Returning to lobby" << std::endl;
+    
+    _deathScreen.hide();
+    cleanupGameEntities();
+    
+    _currentScore = 0;
+    _joinedRoom = false;
+    myEntity = 0;
+
+    if (_reg.hasComponent<Label>(_scoreLabel)) {
+        _reg.getComponent<Label>(_scoreLabel).visible = false;
+    }
+    
+    _lobbyMenu.show();
+    _gameState = GameState::LOBBY;
+
+    requestRoomList();
+}
+
+void ClientGameHandler::cleanupGameEntities() {
+    // Destroy all player entities
+    for (auto& [serverId, entity] : playerEntities) {
+        if (_reg.hasComponent<Position>(entity)) {
+            _reg.destroyEntity(entity);
+        }
+    }
+    playerEntities.clear();
+    
+    // Destroy all enemy entities
+    for (auto& [serverId, entity] : enemyEntities) {
+        if (_reg.hasComponent<Position>(entity)) {
+            _reg.destroyEntity(entity);
+        }
+    }
+    enemyEntities.clear();
+    
+    // Destroy all projectile entities
+    for (auto& [serverId, entity] : projectileEntities) {
+        if (_reg.hasComponent<Position>(entity)) {
+            _reg.destroyEntity(entity);
+        }
+    }
+    projectileEntities.clear();
+    
+    // Destroy all companion entities
+    for (auto& [serverId, entity] : companionEntities) {
+        if (_reg.hasComponent<Position>(entity)) {
+            _reg.destroyEntity(entity);
+        }
+    }
+    companionEntities.clear();
+    
+    std::cout << "[Game] All game entities cleaned up" << std::endl;
 }

@@ -20,6 +20,7 @@
 #include "ChatPanel.hpp"
 #include "SettingMenu.hpp"
 #include "ScoreboardMenu.hpp"
+#include "DeathScreen.hpp"
 
 enum class GameState {
     MAIN_MENU,
@@ -27,7 +28,8 @@ enum class GameState {
     LOBBY,
     CREATE_ROOM,
     SCOREBOARD,
-    IN_GAME
+    IN_GAME,
+    DEAD
 };
 #include <SDL2/SDL.h>
 #include <arpa/inet.h>
@@ -58,6 +60,7 @@ private:
     CreateRoomMenu _createRoomMenu;
     ChatPanel _chatPanel;
     ScoreboardMenu _scoreboardMenu;
+    DeathScreen _deathScreen;
 
     NetworkManager _network;
     GameLoopConfig _config;
@@ -106,6 +109,7 @@ private:
     void setupLoginCallbacks();
     void setupChatCallbacks();
     void setupScoreboardCallbacks();
+    void setupDeathScreenCallbacks();
     void requestRoomList();
     void requestScoreboard();
     void showCreateRoomMenu();
@@ -113,6 +117,8 @@ private:
     void joinRoom(uint32_t roomId);
     void registerJoinHandler(uint32_t roomId);
     void sendChatMessage(const std::string& message);
+    void returnToLobby();
+    void cleanupGameEntities();
 
 public:
     uint32_t myPlayerId = 0;
