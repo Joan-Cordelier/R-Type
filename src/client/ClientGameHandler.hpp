@@ -1,10 +1,10 @@
 #pragma once
 
 #include "../common/Data/MessageFactory.hpp"
+#include "AudioManager.hpp"
 #include "Network/NetworkManager.hpp"
 #include "graphic/Renderer.hpp"
 #include "input_system.hpp"
-#include "AudioManager.hpp"
 
 #include "../common/Config/GameLoopConfig.hpp"
 #include "../common/ecs/ecs_components.hpp"
@@ -13,25 +13,17 @@
 #include "../common/ecs/systems/slider_system.hpp"
 #include "../common/ecs/systems/weapon_system.hpp"
 
-#include "KeybindsManager.hpp"
-#include "LoginMenu.hpp"
-#include "LobbyMenu.hpp"
-#include "CreateRoomMenu.hpp"
 #include "ChatPanel.hpp"
-#include "SettingMenu.hpp"
-#include "ScoreboardMenu.hpp"
-#include "DeathScreen.hpp"
+#include "CreateRoomMenu.hpp"
+#include "EndGameScreen.hpp"
+#include "KeybindsManager.hpp"
+#include "LobbyMenu.hpp"
+#include "LoginMenu.hpp"
 #include "PauseMenu.hpp"
+#include "ScoreboardMenu.hpp"
+#include "SettingMenu.hpp"
 
-enum class GameState {
-    MAIN_MENU,
-    LOGIN,
-    LOBBY,
-    CREATE_ROOM,
-    SCOREBOARD,
-    IN_GAME,
-    DEAD
-};
+enum class GameState { MAIN_MENU, LOGIN, LOBBY, CREATE_ROOM, SCOREBOARD, IN_GAME, DEAD };
 #include <SDL2/SDL.h>
 #include <arpa/inet.h>
 #include <functional>
@@ -61,7 +53,7 @@ private:
     CreateRoomMenu _createRoomMenu;
     ChatPanel _chatPanel;
     ScoreboardMenu _scoreboardMenu;
-    DeathScreen _deathScreen;
+    EndGameScreen _endGameScreen;
     PauseMenu _pauseMenu;
 
     NetworkManager _network;
@@ -108,21 +100,21 @@ private:
     void handlePlayerPacket(const DecodedMessage &msg);
 
     void cleanupServerEntity(Entity serverEntity);
-    
+
     AudioManager _audioManager;
 
     void setupLobbyCallbacks();
     void setupLoginCallbacks();
     void setupChatCallbacks();
     void setupScoreboardCallbacks();
-    void setupDeathScreenCallbacks();
+    void setupEndGameScreenCallbacks();
     void requestRoomList();
     void requestScoreboard();
     void showCreateRoomMenu();
-    void createRoom(const RoomConfig& config);
+    void createRoom(const RoomConfig &config);
     void joinRoom(uint32_t roomId);
     void registerJoinHandler(uint32_t roomId);
-    void sendChatMessage(const std::string& message);
+    void sendChatMessage(const std::string &message);
     void returnToLobby();
     void cleanupGameEntities();
 

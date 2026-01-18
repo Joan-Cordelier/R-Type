@@ -10,7 +10,7 @@
 
 ClientGameHandler::ClientGameHandler(bool debugMode)
     : _settingsMenu(_reg, _keybindsManager), _loginMenu(_reg), _lobbyMenu(_reg),
-      _createRoomMenu(_reg), _chatPanel(_reg), _scoreboardMenu(_reg), _deathScreen(_reg),
+      _createRoomMenu(_reg), _chatPanel(_reg), _scoreboardMenu(_reg), _endGameScreen(_reg),
       _pauseMenu(_reg), _debugMode(debugMode) {
     // Load config (try local, then ../ for build dir)
     if (!_config.loadFromFile("yaml/main_loop.yaml")) {
@@ -126,7 +126,7 @@ ClientGameHandler::ClientGameHandler(bool debugMode)
     _createRoomMenu.init();
     _chatPanel.init();
     _scoreboardMenu.init();
-    _deathScreen.init();
+    _endGameScreen.init();
     _pauseMenu.init();
 
     // Setup menus and their callbacks
@@ -136,11 +136,11 @@ ClientGameHandler::ClientGameHandler(bool debugMode)
     _createRoomMenu.setup(_buttonsys);
     _chatPanel.setup(_buttonsys);
     _scoreboardMenu.setup(_buttonsys);
-    _deathScreen.setup(_buttonsys);
+    _endGameScreen.setup(_buttonsys);
     setupLobbyCallbacks();
     setupChatCallbacks();
     setupScoreboardCallbacks();
-    setupDeathScreenCallbacks();
+    setupEndGameScreenCallbacks();
     _pauseMenu.setup(_buttonsys);
     setupPauseMenuCallbacks();
 
@@ -1281,7 +1281,7 @@ void ClientGameHandler::handleMessages() {
                         // Check if this is the local player
                         if (itPlayer->second == myEntity) {
                             std::cout << "Local player died! Showing death screen." << std::endl;
-                            _deathScreen.show(_currentScore);
+                            _endGameScreen.showDeath(_currentScore);
                             _gameState = GameState::DEAD;
                         }
                         _reg.destroyEntity(itPlayer->second);
@@ -1776,10 +1776,10 @@ void ClientGameHandler::requestScoreboard() {
     _network.sendTcp(scoreboardReq);
 }
 
-void ClientGameHandler::setupDeathScreenCallbacks() {
-    _deathScreen.setReturnToLobbyCallback([this]() { returnToLobby(); });
-    _deathScreen.setExitCallback([]() {
-        std::cout << "[DeathScreen] Quitting game..." << std::endl;
+void ClientGameHandler::setupEndGameScreenCallbacks() {
+    _endGameScreen.setReturnToLobbyCallback([this]() { returnToLobby(); });
+    _endGameScreen.setExitCallback([]() {
+        std::cout << "[EndGameScreen] Quitting game..." << std::endl;
         SDL_Quit();
         exit(0);
     });
@@ -1794,7 +1794,7 @@ void ClientGameHandler::returnToLobby() {
     _network.sendTcp(disconnectMsg);
     std::cout << "[Game] Sent DISCONNECT to server" << std::endl;
 
-    _deathScreen.hide();
+    _endGameScreen.hide();
     cleanupGameEntities();
 
     _currentScore = 0;

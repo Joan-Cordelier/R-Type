@@ -2,11 +2,11 @@
 ** EPITECH PROJECT, 2025
 ** R-Type
 ** File description:
-** DeathScreen - UI shown when player dies
+** EndGameScreen - UI shown when game ends (win or lose)
 */
 
-#ifndef DEATHSCREEN_HPP_
-#define DEATHSCREEN_HPP_
+#ifndef ENDGAMESCREEN_HPP_
+#define ENDGAMESCREEN_HPP_
 
 #include "../common/ecs/ecs_components.hpp"
 #include "../common/ecs/ecs_system.hpp"
@@ -14,17 +14,18 @@
 #include <functional>
 #include <string>
 
-class DeathScreen {
+class EndGameScreen {
 public:
     using ReturnToLobbyCallback = std::function<void()>;
     using ExitCallback = std::function<void()>;
 
-    DeathScreen(Registry &reg);
-    ~DeathScreen() = default;
+    EndGameScreen(Registry &reg);
+    ~EndGameScreen() = default;
 
     void init();
     void setup(ButtonSystem &buttonsys);
-    void show(uint32_t finalScore);
+    void showDeath(uint32_t finalScore);   // Show "You Died!" in red
+    void showVictory(uint32_t finalScore); // Show "YOU WIN!" in green
     void hide();
     bool isVisible() const {
         return _visible;
@@ -38,11 +39,12 @@ public:
     }
 
 private:
+    void showScreen(uint32_t finalScore, const std::string &title, Color titleColor);
+
     Registry &_reg;
     bool _visible = false;
 
     // UI Entities
-    Entity _backgroundPanel;
     Entity _titleLabel;
     Entity _scoreLabel;
     Entity _returnButton;
@@ -55,4 +57,4 @@ private:
     ExitCallback _onExit;
 };
 
-#endif /* !DEATHSCREEN_HPP_ */
+#endif /* !ENDGAMESCREEN_HPP_ */
