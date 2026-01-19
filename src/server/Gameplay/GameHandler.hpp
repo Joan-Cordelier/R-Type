@@ -4,6 +4,7 @@
 #include "Session/Player.hpp"
 #include "Session/SessionManager.hpp"
 
+#include "../Monitoring/PrometheusExporter.hpp"
 #include "ecs/registry.hpp"
 #include "ecs/systems/button_system.hpp"
 #include "ecs/systems/enemy_system.hpp"
@@ -13,7 +14,6 @@
 #include "ecs/systems/spritesheet_system.hpp"
 #include "ecs/systems/stat_system.hpp"
 #include "ecs/systems/weapon_system.hpp"
-#include "../Monitoring/PrometheusExporter.hpp"
 
 #include "../../common/Config/GameLoopConfig.hpp"
 #include "../../common/Data/RoomConfig.hpp"
@@ -43,7 +43,9 @@ private:
     bool _gameStarted = false;
     std::atomic<bool> &_running;
     SessionManager &_session;
-    PrometheusExporter& _monitor;
+    PrometheusExporter &_monitor;
+    Difficulty _difficulty;
+    GameMode _gameMode;
     MessageHandler _messageHandler;
 
     Registry reg;
@@ -52,14 +54,13 @@ private:
     EnemySystem enemySystem;
     WeaponSystem weaponSystem;
     GameLoopConfig _config;
-    Difficulty _difficulty;
 
     std::map<uint32_t, Entity> playerEntities;
-    std::map<uint32_t, uint8_t> playerSkinIndices;  // Tracks each player's skin index (0-3)
+    std::map<uint32_t, uint8_t> playerSkinIndices; // Tracks each player's skin index (0-3)
     std::map<Entity, bool> wasMoving;
     Entity ScoreEntity;
     int score = 0;
-
+    uint8_t _participantCount = 0;
     bool _waitingForUpgrades = false;
     std::vector<UpgradeData> _offeredUpgrades;
     std::set<uint32_t> _playersSelectedUpgrade;
@@ -70,13 +71,24 @@ private:
     std::thread _gameThread;
 
     std::function<void(uint32_t)> _onPlayerDeath;
+    std::function<void(uint32_t)> _onGameVictory; // Called when game is won (final score)
 
 public:
     GameHandler(SessionManager &session, std::shared_ptr<ThreadedQueue<DecodedMessage>> inputQueue,
-                std::atomic<bool> &running, const std::string &configPath, PrometheusExporter& monitor, Difficulty difficulty);
+                std::atomic<bool> &running, const std::string &configPath,
+                PrometheusExporter &monitor, Difficulty difficulty, GameMode gameMode);
     void run();
 
-    void setOnPlayerDeath(std::function<void(uint32_t)> callback) { _onPlayerDeath = callback; }
+    void setOnPlayerDeath(std::function<void(uint32_t)> callback) {
+        _onPlayerDeath = callback;
+    }
+    void setOnGameVictory(std::function<void(uint32_t)> callback) {
+        _onGameVictory = callback;
+    }
+
+    int getScore() const {
+        return score;
+    }
 
     void sendUpdatedPositionToAllPlayers();
     void sendUpdatedPositionToPlayer(uint32_t playerId);
@@ -95,6 +107,7 @@ private:
     void sendDestroyedProjectileToAllPlayers(Entity projectile);
     void sendDestroyedEnemyToAllPlayers(Entity enemy);
     void sendDestroyedPlayerToAllPlayers(Entity player);
+    void sendScoreUpdateToAllPlayers();
     void checkPlayerCollisions();
 
     void onUpgradeSelect(uint32_t playerId, uint8_t index);

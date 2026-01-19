@@ -5,11 +5,13 @@
 ** main
 */
 
+#include "Admin/AdminConsole.hpp"
 #include "Lobby/LobbyManager.hpp"
 #include "Logs/Logger.hpp"
 #include "Monitoring/PrometheusExporter.hpp"
 #include <atomic>
 #include <csignal>
+#include <cstring>
 
 std::atomic<bool> running(true);
 
@@ -29,32 +31,68 @@ std::atomic<bool> running(true);
 LobbyManager *g_lobby = nullptr;
 
 void signalHandler(int sig) {
-  (void)sig;
-  LOG_INFO("Received shutdown signal");
-  if (g_lobby) {
-    g_lobby->stop();
-  }
+    (void)sig;
+    LOG_INFO("Received shutdown signal");
+    if (g_lobby) {
+        g_lobby->stop();
+    }
 }
 
-int main() {
-  signal(SIGINT, signalHandler);
-  signal(SIGTERM, signalHandler);
+void showHelp() {
+    std::cout << "Usage: r-type_server [options]\n"
+              << "Options:\n"
+              << "  --admin, -a    Start in admin mode (quiet - only errors shown)\n"
+              << "  --help, -h     Show this help message\n";
+}
 
-  LOG_INFO("Starting R-Type server...");
+int main(int argc, char *argv[]) {
+    bool adminMode = false;
 
-  try {
-      PrometheusExporter monitor("0.0.0.0:8080");
-      LOG_INFO("Monitoring started on port 8080");
-      LobbyManager lobby("yaml/main_loop.yaml", monitor); 
-      g_lobby = &lobby;
-      LOG_INFO("Server started - all systems running");
-      lobby.run();
-      LOG_INFO("Shutting down server...");
+    // Parse command line arguments
+    for (int i = 1; i < argc; ++i) {
+        if (std::strcmp(argv[i], "--admin") == 0 || std::strcmp(argv[i], "-a") == 0) {
+            adminMode = true;
+        } else if (std::strcmp(argv[i], "--help") == 0 || std::strcmp(argv[i], "-h") == 0) {
+            showHelp();
+            return 0;
+        }
+    }
 
-  } catch (const std::exception &e) {
-      std::cerr << "[CRITICAL ERROR] " << e.what() << std::endl;
-      return 84;
-  }
+    // Enable quiet mode if admin mode
+    if (adminMode) {
+        Logger::getInstance().setQuiet(true);
+    }
 
-  return 0;
+    signal(SIGINT, signalHandler);
+    signal(SIGTERM, signalHandler);
+
+    LOG_INFO("Starting R-Type server...");
+
+    try {
+        PrometheusExporter monitor("0.0.0.0:8080");
+        LOG_INFO("Monitoring started on port 8080");
+        LobbyManager lobby("yaml/main_loop.yaml", monitor);
+        g_lobby = &lobby;
+        AdminConsole admin(lobby);
+
+        if (adminMode) {
+            admin.start();
+            std::cout << "[Admin Mode] Logs suppressed. Type 'verbose' to enable." << std::endl;
+        }
+
+        LOG_INFO("Server started - all systems running");
+        lobby.run();
+
+        if (adminMode) {
+            admin.stop();
+        }
+
+        LOG_INFO("Shutting down server...");
+
+    } catch (const std::exception &e) {
+        std::cerr << "[CRITICAL ERROR] " << e.what() << std::endl;
+        return 84;
+    }
+
+    return 0;
 }

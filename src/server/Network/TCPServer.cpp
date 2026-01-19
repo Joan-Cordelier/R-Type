@@ -8,9 +8,8 @@
 #include "TCPServer.hpp"
 #include "../Logs/Logger.hpp"
 
-TCPServer::TCPServer(ThreadedQueue<DecodedMessage>& queue, PrometheusExporter& monitor)
-    : AServer(queue), _monitor(monitor)
-{
+TCPServer::TCPServer(ThreadedQueue<DecodedMessage> &queue, PrometheusExporter &monitor)
+    : AServer(queue), _monitor(monitor) {
     init(AServer::protocol::TCP, 4789);
 }
 
@@ -210,4 +209,33 @@ int TCPServer::sendToAll(const MessageData &data) {
         }
     }
     return result;
+}
+
+void TCPServer::disconnectClient(int fd) {
+    if (fd < 0)
+        return;
+
+    LOG_INFO("TCP disconnecting client (fd: " + std::to_string(fd) + ")");
+
+    close(fd);
+
+    // Remove from fds polling list
+    {
+        std::lock_guard<std::mutex> lock(_fdsMutex);
+        _fds.erase(std::remove_if(_fds.begin(), _fds.end(),
+                                  [fd](const struct pollfd &pfd) { return pfd.fd == fd; }),
+                   _fds.end());
+    }
+
+    // Remove from client list
+    {
+        std::lock_guard<std::mutex> lock(_clientsMutex);
+        _clientFds.erase(std::remove(_clientFds.begin(), _clientFds.end(), fd), _clientFds.end());
+    }
+
+    // Remove buffer
+    {
+        std::lock_guard<std::mutex> lock(_buffersMutex);
+        _buffers.erase(fd);
+    }
 }

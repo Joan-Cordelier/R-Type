@@ -20,6 +20,7 @@ add_executable(r-type_server
 
 target_include_directories(r-type_server PRIVATE 
     ${CMAKE_CURRENT_SOURCE_DIR}
+    ${CMAKE_CURRENT_SOURCE_DIR}/Admin
     ${CMAKE_CURRENT_SOURCE_DIR}/Network
     ${CMAKE_CURRENT_SOURCE_DIR}/Session
     ${CMAKE_CURRENT_SOURCE_DIR}/Handler

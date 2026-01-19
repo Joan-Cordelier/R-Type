@@ -131,7 +131,7 @@ void LoginMenu::init() {
 }
 
 void LoginMenu::setup(ButtonSystem &buttonsys) {
-    buttonsys.registerHandler("login_submit", [this](Registry &r, Entity e) {
+    buttonsys.registerHandler("login_submit", [this]([[maybe_unused]] Registry &r, [[maybe_unused]] Entity e) {
         if (_visible && _onLogin && !_username.empty() && !_password.empty()) {
             clearError();
             _onLogin(_username, _password);
@@ -140,7 +140,7 @@ void LoginMenu::setup(ButtonSystem &buttonsys) {
         }
     });
 
-    buttonsys.registerHandler("login_register", [this](Registry &r, Entity e) {
+    buttonsys.registerHandler("login_register", [this]([[maybe_unused]] Registry &r, [[maybe_unused]] Entity e) {
         if (_visible && _onRegister && !_username.empty() && !_password.empty()) {
             clearError();
             _onRegister(_username, _password);
@@ -149,7 +149,7 @@ void LoginMenu::setup(ButtonSystem &buttonsys) {
         }
     });
 
-    buttonsys.registerHandler("login_guest", [this](Registry &r, Entity e) {
+    buttonsys.registerHandler("login_guest", [this]([[maybe_unused]] Registry &r, [[maybe_unused]] Entity e) {
         if (_visible && _onGuest) {
             clearError();
             _onGuest();

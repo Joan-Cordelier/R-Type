@@ -1,7 +1,7 @@
 #include "ClientGameHandler.hpp"
 #include "../common/Data/EntityType.hpp"
-#include "../common/ecs/components/weapon.hpp"
 #include "../common/ecs/components/enemy.hpp"
+#include "../common/ecs/components/weapon.hpp"
 #include <cmath>
 #include <cstring>
 #include <map>
@@ -9,7 +9,9 @@
 #include <sstream>
 
 ClientGameHandler::ClientGameHandler(bool debugMode)
-    : _settingsMenu(_reg, _keybindsManager), _loginMenu(_reg), _lobbyMenu(_reg), _createRoomMenu(_reg), _chatPanel(_reg), _debugMode(debugMode) {
+    : _settingsMenu(_reg, _keybindsManager), _loginMenu(_reg), _lobbyMenu(_reg),
+      _createRoomMenu(_reg), _chatPanel(_reg), _scoreboardMenu(_reg), _endGameScreen(_reg),
+      _pauseMenu(_reg), _debugMode(debugMode) {
     // Load config (try local, then ../ for build dir)
     if (!_config.loadFromFile("yaml/main_loop.yaml")) {
         // Only try parent directory if first attempt failed
@@ -123,6 +125,9 @@ ClientGameHandler::ClientGameHandler(bool debugMode)
     _lobbyMenu.init();
     _createRoomMenu.init();
     _chatPanel.init();
+    _scoreboardMenu.init();
+    _endGameScreen.init();
+    _pauseMenu.init();
 
     // Setup menus and their callbacks
     _loginMenu.setup(_buttonsys);
@@ -130,8 +135,14 @@ ClientGameHandler::ClientGameHandler(bool debugMode)
     _lobbyMenu.setup(_buttonsys);
     _createRoomMenu.setup(_buttonsys);
     _chatPanel.setup(_buttonsys);
+    _scoreboardMenu.setup(_buttonsys);
+    _endGameScreen.setup(_buttonsys);
     setupLobbyCallbacks();
     setupChatCallbacks();
+    setupScoreboardCallbacks();
+    setupEndGameScreenCallbacks();
+    _pauseMenu.setup(_buttonsys);
+    setupPauseMenuCallbacks();
 
     _settingsMenu.setup(_reg, _slidersys, _buttonsys);
 
@@ -144,16 +155,40 @@ int ClientGameHandler::run() {
     _input.setControlled(label_input, _keybindsManager);
     _audioManager.playMusic(_config.getAudioConfig().level_music);
 
+    _renderer.clear();
+    _renderer.render();
+
     while (running) {
         _renderer.window.processSDLEvents();
         SDL_Event status = _renderer.window.pollEvent();
         if (status.type == SDL_QUIT)
             break;
 
-        // Handle ESC key for settings menu (only in-game)
-        if (status.type == SDL_KEYDOWN && status.key.keysym.sym == SDLK_ESCAPE && _gameState == GameState::IN_GAME) {
-            std::cout << "toggling settings menu" << std::endl;
-            toggleSettingsMenu();
+        // Handle ESC key (only in-game)
+        if (status.type == SDL_KEYDOWN && status.key.keysym.sym == SDLK_ESCAPE &&
+            _gameState == GameState::IN_GAME) {
+            if (settingsMenuOpen) {
+                // If settings was opened from pause menu, return to pause
+                if (_settingsOpenedFromPause) {
+                    toggleSettingsMenu();
+                    _pauseMenu.show();
+                    pauseMenuOpen = true;
+                } else {
+                    toggleSettingsMenu();
+                }
+            } else if (pauseMenuOpen) {
+                // ESC closes pause menu
+                togglePauseMenu();
+            } else {
+                // Open settings menu directly with ESC
+                toggleSettingsMenu();
+            }
+        }
+
+        // Handle P key for pause menu (only in-game, not when settings open)
+        if (status.type == SDL_KEYDOWN && status.key.keysym.sym == SDLK_p &&
+            _gameState == GameState::IN_GAME && !settingsMenuOpen) {
+            togglePauseMenu();
         }
 
         // Handle text input for login menu
@@ -172,7 +207,8 @@ int ClientGameHandler::run() {
         }
 
         // Handle chat input (in lobby or in-game)
-        if ((_gameState == GameState::LOBBY || _gameState == GameState::IN_GAME) && _chatPanel.isVisible()) {
+        if ((_gameState == GameState::LOBBY || _gameState == GameState::IN_GAME) &&
+            _chatPanel.isVisible()) {
             if (_chatPanel.isInputFocused()) {
                 if (status.type == SDL_TEXTINPUT) {
                     if (status.text.text[0] != '\0') {
@@ -233,8 +269,10 @@ int ClientGameHandler::run() {
 
         _buttonsys.update(_reg);
         _slidersys.update(_reg);
-        _audioManager.setMusicVolume(static_cast<int>(_settingsMenu.getMusicVolumeSliderValue(_reg)));
-        _audioManager.setSoundVolume(static_cast<int>(_settingsMenu.getSoundVolumeSliderValue(_reg)));
+        _audioManager.setMusicVolume(
+            static_cast<int>(_settingsMenu.getMusicVolumeSliderValue(_reg)));
+        _audioManager.setSoundVolume(
+            static_cast<int>(_settingsMenu.getSoundVolumeSliderValue(_reg)));
 
         _renderer.clear();
 
@@ -506,7 +544,7 @@ void ClientGameHandler::handleMessages() {
                                   static_cast<uint32_t>(msg->data[4]);
                 uint8_t errorLen = msg->data[5];
                 std::string errorMsg;
-                if (errorLen > 0 && msg->data.size() >= 6 + errorLen) {
+                if (errorLen > 0 && msg->data.size() >= static_cast<size_t>(6 + errorLen)) {
                     errorMsg = std::string(msg->data.begin() + 6, msg->data.begin() + 6 + errorLen);
                 }
 
@@ -531,25 +569,28 @@ void ClientGameHandler::handleMessages() {
                 uint8_t usernameLen = msg->data[5];
                 size_t offset = 6 + usernameLen;
                 std::string username;
-                if (usernameLen > 0 && msg->data.size() >= 6 + usernameLen) {
-                    username = std::string(msg->data.begin() + 6, msg->data.begin() + 6 + usernameLen);
+                if (usernameLen > 0 && msg->data.size() >= static_cast<size_t>(6 + usernameLen)) {
+                    username =
+                        std::string(msg->data.begin() + 6, msg->data.begin() + 6 + usernameLen);
                 }
-                
+
                 std::string errorMsg;
                 if (msg->data.size() > offset) {
                     uint8_t errorLen = msg->data[offset];
                     if (errorLen > 0 && msg->data.size() >= offset + 1 + errorLen) {
-                        errorMsg = std::string(msg->data.begin() + offset + 1, msg->data.begin() + offset + 1 + errorLen);
+                        errorMsg = std::string(msg->data.begin() + offset + 1,
+                                               msg->data.begin() + offset + 1 + errorLen);
                     }
                 }
 
                 if (success) {
-                    std::cout << "Login successful! User: " << username << " (ID: " << userId << ")" << std::endl;
+                    std::cout << "Login successful! User: " << username << " (ID: " << userId << ")"
+                              << std::endl;
                     _userId = userId;
                     _username = username;
                     _isGuest = false;
                     _isAuthenticated = true;
-                    
+
                     // Transition to lobby
                     _loginMenu.hide();
                     _lobbyMenu.setUsername(_username, _isGuest);
@@ -575,11 +616,12 @@ void ClientGameHandler::handleMessages() {
                                    static_cast<uint32_t>(msg->data[3]);
                 uint8_t nameLen = msg->data[4];
                 std::string guestName;
-                if (nameLen > 0 && msg->data.size() >= 5 + nameLen) {
+                if (nameLen > 0 && msg->data.size() >= static_cast<size_t>(5 + nameLen)) {
                     guestName = std::string(msg->data.begin() + 5, msg->data.begin() + 5 + nameLen);
                 }
 
-                std::cout << "Guest login successful! Name: " << guestName << " (ID: " << guestId << ")" << std::endl;
+                std::cout << "Guest login successful! Name: " << guestName << " (ID: " << guestId
+                          << ")" << std::endl;
                 _userId = guestId;
                 _username = guestName;
                 _isGuest = true;
@@ -608,7 +650,8 @@ void ClientGameHandler::handleMessages() {
                 size_t offset = 1;
 
                 for (uint8_t i = 0; i < count; ++i) {
-                    if (offset + 6 > msg->data.size())  // Now 6 bytes per room (4 id + 1 count + 1 max)
+                    if (offset + 6 >
+                        msg->data.size()) // Now 6 bytes per room (4 id + 1 count + 1 max)
                         break;
 
                     uint32_t rId = (static_cast<uint32_t>(msg->data[offset]) << 24) |
@@ -619,7 +662,8 @@ void ClientGameHandler::handleMessages() {
                     uint8_t maxP = msg->data[offset + 5];
                     offset += 6;
 
-                    std::cout << "Room " << rId << " (" << (int)pCount << "/" << (int)maxP << ")" << std::endl;
+                    std::cout << "Room " << rId << " (" << (int)pCount << "/" << (int)maxP << ")"
+                              << std::endl;
 
                     RoomInfo info;
                     info.id = rId;
@@ -671,6 +715,14 @@ void ClientGameHandler::handleMessages() {
                     _lobbyMenu.hide();
                     _chatPanel.setContext("Room " + std::to_string(roomId));
                     _chatPanel.hide();
+
+                    _currentScore = 0;
+                    _scoreLabel = _reg.createEntity();
+                    _reg.addComponent<Position>(_scoreLabel, 20.f, 20.f);
+                    _reg.addComponent<Label>(
+                        _scoreLabel, std::string("Score: 0"),
+                        std::string("font/josefin-sans/JosefinSans-Regular.ttf"),
+                        std::string("default_font"), Color(255, 255, 255), 200, true);
                 } else {
                     std::cerr << "Failed to join room " << roomId << std::endl;
                     // Refresh room list to see updated availability
@@ -691,7 +743,8 @@ void ClientGameHandler::handleMessages() {
 
                 std::string senderName;
                 if (nameLen > 0 && msg->data.size() >= offset + nameLen + 1) {
-                    senderName = std::string(msg->data.begin() + offset, msg->data.begin() + offset + nameLen);
+                    senderName = std::string(msg->data.begin() + offset,
+                                             msg->data.begin() + offset + nameLen);
                     offset += nameLen;
                 }
 
@@ -701,7 +754,8 @@ void ClientGameHandler::handleMessages() {
 
                     std::string chatMessage;
                     if (msgLen > 0 && msg->data.size() >= offset + msgLen) {
-                        chatMessage = std::string(msg->data.begin() + offset, msg->data.begin() + offset + msgLen);
+                        chatMessage = std::string(msg->data.begin() + offset,
+                                                  msg->data.begin() + offset + msgLen);
                     }
 
                     ChatMessage chatMsg;
@@ -713,6 +767,124 @@ void ClientGameHandler::handleMessages() {
 
                     std::cout << "[Chat] " << senderName << ": " << chatMessage << std::endl;
                 }
+            }
+            break;
+        }
+        case OpCode::SCOREBOARD_RESPONSE: {
+            std::cout << "[Scoreboard] Received scoreboard response" << std::endl;
+            std::vector<ScoreEntry> scores;
+
+            if (msg->data.size() >= 1) {
+                uint8_t count = msg->data[0];
+                size_t offset = 1;
+
+                for (uint8_t i = 0; i < count; ++i) {
+                    if (offset >= msg->data.size())
+                        break;
+
+                    uint8_t nameLen = msg->data[offset];
+                    offset++;
+
+                    if (offset + nameLen + 4 > msg->data.size())
+                        break;
+
+                    std::string username(msg->data.begin() + offset,
+                                         msg->data.begin() + offset + nameLen);
+                    offset += nameLen;
+
+                    uint32_t highScore = (static_cast<uint32_t>(msg->data[offset]) << 24) |
+                                         (static_cast<uint32_t>(msg->data[offset + 1]) << 16) |
+                                         (static_cast<uint32_t>(msg->data[offset + 2]) << 8) |
+                                         static_cast<uint32_t>(msg->data[offset + 3]);
+                    offset += 4;
+
+                    ScoreEntry entry;
+                    entry.username = username;
+                    entry.highScore = highScore;
+                    scores.push_back(entry);
+
+                    std::cout << "[Scoreboard] #" << (int)(i + 1) << " " << username << ": "
+                              << highScore << std::endl;
+                }
+            }
+
+            _scoreboardMenu.updateScores(scores, 0);
+            break;
+        }
+        case OpCode::LEADERBOARD_DATA: {
+            std::cout << "[Leaderboard] Received leaderboard data" << std::endl;
+            std::vector<ScoreEntry> scores;
+
+            if (msg->data.size() >= 2) {
+                uint8_t difficulty = msg->data[0];
+                uint8_t count = msg->data[1];
+                size_t offset = 2;
+
+                for (uint8_t i = 0; i < count; ++i) {
+                    if (offset >= msg->data.size())
+                        break;
+
+                    uint8_t nameLen = msg->data[offset];
+                    offset++;
+
+                    if (offset + nameLen + 4 > msg->data.size())
+                        break;
+
+                    std::string username(msg->data.begin() + offset,
+                                         msg->data.begin() + offset + nameLen);
+                    offset += nameLen;
+
+                    uint32_t highScore = (static_cast<uint32_t>(msg->data[offset]) << 24) |
+                                         (static_cast<uint32_t>(msg->data[offset + 1]) << 16) |
+                                         (static_cast<uint32_t>(msg->data[offset + 2]) << 8) |
+                                         static_cast<uint32_t>(msg->data[offset + 3]);
+                    offset += 4;
+
+                    ScoreEntry entry;
+                    entry.username = username;
+                    entry.highScore = highScore;
+                    scores.push_back(entry);
+
+                    std::cout << "[Leaderboard] #" << (int)(i + 1) << " " << username << ": "
+                              << highScore << std::endl;
+                }
+
+                _scoreboardMenu.updateScores(scores, difficulty);
+            }
+            break;
+        }
+        case OpCode::SCORE_UPDATE: {
+            if (msg->data.size() >= 5) {
+                _currentScore = (static_cast<uint32_t>(msg->data[0]) << 24) |
+                                (static_cast<uint32_t>(msg->data[1]) << 16) |
+                                (static_cast<uint32_t>(msg->data[2]) << 8) |
+                                static_cast<uint32_t>(msg->data[3]);
+                _participantCount = msg->data[4];
+                if (_participantCount == 0)
+                    _participantCount = 1;
+
+                // Update the score label with "SCORE: XXX / X" format
+                if (_reg.hasComponent<Label>(_scoreLabel)) {
+                    _reg.getComponent<Label>(_scoreLabel).text =
+                        "SCORE: " + std::to_string(_currentScore) + " / " +
+                        std::to_string(_participantCount);
+                }
+
+                std::cout << "[Game] Score updated: " << _currentScore << " / "
+                          << (int)_participantCount << std::endl;
+            }
+            break;
+        }
+        case OpCode::VICTORY: {
+            if (msg->data.size() >= 4) {
+                uint32_t finalScore = (static_cast<uint32_t>(msg->data[0]) << 24) |
+                                      (static_cast<uint32_t>(msg->data[1]) << 16) |
+                                      (static_cast<uint32_t>(msg->data[2]) << 8) |
+                                      static_cast<uint32_t>(msg->data[3]);
+
+                std::cout << "[Game] VICTORY! Final score: " << finalScore << std::endl;
+                _endGameScreen.showVictory(finalScore);
+                _gameState = GameState::DEAD;
             }
             break;
         }
@@ -822,17 +994,17 @@ void ClientGameHandler::handleMessages() {
 
                 // Decode vx
                 uint32_t vxInt = (static_cast<uint32_t>(msg->data[26]) << 24) |
-                                (static_cast<uint32_t>(msg->data[27]) << 16) |
-                                (static_cast<uint32_t>(msg->data[28]) << 8) |
-                                static_cast<uint32_t>(msg->data[29]);
+                                 (static_cast<uint32_t>(msg->data[27]) << 16) |
+                                 (static_cast<uint32_t>(msg->data[28]) << 8) |
+                                 static_cast<uint32_t>(msg->data[29]);
                 float vx;
                 std::memcpy(&vx, &vxInt, sizeof(float));
 
                 // Decode vy
                 uint32_t vyInt = (static_cast<uint32_t>(msg->data[30]) << 24) |
-                                (static_cast<uint32_t>(msg->data[31]) << 16) |
-                                (static_cast<uint32_t>(msg->data[32]) << 8) |
-                                static_cast<uint32_t>(msg->data[33]);
+                                 (static_cast<uint32_t>(msg->data[31]) << 16) |
+                                 (static_cast<uint32_t>(msg->data[32]) << 8) |
+                                 static_cast<uint32_t>(msg->data[33]);
                 float vy;
                 std::memcpy(&vy, &vyInt, sizeof(float));
 
@@ -973,7 +1145,7 @@ void ClientGameHandler::handleMessages() {
                     // Force clean up stale projectiles if they exist (Fixes ID collision glitches)
                     auto itProj = projectileEntities.find(serverEntity);
                     if (itProj != projectileEntities.end()) {
-                        std::cout << "[INFO] Cleaning up stale PROJECTILE (ID: " << serverEntity 
+                        std::cout << "[INFO] Cleaning up stale PROJECTILE (ID: " << serverEntity
                                   << ") for new ENEMY" << std::endl;
                         _reg.destroyEntity(itProj->second);
                         projectileEntities.erase(itProj);
@@ -1166,6 +1338,16 @@ void ClientGameHandler::handleMessages() {
                 case EntityType::PLAYER: {
                     auto itPlayer = playerEntities.find(serverEntity);
                     if (itPlayer != playerEntities.end()) {
+                        // Check if this is the local player
+                        if (itPlayer->second == myEntity) {
+                            std::cout << "Local player died! Showing death screen." << std::endl;
+                            // Calculate final score: raw score / participant count
+                            uint32_t finalScore = _currentScore / _participantCount;
+                            std::cout << "Final score: " << _currentScore << " / "
+                                      << (int)_participantCount << " = " << finalScore << std::endl;
+                            _endGameScreen.showDeath(finalScore);
+                            _gameState = GameState::DEAD;
+                        }
                         _reg.destroyEntity(itPlayer->second);
                         playerEntities.erase(itPlayer);
                         std::cout << "Player " << serverEntity << " destroyed" << std::endl;
@@ -1210,7 +1392,7 @@ void ClientGameHandler::handlePlayerPacket(const DecodedMessage &msg) {
 
     float x = *reinterpret_cast<const float *>(&msg.data[8]);
     float y = *reinterpret_cast<const float *>(&msg.data[12]);
-    
+
     uint8_t skinIndex = msg.data[16];
 
     auto it = playerEntities.find(serverEntity);
@@ -1252,12 +1434,12 @@ void ClientGameHandler::handlePlayerPacket(const DecodedMessage &msg) {
             myEntity = localEntity;
             _input.setControlled(localEntity, _keybindsManager);
             std::cout << "Created my player entity (serverId: " << serverEntity
-                      << ", localId: " << localEntity << ") at (" << x << ", " << y << ") skin: " << selectedSkin
-                      << std::endl;
+                      << ", localId: " << localEntity << ") at (" << x << ", " << y
+                      << ") skin: " << selectedSkin << std::endl;
         } else {
             std::cout << "Created other player entity (serverId: " << serverEntity
-                      << ", localId: " << localEntity << ") at (" << x << ", " << y << ") skin: " << selectedSkin
-                      << std::endl;
+                      << ", localId: " << localEntity << ") at (" << x << ", " << y
+                      << ") skin: " << selectedSkin << std::endl;
         }
     } else {
         Entity localEntity = it->second;
@@ -1274,6 +1456,7 @@ void ClientGameHandler::toggleSettingsMenu() {
         if (_chatVisibleBeforeMenu) {
             _chatPanel.show();
         }
+        _settingsOpenedFromPause = false;
     }
     settingsMenuOpen = !settingsMenuOpen;
     _settingsMenu.toggle(_reg);
@@ -1486,7 +1669,7 @@ void ClientGameHandler::handleUpdateWeapon(const DecodedMessage &msg) {
 }
 
 void ClientGameHandler::setupLoginCallbacks() {
-    _loginMenu.setOnLogin([this](const std::string& username, const std::string& password) {
+    _loginMenu.setOnLogin([this](const std::string &username, const std::string &password) {
         std::cout << "Attempting login for: " << username << std::endl;
         MessageFactory &factory = MessageFactory::getInstance();
         MessageData payload = factory.encodeMessageLogin(username, password);
@@ -1494,7 +1677,7 @@ void ClientGameHandler::setupLoginCallbacks() {
         _network.sendTcp(msg);
     });
 
-    _loginMenu.setOnRegister([this](const std::string& username, const std::string& password) {
+    _loginMenu.setOnRegister([this](const std::string &username, const std::string &password) {
         std::cout << "Attempting registration for: " << username << std::endl;
         MessageFactory &factory = MessageFactory::getInstance();
         MessageData payload = factory.encodeMessageRegister(username, password);
@@ -1517,8 +1700,39 @@ void ClientGameHandler::setupLobbyCallbacks() {
 
     _lobbyMenu.setRefreshCallback([this]() { requestRoomList(); });
 
+    _lobbyMenu.setScoreboardCallback([this]() {
+        std::cout << "Opening scoreboard menu..." << std::endl;
+        _chatVisibleBeforeMenu = _chatPanel.isVisible();
+        _lobbyMenu.hide();
+        _chatPanel.hide();
+        requestScoreboard();
+        _scoreboardMenu.show();
+        _gameState = GameState::SCOREBOARD;
+    });
+
+    _lobbyMenu.setLogoutCallback([this]() {
+        std::cout << "Logging out..." << std::endl;
+
+        // Hide lobby UI
+        _lobbyMenu.hide();
+        _chatPanel.hide();
+        _chatPanel.setEnabled(false);
+
+        // Clear authentication state
+        _userId = 0;
+        _username.clear();
+        _isGuest = false;
+        _isAuthenticated = false;
+
+        // Show login menu
+        _loginMenu.show();
+        _gameState = GameState::LOGIN;
+
+        std::cout << "Logged out successfully" << std::endl;
+    });
+
     // CreateRoomMenu callbacks
-    _createRoomMenu.setOnConfirm([this](const RoomConfig& config) {
+    _createRoomMenu.setOnConfirm([this](const RoomConfig &config) {
         createRoom(config);
         _createRoomMenu.hide();
         _lobbyMenu.show();
@@ -1554,17 +1768,15 @@ void ClientGameHandler::showCreateRoomMenu() {
     _gameState = GameState::CREATE_ROOM;
 }
 
-void ClientGameHandler::createRoom(const RoomConfig& config) {
+void ClientGameHandler::createRoom(const RoomConfig &config) {
     MessageFactory &factory = MessageFactory::getInstance();
-    MessageData payload = factory.encodeMessageCreateRoom(
-        config.maxPlayers,
-        static_cast<uint8_t>(config.gameMode),
-        static_cast<uint8_t>(config.difficulty)
-    );
+    MessageData payload =
+        factory.encodeMessageCreateRoom(config.maxPlayers, static_cast<uint8_t>(config.gameMode),
+                                        static_cast<uint8_t>(config.difficulty));
     PreparedMessage createMsg = factory.createMessage(OpCode::CREATE_ROOM, payload);
     _network.sendTcp(createMsg);
-    std::cout << "Creating new room (MaxPlayers: " << (int)config.maxPlayers 
-              << ", Mode: " << config.getGameModeStr() 
+    std::cout << "Creating new room (MaxPlayers: " << (int)config.maxPlayers
+              << ", Mode: " << config.getGameModeStr()
               << ", Difficulty: " << config.getDifficultyStr() << ")..." << std::endl;
 }
 
@@ -1593,18 +1805,155 @@ void ClientGameHandler::registerJoinHandler(uint32_t roomId) {
 }
 
 void ClientGameHandler::setupChatCallbacks() {
-    _chatPanel.setOnSend([this](const std::string& message) {
-        sendChatMessage(message);
-    });
+    _chatPanel.setOnSend([this](const std::string &message) { sendChatMessage(message); });
 }
 
-void ClientGameHandler::sendChatMessage(const std::string& message) {
-    if (message.empty()) return;
-    
+void ClientGameHandler::sendChatMessage(const std::string &message) {
+    if (message.empty())
+        return;
+
     MessageFactory &factory = MessageFactory::getInstance();
     MessageData payload = factory.encodeMessageChat(message);
     PreparedMessage chatMsg = factory.createMessage(OpCode::CHAT_MESSAGE, payload);
     _network.sendTcp(chatMsg);
-    
+
     std::cout << "Sending chat message: " << message << std::endl;
+}
+
+void ClientGameHandler::setupScoreboardCallbacks() {
+    _scoreboardMenu.setCloseCallback([this]() {
+        _scoreboardMenu.hide();
+        _lobbyMenu.show();
+        if (_chatVisibleBeforeMenu) {
+            _chatPanel.show();
+        }
+        _gameState = GameState::LOBBY;
+    });
+
+    _scoreboardMenu.setDifficultyCallback(
+        [this](uint8_t difficulty) { requestLeaderboard(difficulty); });
+}
+
+void ClientGameHandler::requestScoreboard() {
+    // Request the current difficulty's leaderboard
+    requestLeaderboard(_scoreboardMenu.getCurrentDifficulty());
+}
+
+void ClientGameHandler::requestLeaderboard(uint8_t difficulty) {
+    std::cout << "[Leaderboard] Requesting endless leaderboard (difficulty " << (int)difficulty
+              << ") from server" << std::endl;
+    MessageFactory &factory = MessageFactory::getInstance();
+    MessageData payload = factory.encodeMessageGetLeaderboard(difficulty);
+    PreparedMessage leaderboardReq = factory.createMessage(OpCode::GET_LEADERBOARD, payload);
+    _network.sendTcp(leaderboardReq);
+}
+
+void ClientGameHandler::setupEndGameScreenCallbacks() {
+    _endGameScreen.setReturnToLobbyCallback([this]() { returnToLobby(); });
+    _endGameScreen.setExitCallback([]() {
+        std::cout << "[EndGameScreen] Quitting game..." << std::endl;
+        SDL_Quit();
+        exit(0);
+    });
+}
+
+void ClientGameHandler::returnToLobby() {
+    std::cout << "[Game] Returning to lobby" << std::endl;
+
+    // Notify server that player is leaving the room
+    MessageFactory &factory = MessageFactory::getInstance();
+    PreparedMessage disconnectMsg = factory.createMessage(OpCode::DISCONNECT, {});
+    _network.sendTcp(disconnectMsg);
+    std::cout << "[Game] Sent DISCONNECT to server" << std::endl;
+
+    _endGameScreen.hide();
+    cleanupGameEntities();
+
+    _currentScore = 0;
+    _joinedRoom = false;
+    myEntity = 0;
+
+    if (_reg.hasComponent<Label>(_scoreLabel)) {
+        _reg.getComponent<Label>(_scoreLabel).visible = false;
+    }
+
+    _lobbyMenu.show();
+    _gameState = GameState::LOBBY;
+
+    requestRoomList();
+}
+
+void ClientGameHandler::cleanupGameEntities() {
+    // Destroy all player entities
+    for (auto &[serverId, entity] : playerEntities) {
+        if (_reg.hasComponent<Position>(entity)) {
+            _reg.destroyEntity(entity);
+        }
+    }
+    playerEntities.clear();
+
+    // Destroy all enemy entities
+    for (auto &[serverId, entity] : enemyEntities) {
+        if (_reg.hasComponent<Position>(entity)) {
+            _reg.destroyEntity(entity);
+        }
+    }
+    enemyEntities.clear();
+
+    // Destroy all projectile entities
+    for (auto &[serverId, entity] : projectileEntities) {
+        if (_reg.hasComponent<Position>(entity)) {
+            _reg.destroyEntity(entity);
+        }
+    }
+    projectileEntities.clear();
+
+    // Destroy all companion entities
+    for (auto &[serverId, entity] : companionEntities) {
+        if (_reg.hasComponent<Position>(entity)) {
+            _reg.destroyEntity(entity);
+        }
+    }
+    companionEntities.clear();
+
+    std::cout << "[Game] All game entities cleaned up" << std::endl;
+}
+
+void ClientGameHandler::togglePauseMenu() {
+    if (pauseMenuOpen) {
+        _chatVisibleBeforeMenu = false;
+        pauseMenuOpen = false;
+        _pauseMenu.hide();
+        std::cout << "[PauseMenu] Closed via toggle (P key or Resume)" << std::endl;
+    } else {
+        _chatVisibleBeforeMenu = _chatPanel.isVisible();
+        _chatPanel.hide();
+        pauseMenuOpen = true;
+        _pauseMenu.show();
+        std::cout << "[PauseMenu] Opened" << std::endl;
+    }
+}
+
+void ClientGameHandler::setupPauseMenuCallbacks() {
+    _pauseMenu.setResumeCallback([this]() { togglePauseMenu(); });
+    _pauseMenu.setSettingsCallback([this]() {
+        pauseMenuOpen = false;
+        _pauseMenu.hide();
+        _settingsOpenedFromPause = true;
+        settingsMenuOpen = true;
+        _settingsMenu.toggled = true;
+        _settingsMenu.updateVisibility(_reg);
+        std::cout << "[PauseMenu] Opening settings from pause menu" << std::endl;
+    });
+    _pauseMenu.setExitPartyCallback([this]() {
+        pauseMenuOpen = false;
+        _pauseMenu.hide();
+        _settingsOpenedFromPause = false;
+        returnToLobby();
+    });
+    _pauseMenu.setExitCallback([]() {
+        std::cout << "[PauseMenu] Quitting game..." << std::endl;
+        SDL_Quit();
+        exit(0);
+    });
 }

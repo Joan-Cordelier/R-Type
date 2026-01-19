@@ -54,54 +54,56 @@ enemy_types:
 # Configuration des niveaux
 levels:
   - id: 1
-    name: "Zone 1"
+    name: "Zone 1 - Asteroid Belt"
     background: "textures/backgrounds/level1.png"
     difficulty_multiplier: 1
     waves:
+      # Wave 1: Simple intro wave (3 basic enemies)
       - id: 1
-        start_delay: 2.0
+        start_delay: 1.0
         groups:
           - type: "basic_enemy"
             count: 3
-            interval: 1.0
+            interval: 0.8
+      
+      # Wave 2: Mixed wave (basic + shooters)
       - id: 2
-        start_delay: 10.0
+        start_delay: 2.0
+        groups:
+          - type: "basic_enemy"
+            count: 4
+            interval: 0.6
+          - type: "shooter_enemy"
+            count: 2
+            interval: 1.5
+      
+      # Wave 3: Boss wave - Obelisk
+      - id: 3
+        start_delay: 1.0
+        boss: "obelisk"
+        groups: []
+
+  - id: 2
+    name: "Zone 2 - Final Stand"
+    background: "textures/backgrounds/level2.png"
+    difficulty_multiplier: 1.5
+    waves:
+      # Wave 1: Harder mixed wave
+      - id: 1
+        start_delay: 1.0
         groups:
           - type: "basic_enemy"
             count: 5
             interval: 0.5
           - type: "shooter_enemy"
-            count: 2
-            interval: 2.0
-      - id: 3
-        start_delay: 5.0
-        groups:
-          - type: "basic_enemy"
-            count: 2
+            count: 3
             interval: 1.0
-          - type: "shooter_enemy"
-            count: 4
-            interval: 0.8
-      - id: 4
+      
+      # Wave 2: Final boss wave
+      - id: 2
         start_delay: 1.0
         boss: "obelisk"
-        groups: [] 
-
-
-  - id: 2
-    name: "Zone 2"
-    background: "textures/backgrounds/level2.png"
-    difficulty_multiplier: 1.5
-    waves:
-      - id: 1
-        start_delay: 2.0
-        groups:
-          - type: "basic_enemy"
-            count: 5
-            interval: 0.8
-          - type: "shooter_enemy"
-            count: 3
-            interval: 1.5
+        groups: []
 
 # Configuration des joueurs
 player:
