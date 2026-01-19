@@ -35,7 +35,7 @@
             const path_to_root = "../";
             const default_light_theme = "light";
             const default_dark_theme = "navy";
-            window.path_to_searchindex_js = "../searchindex-8ab67c50.js";
+            window.path_to_searchindex_js = "../searchindex-80403e95.js";
         </script>
         <!-- Start loading toc.js asap -->
         <script src="../toc-f3be9e40.js"></script>
@@ -175,54 +175,78 @@
                 <div id="mdbook-content" class="content">
                     <main>
                         <h1 id="installation--prérequis"><a class="header" href="#installation--prérequis">Installation &amp; Prérequis</a></h1>
-<p>Ce guide vous explique comment installer et compiler le jeu R-Type sur votre machine. Le projet utilise <strong>CMake</strong> et <strong>vcpkg</strong> pour garantir une compilation facile sur Linux et Windows.</p>
+<p>Ce guide vous explique comment installer et compiler le jeu R-Type sur votre machine. Le projet utilise <strong>CMake</strong> et <strong>vcpkg</strong> pour garantir une compilation facile sur Linux.</p>
+<hr>
 <h2 id="1-prérequis-système"><a class="header" href="#1-prérequis-système">1. Prérequis Système</a></h2>
 <p>Avant de commencer, assurez-vous d’avoir les outils suivants installés:</p>
 <ul>
 <li><strong>Git</strong> : Pour cloner le dépôt.</li>
 <li><strong>CMake</strong> (version 3.20 ou supérieure).</li>
+<li><strong>Ninja</strong> (recommandé) ou Make.</li>
 <li><strong>Compilateur C++</strong> compatible C++17 (GCC, Clang ou MSVC).</li>
-<li><strong>Zip/Unzip/Tar/Curl</strong> : Nécessaires pour que vcpkg télécharge les dépendances.</li>
+<li><strong>Dépendances graphiques</strong> : OpenGL, X11/Wayland.</li>
 </ul>
-<h3 id="linux-ubuntudebian"><a class="header" href="#linux-ubuntudebian">Linux (Ubuntu/Debian)</a></h3>
-<pre><code class="language-bash">sudo apt update
-sudo apt install git cmake build-essential curl zip unzip tar
-</code></pre>
-<h3 id="windows"><a class="header" href="#windows">Windows</a></h3>
-<p>Nous recommandons l’utilisation de <strong>Visual Studio 2022</strong> avec la charge de travail “Développement Desktop C++”.</p>
-<h2 id="2-récupération-du-projet"><a class="header" href="#2-récupération-du-projet">2. Récupération du Projet</a></h2>
-<p>Clonez le dépôt officiel (assurez-vous d’avoir les droits d’accès) :</p>
-<pre><code class="language-bash">git clone [https://github.com/votre-orga/R-Type.git](https://github.com/votre-orga/R-Type.git)
-cd R-Type
-</code></pre>
-<h2 id="3-gestion-des-dépendances-vcpkg"><a class="header" href="#3-gestion-des-dépendances-vcpkg">3. Gestion des Dépendances (vcpkg)</a></h2>
-<p>Le projet utilise <strong>vcpkg</strong> pour gérer automatiquement les bibliothèques tierces (SDL2, Asio, etc.). Vous n’avez pas besoin de les installer manuellement.</p>
-<p>Initialisez vcpkg avec le script fourni :</p>
-<pre><code class="language-bash"># Sur Linux / macOS
-git clone [https://github.com/microsoft/vcpkg.git](https://github.com/microsoft/vcpkg.git)
-./vcpkg/bootstrap-vcpkg.sh
+<h3 id="linux-ubuntudebianfedora"><a class="header" href="#linux-ubuntudebianfedora">Linux (Ubuntu/Debian/Fedora)</a></h3>
+<pre><code class="language-bash"># Ubuntu/Debian
+sudo apt update
+sudo apt install -y cmake build-essential ninja-build curl zip unzip tar \
+    autoconf autoconf-archive automake libtool libltdl-dev \
+    libgl1-mesa-dev libx11-dev libxrandr-dev libxinerama-dev libxcursor-dev \
+    libxi-dev libxext-dev libwayland-dev libxkbcommon-dev
 
-# Sur Windows (PowerShell/CMD)
-git clone [https://github.com/microsoft/vcpkg.git](https://github.com/microsoft/vcpkg.git)
-.\vcpkg\bootstrap-vcpkg.bat
+# Fedora
+sudo dnf install cmake ninja-build gcc-c++ curl zip unzip tar \
+    autoconf automake libtool mesa-libGL-devel libX11-devel libXrandr-devel \
+    libXinerama-devel libXcursor-devel libXi-devel wayland-devel libxkbcommon-devel
 </code></pre>
+<hr>
+<h2 id="2-récupération-du-projet"><a class="header" href="#2-récupération-du-projet">2. Récupération du Projet</a></h2>
+<p>Clonez le dépôt officiel :</p>
+<pre><code class="language-bash">git clone https://github.com/EpitechPromo2026/B-CPP-500-LIL-5-1-rtype-nicolas.music.git
+cd B-CPP-500-LIL-5-1-rtype-nicolas.music
+</code></pre>
+<hr>
+<h2 id="3-gestion-des-dépendances-vcpkg"><a class="header" href="#3-gestion-des-dépendances-vcpkg">3. Gestion des Dépendances (vcpkg)</a></h2>
+<p>Le projet utilise <strong>vcpkg</strong> pour gérer automatiquement les bibliothèques tierces (SDL2, yaml-cpp, etc.). Vous n’avez pas besoin de les installer manuellement.</p>
+<p>Initialisez vcpkg :</p>
+<pre><code class="language-bash"># Sur Linux / macOS
+git clone https://github.com/microsoft/vcpkg.git
+./vcpkg/bootstrap-vcpkg.sh
+</code></pre>
+<hr>
 <h2 id="4-compilation"><a class="header" href="#4-compilation">4. Compilation</a></h2>
-<p>Utilisez CMake pour configurer et compiler le projet. L’option <code>-DCMAKE_TOOLCHAIN_FILE</code> est cruciale pour lier vcpkg.</p>
+<p>Utilisez CMake pour configurer et compiler le projet.</p>
 <h3 id="linux--macos"><a class="header" href="#linux--macos">Linux / macOS</a></h3>
 <pre><code class="language-bash"># Configuration (Release pour la performance)
-cmake -B build -S . -DCMAKE_BUILD_TYPE=Release -DCMAKE_TOOLCHAIN_FILE=./vcpkg/scripts/buildsystems/vcpkg.cmake
+cmake -B build -S . -DCMAKE_BUILD_TYPE=Release -G Ninja \
+    -DCMAKE_TOOLCHAIN_FILE=./vcpkg/scripts/buildsystems/vcpkg.cmake
 
 # Compilation
 cmake --build build --config Release
 </code></pre>
-<h3 id="windows-1"><a class="header" href="#windows-1">Windows</a></h3>
-<pre><code class="language-bash"># Configuration
-cmake -B build -S . -DCMAKE_TOOLCHAIN_FILE=.\vcpkg\scripts\buildsystems\vcpkg.cmake
-
-# Compilation
-cmake --build build --config Release
+<hr>
+<h2 id="5-vérification"><a class="header" href="#5-vérification">5. Vérification</a></h2>
+<p>Une fois terminé, vérifiez que les exécutables sont présents :</p>
+<pre><code class="language-bash"># Linux
+ls build/r-type_server build/r-type_client
 </code></pre>
-<p>Une fois terminé, les exécutables se trouvent dans le dossier <code>build/</code> (ou <code>build/Release/</code> sur Windows).</p>
+<hr>
+<h2 id="6-structure-des-fichiers"><a class="header" href="#6-structure-des-fichiers">6. Structure des Fichiers</a></h2>
+<p>Après compilation, votre dossier devrait contenir :</p>
+<pre><code>R-Type/
+├── build/
+│   ├── r-type_server      # Exécutable serveur
+│   └── r-type_client      # Exécutable client
+├── yaml/                  # Fichiers de configuration YAML
+│   ├── main_loop.yaml     # Config principale du jeu
+│   ├── upgrades.yaml      # Améliorations du joueur
+│   └── enemies/           # Configuration des boss
+├── textures/              # Assets graphiques
+└── data/                  # Données utilisateurs (scores, etc.)
+</code></pre>
+<blockquote>
+<p><strong>Important</strong> : Le dossier <code>yaml/</code> doit être accessible depuis le répertoire d’exécution du serveur et du client.</p>
+</blockquote>
 
                     </main>
 
