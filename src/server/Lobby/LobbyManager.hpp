@@ -92,6 +92,15 @@ public:
     std::vector<UserInfo> getBannedUsers();
     NetworkStats getNetworkStats() const;
     std::vector<std::pair<int, int>> getTcpClientStats() const; // fd, seconds since activity
+
+    // UDP stats: address, sent, recv, out-of-order
+    struct UdpClientInfo {
+        std::string address;
+        uint32_t packetsSent;
+        uint32_t packetsReceived;
+        uint32_t packetsOutOfOrder;
+    };
+    std::vector<UdpClientInfo> getUdpClientStats() const;
 };
 
 #endif /* !LOBBYMANAGER_HPP_ */

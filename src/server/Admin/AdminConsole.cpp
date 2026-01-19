@@ -358,20 +358,39 @@ void AdminConsole::cmdNetstats() {
 }
 
 void AdminConsole::cmdConnections() {
-    auto clients = _lobby.getTcpClientStats();
-
+    // TCP connections
+    auto tcpClients = _lobby.getTcpClientStats();
     std::cout << "\n=== TCP Connections ===" << std::endl;
     std::cout << "  Timeout: 30 seconds" << std::endl;
     std::cout << std::endl;
 
-    if (clients.empty()) {
-        std::cout << "  No active connections." << std::endl;
+    if (tcpClients.empty()) {
+        std::cout << "  No active TCP connections." << std::endl;
     } else {
         std::cout << "  " << std::setw(8) << std::left << "FD" << std::setw(20) << "Last Activity"
                   << std::endl;
         std::cout << "  " << std::string(28, '-') << std::endl;
-        for (const auto &[fd, seconds] : clients) {
+        for (const auto &[fd, seconds] : tcpClients) {
             std::cout << "  " << std::setw(8) << fd << seconds << "s ago" << std::endl;
+        }
+    }
+
+    // UDP clients
+    auto udpClients = _lobby.getUdpClientStats();
+    std::cout << "\n=== UDP Clients ===" << std::endl;
+
+    if (udpClients.empty()) {
+        std::cout << "  No UDP clients." << std::endl;
+    } else {
+        std::cout << "  " << std::setw(22) << std::left << "Address" << std::setw(10) << "Sent"
+                  << std::setw(10) << "Recv" << std::setw(12) << "OutOfOrder" << std::endl;
+        std::cout << "  " << std::string(54, '-') << std::endl;
+        for (const auto &u : udpClients) {
+            double lossRate =
+                u.packetsReceived > 0 ? (100.0 * u.packetsOutOfOrder / u.packetsReceived) : 0.0;
+            std::cout << "  " << std::setw(22) << u.address << std::setw(10) << u.packetsSent
+                      << std::setw(10) << u.packetsReceived << u.packetsOutOfOrder << " ("
+                      << std::fixed << std::setprecision(1) << lossRate << "%)" << std::endl;
         }
     }
     std::cout << std::endl;

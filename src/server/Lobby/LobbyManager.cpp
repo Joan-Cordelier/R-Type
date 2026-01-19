@@ -765,3 +765,12 @@ std::vector<std::pair<int, int>> LobbyManager::getTcpClientStats() const {
     }
     return result;
 }
+
+std::vector<LobbyManager::UdpClientInfo> LobbyManager::getUdpClientStats() const {
+    std::vector<UdpClientInfo> result;
+    auto stats = const_cast<SessionManager &>(_session).getUdpServer().getUdpStats();
+    for (const auto &[addr, s] : stats) {
+        result.push_back({addr, s.packetsSent, s.packetsReceived, s.packetsOutOfOrder});
+    }
+    return result;
+}
