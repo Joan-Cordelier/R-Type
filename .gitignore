@@ -2,3 +2,6 @@ build/
 vcpkg/
 .vscode
 vcpkg_installed/
+vcpkg
+*.py
+wiki/book/
