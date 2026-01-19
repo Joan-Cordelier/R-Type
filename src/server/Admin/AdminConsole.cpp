@@ -24,6 +24,7 @@ AdminConsole::AdminConsole(LobbyManager &lobby) : _lobby(lobby) {
     _commands["unban"] = [this](const auto &args) { cmdUnban(args); };
     _commands["banlist"] = [this](const auto &) { cmdBanList(); };
     _commands["stats"] = [this](const auto &) { cmdStats(); };
+    _commands["netstats"] = [this](const auto &) { cmdNetstats(); };
     _commands["quiet"] = [this](const auto &) { cmdQuiet(); };
     _commands["verbose"] = [this](const auto &) { cmdVerbose(); };
     _commands["quit"] = [this](const auto &) { cmdQuit(); };
@@ -117,6 +118,7 @@ void AdminConsole::cmdHelp() {
     std::cout << "  banuser <userID> - Ban by UserID" << std::endl;
     std::cout << "  unban <userID>   - Unban by UserID" << std::endl;
     std::cout << "  stats            - Show server statistics" << std::endl;
+    std::cout << "  netstats         - Show network bandwidth/message stats" << std::endl;
     std::cout << "  quiet            - Disable log output (only errors)" << std::endl;
     std::cout << "  verbose          - Enable all log output" << std::endl;
     std::cout << "  quit/exit        - Shutdown the server" << std::endl;
@@ -321,4 +323,34 @@ void AdminConsole::cmdQuit() {
     LOG_INFO("[AdminConsole] Server shutdown requested");
     _running = false;
     _lobby.stop();
+}
+
+void AdminConsole::cmdNetstats() {
+    auto stats = _lobby.getNetworkStats();
+
+    auto formatBytes = [](double bytes) -> std::string {
+        if (bytes >= 1024 * 1024) {
+            return std::to_string(static_cast<int>(bytes / (1024 * 1024))) + " MB";
+        } else if (bytes >= 1024) {
+            return std::to_string(static_cast<int>(bytes / 1024)) + " KB";
+        }
+        return std::to_string(static_cast<int>(bytes)) + " B";
+    };
+
+    std::cout << "\n=== Network Statistics ===" << std::endl;
+    std::cout << "  TCP Sent:      " << formatBytes(stats.tcpBytesSent) << std::endl;
+    std::cout << "  TCP Received:  " << formatBytes(stats.tcpBytesReceived) << std::endl;
+    std::cout << "  UDP Sent:      " << formatBytes(stats.udpBytesSent) << std::endl;
+    std::cout << "  UDP Received:  " << formatBytes(stats.udpBytesReceived) << std::endl;
+    std::cout << std::endl;
+    std::cout << "  Messages Sent:     " << stats.totalMessagesSent << std::endl;
+    std::cout << "  Messages Received: " << stats.totalMessagesReceived << std::endl;
+
+    if (!stats.messageCountsByType.empty()) {
+        std::cout << "\n  === Messages by Type ===" << std::endl;
+        for (const auto &[type, count] : stats.messageCountsByType) {
+            std::cout << "    " << std::setw(20) << std::left << type << count << std::endl;
+        }
+    }
+    std::cout << std::endl;
 }

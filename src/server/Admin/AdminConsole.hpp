@@ -44,6 +44,7 @@ private:
     void cmdUnban(const std::vector<std::string> &args);
     void cmdBanList();
     void cmdStats();
+    void cmdNetstats();
     void cmdQuiet();
     void cmdVerbose();
     void cmdQuit();

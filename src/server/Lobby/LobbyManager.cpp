@@ -752,3 +752,7 @@ std::vector<LobbyManager::UserInfo> LobbyManager::getBannedUsers() {
     }
     return result;
 }
+
+NetworkStats LobbyManager::getNetworkStats() const {
+    return _monitor.getNetworkStats();
+}
