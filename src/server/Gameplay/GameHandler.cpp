@@ -10,15 +10,10 @@
 
 GameHandler::GameHandler(SessionManager &session,
                          std::shared_ptr<ThreadedQueue<DecodedMessage>> inputQueue,
-                         std::atomic<bool> &running, const std::string &configPath, 
-                         PrometheusExporter& monitor, Difficulty difficulty)
-    : _running(running)
-    , _session(session)
-    , _monitor(monitor)
-    , _difficulty(difficulty)
-    , _messageHandler(session, *inputQueue, running)
-    , _inputQueue(inputQueue) 
-{
+                         std::atomic<bool> &running, const std::string &configPath,
+                         PrometheusExporter &monitor, Difficulty difficulty, GameMode gameMode)
+    : _running(running), _session(session), _monitor(monitor), _difficulty(difficulty),
+      _gameMode(gameMode), _messageHandler(session, *inputQueue, running), _inputQueue(inputQueue) {
     // Load configuration
     char cwd[1024];
     if (getcwd(cwd, sizeof(cwd)) != NULL) {
@@ -39,11 +34,21 @@ GameHandler::GameHandler(SessionManager &session,
     // Set difficulty multiplier
     float difficultyMultiplier = 1.0f;
     switch (_difficulty) {
-        case Difficulty::EASY: difficultyMultiplier = _config.getDifficultyConfig().easy; break;
-        case Difficulty::NORMAL: difficultyMultiplier = _config.getDifficultyConfig().normal; break;
-        case Difficulty::HARD: difficultyMultiplier = _config.getDifficultyConfig().hard; break;
-        case Difficulty::IMPOSSIBLE: difficultyMultiplier = _config.getDifficultyConfig().impossible; break;
-        default: difficultyMultiplier = 1.0f; break;
+    case Difficulty::EASY:
+        difficultyMultiplier = _config.getDifficultyConfig().easy;
+        break;
+    case Difficulty::NORMAL:
+        difficultyMultiplier = _config.getDifficultyConfig().normal;
+        break;
+    case Difficulty::HARD:
+        difficultyMultiplier = _config.getDifficultyConfig().hard;
+        break;
+    case Difficulty::IMPOSSIBLE:
+        difficultyMultiplier = _config.getDifficultyConfig().impossible;
+        break;
+    default:
+        difficultyMultiplier = 1.0f;
+        break;
     }
     enemySystem.setDifficultyMultiplier(difficultyMultiplier);
 
@@ -91,6 +96,15 @@ GameHandler::GameHandler(SessionManager &session,
     }
     enemySystem.setBosses(_config.getBosses());
 
+    // Configure game mode
+    enemySystem.setGameMode(_gameMode);
+    enemySystem.setOnGameVictory([this]() {
+        LOG_INFO("=== GAME VICTORY - All levels complete! ===");
+        if (_onGameVictory) {
+            _onGameVictory(static_cast<uint32_t>(score));
+        }
+    });
+
     enemySystem.setStatsUpdateCallback([this](Entity playerEntity) {
         if (reg.hasComponent<Stats>(playerEntity)) {
             auto &stats = reg.getComponent<Stats>(playerEntity);
@@ -102,8 +116,8 @@ GameHandler::GameHandler(SessionManager &session,
                 _session.sendTcp(pid, statsMsg);
             }
 
-            // Note: Death handling is done in checkPlayerCollisions() 
-            // to avoid duplicate logic. The hp is already updated, 
+            // Note: Death handling is done in checkPlayerCollisions()
+            // to avoid duplicate logic. The hp is already updated,
             // and checkPlayerCollisions() will detect hp <= 0.
         }
     });
@@ -122,9 +136,8 @@ GameHandler::GameHandler(SessionManager &session,
         [this](uint32_t playerId, uint8_t index) { onUpgradeSelect(playerId, index); });
 
     // Handle DISCONNECT messages from Room's queue (when player disconnects via TCP)
-    _messageHandler.setOnPlayerDisconnect([this](const Player &player) {
-        onPlayerDisconnect(player.id);
-    });
+    _messageHandler.setOnPlayerDisconnect(
+        [this](const Player &player) { onPlayerDisconnect(player.id); });
 
     ScoreEntity = reg.createEntity();
     reg.addComponent<Position>(ScoreEntity, 0.f, 0.f);
@@ -339,7 +352,32 @@ void GameHandler::updateGame(float deltaTime) {
     }
 
     for (const auto &enemy : enemySystem.getDeadEnemyEntities()) {
+        // Add score for killed enemy
+        if (reg.hasComponent<Enemy>(enemy)) {
+            auto &enemyComp = reg.getComponent<Enemy>(enemy);
+            // Look up score from config by enemy type
+            const auto &enemyTypes = _config.getEnemyTypes();
+            auto it = enemyTypes.find(enemyComp.type);
+            if (it != enemyTypes.end()) {
+                score += it->second.score;
+                LOG_INFO("Enemy '" + enemyComp.type + "' killed! Score +" +
+                         std::to_string(it->second.score) + " (Total: " + std::to_string(score) +
+                         ")");
+                sendScoreUpdateToAllPlayers();
+            } else {
+                // Default score if type not found
+                score += 100;
+                LOG_WARN("Enemy type '" + enemyComp.type +
+                         "' not found in config, using default score 100 (Total: " +
+                         std::to_string(score) + ")");
+                sendScoreUpdateToAllPlayers();
+            }
+        } else {
+            LOG_WARN("Dead enemy entity has no Enemy component");
+        }
         sendDestroyedEnemyToAllPlayers(enemy);
+        // Destroy the enemy entity after processing
+        reg.destroyEntity(enemy);
     }
     for (const auto &projectile : enemySystem.getProjectileColliding()) {
         sendDestroyedProjectileToAllPlayers(projectile);
@@ -408,8 +446,26 @@ void GameHandler::sendDestroyedPlayerToAllPlayers(Entity player) {
     LOG_DEBUG("Sent DEATH for player " + std::to_string(player) + " to all players");
 }
 
+void GameHandler::sendScoreUpdateToAllPlayers() {
+    auto &factory = MessageFactory::getInstance();
+    MessageData payload =
+        factory.encodeMessageScoreUpdate(static_cast<uint32_t>(score), _participantCount);
+    PreparedMessage msg = factory.createMessage(OpCode::SCORE_UPDATE, payload);
+
+    for (const auto &[playerId, entity] : playerEntities) {
+        _session.sendTcp(playerId, msg);
+    }
+
+    LOG_DEBUG("Sent SCORE_UPDATE (" + std::to_string(score) + " / " +
+              std::to_string(_participantCount) + ") to all players");
+}
+
 void GameHandler::onPlayerConnect(const Player &player) {
     LOG_DEBUG("onPlayerConnect START for player " + std::to_string(player.id));
+
+    // Increment participant count (total players who ever joined)
+    _participantCount++;
+
     if (_waitingForUpgrades) {
         LOG_INFO("Player " + std::to_string(player.id) +
                  " connected during upgrade phase. Added to pending list.");
@@ -466,9 +522,10 @@ void GameHandler::onPlayerConnect(const Player &player) {
     // Send all existing players' info to the new player
     for (const auto &[existingPlayerId, existingEntity] : playerEntities) {
         Position &pos = reg.getComponent<Position>(existingEntity);
-        uint8_t existingSkinIndex = playerSkinIndices.count(existingPlayerId) ? playerSkinIndices[existingPlayerId] : 0;
-        MessageData payload =
-            factory.encodePlayerInfo(existingPlayerId, existingEntity, pos.x, pos.y, existingSkinIndex);
+        uint8_t existingSkinIndex =
+            playerSkinIndices.count(existingPlayerId) ? playerSkinIndices[existingPlayerId] : 0;
+        MessageData payload = factory.encodePlayerInfo(existingPlayerId, existingEntity, pos.x,
+                                                       pos.y, existingSkinIndex);
         PreparedMessage msg = factory.createMessage(OpCode::PLAYER, payload);
         _session.sendTcp(player.id, msg);
         LOG_DEBUG("Sent existing player " + std::to_string(existingPlayerId) +
@@ -483,6 +540,17 @@ void GameHandler::onPlayerConnect(const Player &player) {
         PreparedMessage msg = factory.createMessage(OpCode::ENEMY, payload);
         _session.sendUdp(player.id, msg);
         LOG_DEBUG("Sent existing enemy " + std::to_string(enemyEntity) + " info to new player " +
+                  std::to_string(player.id));
+    }
+
+    // Send current score to new player
+    if (score > 0) {
+        MessageData scorePayload =
+            factory.encodeMessageScoreUpdate(static_cast<uint32_t>(score), _participantCount);
+        PreparedMessage scoreMsg = factory.createMessage(OpCode::SCORE_UPDATE, scorePayload);
+        _session.sendTcp(player.id, scoreMsg);
+        LOG_DEBUG("Sent current score " + std::to_string(score) + " / " +
+                  std::to_string(_participantCount) + " to new player " +
                   std::to_string(player.id));
     }
 
@@ -516,8 +584,8 @@ void GameHandler::onPlayerConnect(const Player &player) {
     }
 
     Position &newPlayerPos = reg.getComponent<Position>(playerEntity);
-    MessageData payload =
-        factory.encodePlayerInfo(player.id, playerEntity, newPlayerPos.x, newPlayerPos.y, skinIndex);
+    MessageData payload = factory.encodePlayerInfo(player.id, playerEntity, newPlayerPos.x,
+                                                   newPlayerPos.y, skinIndex);
     PreparedMessage msg = factory.createMessage(OpCode::PLAYER, payload);
     for (const auto &[existingPlayerId, existingEntity] : playerEntities) {
         _session.sendTcp(existingPlayerId, msg);
@@ -586,7 +654,7 @@ void GameHandler::onPlayerDisconnect(uint32_t playerId) {
 
         reg.destroyEntity(playerEntity);
         playerEntities.erase(it);
-        playerSkinIndices.erase(playerId);  // Clean up skin index
+        playerSkinIndices.erase(playerId); // Clean up skin index
         LOG_INFO("Player " + std::to_string(playerId) + " entity destroyed");
 
         if (_waitingForUpgrades) {
@@ -989,17 +1057,17 @@ void GameHandler::onUpgradeSelect(uint32_t playerId, uint8_t index) {
                     LOG_INFO("Spawning MISSILE companion for player " + std::to_string(playerId));
                     spawnCompanion(entity, WeaponType::MISSILE);
                 } else if (effect.target == "extra_projectiles") {
-                   if (weapon) {
+                    if (weapon) {
                         weapon->nbOfBullets += (int)effect.value;
                         weaponUpdated = true;
-                   }
+                    }
                 } else if (effect.target == "add_diagonal") {
-                   if (weapon) {
+                    if (weapon) {
                         if (weapon->nbOfBullets < 100) {
-                             weapon->nbOfBullets += 100;
-                             weaponUpdated = true;
+                            weapon->nbOfBullets += 100;
+                            weaponUpdated = true;
                         }
-                   }
+                    }
                 } else if (effect.target == "current_health_percent") {
                     stats.hp += (int)(stats.maxHp * (effect.value / 100.0f));
                     if (stats.hp > stats.maxHp)
