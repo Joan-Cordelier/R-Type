@@ -2,7 +2,7 @@ name: Release
 on:
   push:
     branches: 
-      - main  # Only trigger on main branch pushes
+      - dev  # Only trigger on main branch pushes
 
 permissions:
   contents: write
