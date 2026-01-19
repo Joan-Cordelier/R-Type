@@ -7,6 +7,7 @@
 - [Installation & Prérequis](user/installation.md)
 - [Lancer le Jeu](user/usage.md)
 - [Commandes & Contrôles](user/controls.md)
+- [Interface & Menus](user/interface.md)
 
 # Protocole Réseau
 - [RFC R-Type Protocol](network/rfc.md)
