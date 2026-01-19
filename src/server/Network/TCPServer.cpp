@@ -62,6 +62,7 @@ int TCPServer::run() {
                         {
                             std::lock_guard<std::mutex> lock(_buffersMutex);
                             _buffers.emplace(newFd, LinearBuffer());
+                            _lastActivity[newFd] = std::chrono::steady_clock::now();
                         }
                         if (_onConnect) {
                             _onConnect(newFd);
@@ -81,6 +82,11 @@ int TCPServer::run() {
                         _monitor.addBytes("tcp", "rx", static_cast<double>(n));
                         LOG_DEBUG("TCP received " + std::to_string(n) +
                                   " bytes (fd: " + std::to_string(fdsSnapshot[i].fd) + ")");
+                        // Update heartbeat timestamp
+                        {
+                            std::lock_guard<std::mutex> lock(_buffersMutex);
+                            _lastActivity[fdsSnapshot[i].fd] = std::chrono::steady_clock::now();
+                        }
                         bool writeSuccess = false;
                         {
                             std::lock_guard<std::mutex> lock(_buffersMutex);
@@ -121,6 +127,9 @@ int TCPServer::run() {
                 }
             }
         }
+        // Check for idle clients (heartbeat timeout)
+        checkHeartbeats(toDisconnect);
+
         if (_onDisconnect) {
             for (int fd : toDisconnect) {
                 _onDisconnect(fd);
@@ -131,6 +140,7 @@ int TCPServer::run() {
             std::lock_guard<std::mutex> lock(_buffersMutex);
             for (int fd : toDisconnect) {
                 _buffers.erase(fd);
+                _lastActivity.erase(fd);
             }
         }
     }
@@ -233,9 +243,39 @@ void TCPServer::disconnectClient(int fd) {
         _clientFds.erase(std::remove(_clientFds.begin(), _clientFds.end(), fd), _clientFds.end());
     }
 
-    // Remove buffer
+    // Remove buffer and activity tracking
     {
         std::lock_guard<std::mutex> lock(_buffersMutex);
         _buffers.erase(fd);
+        _lastActivity.erase(fd);
     }
+}
+
+void TCPServer::checkHeartbeats(std::vector<int> &toDisconnect) {
+    auto now = std::chrono::steady_clock::now();
+
+    std::lock_guard<std::mutex> lock(_buffersMutex);
+    for (const auto &[fd, lastTime] : _lastActivity) {
+        auto elapsed = std::chrono::duration_cast<std::chrono::seconds>(now - lastTime).count();
+        if (elapsed > HEARTBEAT_TIMEOUT_SECONDS) {
+            LOG_WARN("TCP client timeout (fd: " + std::to_string(fd) +
+                     ", idle: " + std::to_string(elapsed) + "s)");
+            toDisconnect.push_back(fd);
+        }
+    }
+}
+
+std::vector<TCPServer::ClientStats> TCPServer::getClientStats() const {
+    std::vector<ClientStats> stats;
+    auto now = std::chrono::steady_clock::now();
+
+    std::lock_guard<std::mutex> lock(_buffersMutex);
+    for (const auto &[fd, lastTime] : _lastActivity) {
+        ClientStats cs;
+        cs.fd = fd;
+        cs.secondsSinceActivity = static_cast<int>(
+            std::chrono::duration_cast<std::chrono::seconds>(now - lastTime).count());
+        stats.push_back(cs);
+    }
+    return stats;
 }

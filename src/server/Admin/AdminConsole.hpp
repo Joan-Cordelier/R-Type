@@ -45,6 +45,7 @@ private:
     void cmdBanList();
     void cmdStats();
     void cmdNetstats();
+    void cmdConnections();
     void cmdQuiet();
     void cmdVerbose();
     void cmdQuit();

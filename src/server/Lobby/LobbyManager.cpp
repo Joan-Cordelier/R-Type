@@ -756,3 +756,12 @@ std::vector<LobbyManager::UserInfo> LobbyManager::getBannedUsers() {
 NetworkStats LobbyManager::getNetworkStats() const {
     return _monitor.getNetworkStats();
 }
+
+std::vector<std::pair<int, int>> LobbyManager::getTcpClientStats() const {
+    std::vector<std::pair<int, int>> result;
+    auto stats = const_cast<SessionManager &>(_session).getTcpServer().getClientStats();
+    for (const auto &s : stats) {
+        result.emplace_back(s.fd, s.secondsSinceActivity);
+    }
+    return result;
+}

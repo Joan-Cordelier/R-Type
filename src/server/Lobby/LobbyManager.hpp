@@ -91,6 +91,7 @@ public:
     size_t getTotalConnections() const;
     std::vector<UserInfo> getBannedUsers();
     NetworkStats getNetworkStats() const;
+    std::vector<std::pair<int, int>> getTcpClientStats() const; // fd, seconds since activity
 };
 
 #endif /* !LOBBYMANAGER_HPP_ */

@@ -14,6 +14,7 @@
 #include "../../common/Data/ThreadedQueue.hpp"
 #include "../Monitoring/PrometheusExporter.hpp"
 #include "AServer.hpp"
+#include <chrono>
 #include <functional>
 #include <map>
 
@@ -21,6 +22,9 @@ class TCPServer : public AServer {
 public:
     using ConnectionCallback = std::function<void(int fd)>;
     using DisconnectionCallback = std::function<void(int fd)>;
+
+    // Heartbeat configuration
+    static constexpr int HEARTBEAT_TIMEOUT_SECONDS = 30; // Disconnect after 30s idle
 
     TCPServer(ThreadedQueue<DecodedMessage> &queue, PrometheusExporter &monitor);
     ~TCPServer();
@@ -37,12 +41,21 @@ public:
         _onDisconnect = callback;
     }
 
+    // Connection stats for admin console
+    struct ClientStats {
+        int fd;
+        int secondsSinceActivity;
+    };
+    std::vector<ClientStats> getClientStats() const;
+
 private:
     void processOutgoingQueue();
+    void checkHeartbeats(std::vector<int> &toDisconnect);
     int sendToFd(int fd, const MessageData &data);
     int sendToAll(const MessageData &data);
 
     std::map<int, LinearBuffer> _buffers;
+    std::map<int, std::chrono::steady_clock::time_point> _lastActivity;
     ThreadedQueue<OutgoingMessage> _outgoingQueue;
     mutable std::mutex _buffersMutex;
 

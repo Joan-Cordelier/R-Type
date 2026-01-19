@@ -25,6 +25,7 @@ AdminConsole::AdminConsole(LobbyManager &lobby) : _lobby(lobby) {
     _commands["banlist"] = [this](const auto &) { cmdBanList(); };
     _commands["stats"] = [this](const auto &) { cmdStats(); };
     _commands["netstats"] = [this](const auto &) { cmdNetstats(); };
+    _commands["connections"] = [this](const auto &) { cmdConnections(); };
     _commands["quiet"] = [this](const auto &) { cmdQuiet(); };
     _commands["verbose"] = [this](const auto &) { cmdVerbose(); };
     _commands["quit"] = [this](const auto &) { cmdQuit(); };
@@ -119,6 +120,7 @@ void AdminConsole::cmdHelp() {
     std::cout << "  unban <userID>   - Unban by UserID" << std::endl;
     std::cout << "  stats            - Show server statistics" << std::endl;
     std::cout << "  netstats         - Show network bandwidth/message stats" << std::endl;
+    std::cout << "  connections      - Show TCP client connection status" << std::endl;
     std::cout << "  quiet            - Disable log output (only errors)" << std::endl;
     std::cout << "  verbose          - Enable all log output" << std::endl;
     std::cout << "  quit/exit        - Shutdown the server" << std::endl;
@@ -350,6 +352,26 @@ void AdminConsole::cmdNetstats() {
         std::cout << "\n  === Messages by Type ===" << std::endl;
         for (const auto &[type, count] : stats.messageCountsByType) {
             std::cout << "    " << std::setw(20) << std::left << type << count << std::endl;
+        }
+    }
+    std::cout << std::endl;
+}
+
+void AdminConsole::cmdConnections() {
+    auto clients = _lobby.getTcpClientStats();
+
+    std::cout << "\n=== TCP Connections ===" << std::endl;
+    std::cout << "  Timeout: 30 seconds" << std::endl;
+    std::cout << std::endl;
+
+    if (clients.empty()) {
+        std::cout << "  No active connections." << std::endl;
+    } else {
+        std::cout << "  " << std::setw(8) << std::left << "FD" << std::setw(20) << "Last Activity"
+                  << std::endl;
+        std::cout << "  " << std::string(28, '-') << std::endl;
+        for (const auto &[fd, seconds] : clients) {
+            std::cout << "  " << std::setw(8) << fd << seconds << "s ago" << std::endl;
         }
     }
     std::cout << std::endl;
