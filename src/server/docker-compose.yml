@@ -1,12 +1,29 @@
-grafana:
+version: '3.8'
+
+services:  # <--- Le bloc parent
+
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: r-type-prometheus
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./Monitoring/prometheus.yml:/etc/prometheus/prometheus.yml
+      - prometheus_data:/prometheus
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+    networks:
+      - monitoring
+
+  grafana:   # <--- ALIGNÉ ICI (2 espaces)
     image: grafana/grafana:latest
     container_name: r-type-grafana
     ports:
       - "3000:3000"
     volumes:
-      - ./grafana_data:/var/lib/grafana
-      - ./monitoring/grafana/provisioning:/etc/grafana/provisioning
-      - ./monitoring/grafana/dashboards:/var/lib/grafana/dashboards
+      - grafana_data:/var/lib/grafana
+      - ./Monitoring/grafana/provisioning:/etc/grafana/provisioning
+      - ./Monitoring/grafana/dashboards:/var/lib/grafana/dashboards
     environment:
       - GF_SECURITY_ADMIN_USER=admin
       - GF_SECURITY_ADMIN_PASSWORD=admin
@@ -14,3 +31,10 @@ grafana:
       - prometheus
     networks:
       - monitoring
+
+volumes:
+  prometheus_data:
+  grafana_data:
+
+networks:
+  monitoring:
