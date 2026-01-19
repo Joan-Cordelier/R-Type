@@ -55,6 +55,12 @@ enum OpCode : uint8_t {
     GUEST_LOGIN_ACK = 0x20,
     CHAT_MESSAGE = 0x21,
     CHAT_BROADCAST = 0x22,
+    SCOREBOARD_REQUEST = 0x23,
+    SCOREBOARD_RESPONSE = 0x24,
+    SCORE_UPDATE = 0x25,
+    VICTORY = 0x26,
+    GET_LEADERBOARD = 0x27,
+    LEADERBOARD_DATA = 0x28,
 };
 
 using MessageData = std::vector<uint8_t>;
@@ -118,7 +124,8 @@ public:
 
     MessageData encodeMessagePlayer(Entity entity) const;
     MessageData encodeMessageMovementPlayer(Entity entity, float x, float y) const;
-    MessageData encodePlayerInfo(uint32_t playerId, Entity entity, float x, float y, uint8_t skinIndex) const;
+    MessageData encodePlayerInfo(uint32_t playerId, Entity entity, float x, float y,
+                                 uint8_t skinIndex) const;
     MessageData encodeMessageServer(std::string type, Entity entity, Entity entity_changes) const;
     MessageData encodeMessageEnemy(Entity entity, float x, float y, const std::string &type) const;
     MessageData encodeMessageMove(EntityType type, Entity entity, float x, float y) const;
@@ -135,19 +142,35 @@ public:
     MessageData encodeMessageCompanion(Entity entity, float x, float y, uint8_t type) const;
     MessageData encodeMessageUpdateStats(Entity entity, int hp, int maxHp, int speed) const;
 
-    MessageData encodeMessageRoomList(const std::vector<std::tuple<uint32_t, uint8_t, uint8_t>> &rooms) const;  // roomId, playerCount, maxPlayers
+    MessageData encodeMessageRoomList(const std::vector<std::tuple<uint32_t, uint8_t, uint8_t>>
+                                          &rooms) const; // roomId, playerCount, maxPlayers
     MessageData encodeMessageRoomCreated(uint32_t roomId) const;
     MessageData encodeMessageJoinAck(uint32_t roomId, bool success) const;
-    MessageData encodeMessageCreateRoom(uint8_t maxPlayers, uint8_t gameMode, uint8_t difficulty) const;
+    MessageData encodeMessageCreateRoom(uint8_t maxPlayers, uint8_t gameMode,
+                                        uint8_t difficulty) const;
 
-    MessageData encodeMessageRegister(const std::string& username, const std::string& password) const;
-    MessageData encodeMessageRegisterAck(bool success, uint32_t userId, const std::string& errorMsg) const;
-    MessageData encodeMessageLogin(const std::string& username, const std::string& password) const;
-    MessageData encodeMessageLoginAck(bool success, uint32_t userId, const std::string& username, const std::string& errorMsg) const;
-    MessageData encodeMessageGuestLoginAck(uint32_t guestId, const std::string& guestName) const;
+    MessageData encodeMessageRegister(const std::string &username,
+                                      const std::string &password) const;
+    MessageData encodeMessageRegisterAck(bool success, uint32_t userId,
+                                         const std::string &errorMsg) const;
+    MessageData encodeMessageLogin(const std::string &username, const std::string &password) const;
+    MessageData encodeMessageLoginAck(bool success, uint32_t userId, const std::string &username,
+                                      const std::string &errorMsg) const;
+    MessageData encodeMessageGuestLoginAck(uint32_t guestId, const std::string &guestName) const;
 
-    MessageData encodeMessageChat(const std::string& message) const;
-    MessageData encodeMessageChatBroadcast(uint32_t senderId, const std::string& senderName, const std::string& message) const;
+    MessageData encodeMessageChat(const std::string &message) const;
+    MessageData encodeMessageChatBroadcast(uint32_t senderId, const std::string &senderName,
+                                           const std::string &message) const;
+
+    MessageData encodeMessageScoreboardResponse(
+        const std::vector<std::pair<std::string, uint32_t>> &scores) const;
+    MessageData encodeMessageScoreUpdate(uint32_t score, uint8_t participantCount) const;
+    MessageData encodeMessageVictory(uint32_t finalScore) const;
+
+    MessageData encodeMessageGetLeaderboard(uint8_t difficulty) const;
+    MessageData
+    encodeMessageLeaderboardData(uint8_t difficulty,
+                                 const std::vector<std::pair<std::string, uint32_t>> &scores) const;
 
 private:
     MessageFactory();

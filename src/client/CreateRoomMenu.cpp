@@ -210,31 +210,31 @@ void CreateRoomMenu::init() {
 
 void CreateRoomMenu::setup(ButtonSystem &buttonsys) {
     // Max Players arrows
-    buttonsys.registerHandler("create_room_players_left", [this](Registry &r, Entity e) {
+    buttonsys.registerHandler("create_room_players_left", [this]([[maybe_unused]] Registry &r, [[maybe_unused]] Entity e) {
         if (_visible) cycleMaxPlayers(-1);
     });
-    buttonsys.registerHandler("create_room_players_right", [this](Registry &r, Entity e) {
+    buttonsys.registerHandler("create_room_players_right", [this]([[maybe_unused]] Registry &r, [[maybe_unused]] Entity e) {
         if (_visible) cycleMaxPlayers(1);
     });
 
     // Game Mode arrows
-    buttonsys.registerHandler("create_room_mode_left", [this](Registry &r, Entity e) {
+    buttonsys.registerHandler("create_room_mode_left", [this]([[maybe_unused]] Registry &r, [[maybe_unused]] Entity e) {
         if (_visible) cycleGameMode(-1);
     });
-    buttonsys.registerHandler("create_room_mode_right", [this](Registry &r, Entity e) {
+    buttonsys.registerHandler("create_room_mode_right", [this]([[maybe_unused]] Registry &r, [[maybe_unused]] Entity e) {
         if (_visible) cycleGameMode(1);
     });
 
     // Difficulty arrows
-    buttonsys.registerHandler("create_room_diff_left", [this](Registry &r, Entity e) {
+    buttonsys.registerHandler("create_room_diff_left", [this]([[maybe_unused]] Registry &r, [[maybe_unused]] Entity e) {
         if (_visible) cycleDifficulty(-1);
     });
-    buttonsys.registerHandler("create_room_diff_right", [this](Registry &r, Entity e) {
+    buttonsys.registerHandler("create_room_diff_right", [this]([[maybe_unused]] Registry &r, [[maybe_unused]] Entity e) {
         if (_visible) cycleDifficulty(1);
     });
 
     // Confirm/Cancel
-    buttonsys.registerHandler("create_room_confirm", [this](Registry &r, Entity e) {
+    buttonsys.registerHandler("create_room_confirm", [this]([[maybe_unused]] Registry &r, [[maybe_unused]] Entity e) {
         if (_visible && _onConfirm) {
             std::cout << "[CreateRoomMenu] Confirm clicked - MaxPlayers: " << (int)_config.maxPlayers
                       << ", Mode: " << _config.getGameModeStr()
@@ -243,7 +243,7 @@ void CreateRoomMenu::setup(ButtonSystem &buttonsys) {
         }
     });
 
-    buttonsys.registerHandler("create_room_cancel", [this](Registry &r, Entity e) {
+    buttonsys.registerHandler("create_room_cancel", [this]([[maybe_unused]] Registry &r, [[maybe_unused]] Entity e) {
         if (_visible && _onCancel) {
             std::cout << "[CreateRoomMenu] Cancel clicked" << std::endl;
             _onCancel();

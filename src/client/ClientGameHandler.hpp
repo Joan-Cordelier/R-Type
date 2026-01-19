@@ -1,10 +1,10 @@
 #pragma once
 
 #include "../common/Data/MessageFactory.hpp"
+#include "AudioManager.hpp"
 #include "Network/NetworkManager.hpp"
 #include "graphic/Renderer.hpp"
 #include "input_system.hpp"
-#include "AudioManager.hpp"
 
 #include "../common/Config/GameLoopConfig.hpp"
 #include "../common/ecs/ecs_components.hpp"
@@ -13,20 +13,17 @@
 #include "../common/ecs/systems/slider_system.hpp"
 #include "../common/ecs/systems/weapon_system.hpp"
 
-#include "KeybindsManager.hpp"
-#include "LoginMenu.hpp"
-#include "LobbyMenu.hpp"
-#include "CreateRoomMenu.hpp"
 #include "ChatPanel.hpp"
+#include "CreateRoomMenu.hpp"
+#include "EndGameScreen.hpp"
+#include "KeybindsManager.hpp"
+#include "LobbyMenu.hpp"
+#include "LoginMenu.hpp"
+#include "PauseMenu.hpp"
+#include "ScoreboardMenu.hpp"
 #include "SettingMenu.hpp"
 
-enum class GameState {
-    MAIN_MENU,
-    LOGIN,
-    LOBBY,
-    CREATE_ROOM,
-    IN_GAME
-};
+enum class GameState { MAIN_MENU, LOGIN, LOBBY, CREATE_ROOM, SCOREBOARD, IN_GAME, DEAD };
 #include <SDL2/SDL.h>
 #include <arpa/inet.h>
 #include <functional>
@@ -55,6 +52,9 @@ private:
     LobbyMenu _lobbyMenu;
     CreateRoomMenu _createRoomMenu;
     ChatPanel _chatPanel;
+    ScoreboardMenu _scoreboardMenu;
+    EndGameScreen _endGameScreen;
+    PauseMenu _pauseMenu;
 
     NetworkManager _network;
     GameLoopConfig _config;
@@ -70,6 +70,8 @@ private:
     double animationClock = 0.0;
     bool running = true;
     bool settingsMenuOpen = false;
+    bool pauseMenuOpen = false;
+    bool _settingsOpenedFromPause = false;
 
     std::string ip_adress = "127.0.0.1";
     bool _debugMode = false;
@@ -82,29 +84,41 @@ private:
     bool _isGuest = false;
     bool _isAuthenticated = false;
 
+    Entity _scoreLabel = 0;
+    uint32_t _currentScore = 0;
+    uint8_t _participantCount = 1;
+
     // menu Entities
     Entity start_button = _reg.createEntity();
     Entity label_input = _reg.createEntity();
     Entity background = _reg.createEntity();
 
     void toggleSettingsMenu();
+    void togglePauseMenu();
+    void setupPauseMenuCallbacks();
 
     void handleMessages();
     void handlePlayerPacket(const DecodedMessage &msg);
 
     void cleanupServerEntity(Entity serverEntity);
-    
+
     AudioManager _audioManager;
 
     void setupLobbyCallbacks();
     void setupLoginCallbacks();
     void setupChatCallbacks();
+    void setupScoreboardCallbacks();
+    void setupEndGameScreenCallbacks();
     void requestRoomList();
+    void requestScoreboard();
+    void requestLeaderboard(uint8_t difficulty);
     void showCreateRoomMenu();
-    void createRoom(const RoomConfig& config);
+    void createRoom(const RoomConfig &config);
     void joinRoom(uint32_t roomId);
     void registerJoinHandler(uint32_t roomId);
-    void sendChatMessage(const std::string& message);
+    void sendChatMessage(const std::string &message);
+    void returnToLobby();
+    void cleanupGameEntities();
 
 public:
     uint32_t myPlayerId = 0;
