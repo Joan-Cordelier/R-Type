@@ -36,10 +36,10 @@
             const path_to_root = "";
             const default_light_theme = "light";
             const default_dark_theme = "navy";
-            window.path_to_searchindex_js = "searchindex-02017d0f.js";
+            window.path_to_searchindex_js = "searchindex-8ab67c50.js";
         </script>
         <!-- Start loading toc.js asap -->
-        <script src="toc-8d02fba5.js"></script>
+        <script src="toc-f3be9e40.js"></script>
     </head>
     <body>
     <div id="mdbook-help-container">
@@ -386,6 +386,227 @@ Ouvrez un nouveau terminal (ou plusieurs pour simuler du multijoueur) et lancez 
 <li><strong>Tir :</strong> Maintenez ou appuyez sur <code>Espace</code> pour tirer des projectiles. [cite_start]Une cadence de tir (Cooldown) limite la fréquence des tirs.</li>
 </ul>
 <div style="break-before: page; page-break-before: always;"></div>
+<h1 id="interface-utilisateur"><a class="header" href="#interface-utilisateur">Interface Utilisateur</a></h1>
+<p>Ce guide explique comment naviguer dans les différents menus du jeu R-Type.</p>
+<hr>
+<h2 id="lancer-le-jeu-1"><a class="header" href="#lancer-le-jeu-1">Lancer le Jeu</a></h2>
+<p>Depuis le menu principal, cliquez sur <strong>Play</strong> pour accéder à l’écran de connexion.</p>
+<hr>
+<h2 id="ecran-de-connexion"><a class="header" href="#ecran-de-connexion">Ecran de Connexion</a></h2>
+<h3 id="connexion--inscription"><a class="header" href="#connexion--inscription">Connexion / Inscription</a></h3>
+<ol>
+<li><strong>Nom d’utilisateur</strong> : Tapez votre pseudo</li>
+<li>Appuyez sur <strong>Tab</strong> pour passer au champ mot de passe</li>
+<li><strong>Mot de passe</strong> : Entrez votre mot de passe</li>
+<li>Cliquez sur :
+<ul>
+<li><strong>Login</strong> : Si vous avez déjà un compte</li>
+<li><strong>Register</strong> : Pour créer un nouveau compte</li>
+</ul>
+</li>
+</ol>
+<h3 id="mode-invité"><a class="header" href="#mode-invité">Mode Invité</a></h3>
+<ul>
+<li>Cliquez sur <strong>Guest</strong> pour jouer sans compte</li>
+<li>En mode invité, vous n’aurez pas accès au leaderboard et vos scores ne seront pas sauvegardés</li>
+</ul>
+<h3 id="avantages-dun-compte"><a class="header" href="#avantages-dun-compte">Avantages d’un Compte</a></h3>
+<div class="table-wrapper">
+<table>
+<thead>
+<tr><th>Fonctionnalité</th><th>Invité</th><th>Compte</th></tr>
+</thead>
+<tbody>
+<tr><td>Jouer</td><td>Oui</td><td>Oui</td></tr>
+<tr><td>Leaderboard</td><td>Non</td><td>Oui</td></tr>
+<tr><td>Sauvegarde des scores</td><td>Non</td><td>Oui</td></tr>
+<tr><td>Mode Endless (classement)</td><td>Non</td><td>Oui</td></tr>
+</tbody>
+</table>
+</div>
+<hr>
+<h2 id="lobby-gestion-des-salons"><a class="header" href="#lobby-gestion-des-salons">Lobby (Gestion des Salons)</a></h2>
+<p>Après connexion, vous arrivez dans le lobby où vous pouvez rejoindre ou créer des parties.</p>
+<h3 id="boutons-du-lobby"><a class="header" href="#boutons-du-lobby">Boutons du Lobby</a></h3>
+<div class="table-wrapper">
+<table>
+<thead>
+<tr><th>Bouton</th><th>Action</th></tr>
+</thead>
+<tbody>
+<tr><td><strong>Logout</strong></td><td>Retourne à l’écran de connexion et vous déconnecte</td></tr>
+<tr><td><strong>Chat</strong></td><td>Affiche ou masque le panneau de chat</td></tr>
+<tr><td><strong>Create Room</strong></td><td>Ouvre le menu de création de salon</td></tr>
+<tr><td><strong>Refresh</strong></td><td>Actualise la liste des salons disponibles</td></tr>
+<tr><td><strong>Scoreboard</strong></td><td>Affiche le classement des meilleurs joueurs (mode Endless)</td></tr>
+</tbody>
+</table>
+</div>
+<h3 id="système-de-chat"><a class="header" href="#système-de-chat">Système de Chat</a></h3>
+<p>Le chat peut être affiché ou masqué en cliquant sur le bouton <strong>Chat</strong>.</p>
+<p><strong>Quand le chat est masqué :</strong></p>
+<ul>
+<li>Un badge rouge apparaît sur le bouton indiquant le nombre de messages non lus</li>
+<li>Le compteur affiche de 1 à 99, puis 99+ au-delà</li>
+</ul>
+<p><strong>Quand le chat est affiché :</strong></p>
+<ul>
+<li>Appuyez sur <strong>T</strong> pour activer le champ de saisie</li>
+<li>Tapez votre message</li>
+<li>Appuyez sur <strong>Entrée</strong> pour envoyer le message</li>
+<li>Appuyez sur <strong>Echap</strong> pour quitter le champ de saisie sans envoyer</li>
+</ul>
+<h3 id="liste-des-salons"><a class="header" href="#liste-des-salons">Liste des Salons</a></h3>
+<p>La liste affiche les parties en cours avec leurs informations :</p>
+<ul>
+<li><strong>Nombre de joueurs</strong> : Affiché sous forme de ratio (ex: <code>2/4</code> signifie 2 joueurs sur 4 places)</li>
+<li>Cliquez sur <strong>Join</strong> pour rejoindre un salon</li>
+<li>Utilisez <strong>Refresh</strong> pour actualiser la liste</li>
+</ul>
+<blockquote>
+<p><strong>Attention</strong> : Un salon vide se ferme automatiquement après <strong>5 secondes</strong>. Soyez rapide après avoir créé votre salon !</p>
+</blockquote>
+<hr>
+<h2 id="création-de-salon"><a class="header" href="#création-de-salon">Création de Salon</a></h2>
+<h3 id="paramètres-disponibles"><a class="header" href="#paramètres-disponibles">Paramètres Disponibles</a></h3>
+<h4 id="nombre-de-joueurs"><a class="header" href="#nombre-de-joueurs">Nombre de Joueurs</a></h4>
+<p>Choisissez de <strong>1 à 4 joueurs</strong> pour votre partie.</p>
+<h4 id="mode-de-jeu"><a class="header" href="#mode-de-jeu">Mode de Jeu</a></h4>
+<div class="table-wrapper">
+<table>
+<thead>
+<tr><th>Mode</th><th>Description</th></tr>
+</thead>
+<tbody>
+<tr><td><strong>Classic</strong></td><td>2 niveaux avec vagues d’ennemis et boss de fin de niveau</td></tr>
+<tr><td><strong>Boss Only</strong></td><td>Affrontez uniquement les boss, sans vagues d’ennemis</td></tr>
+<tr><td><strong>Endless</strong></td><td>Mode infini qui devient plus difficile à chaque cycle. Scores enregistrés au leaderboard</td></tr>
+<tr><td><strong>Speedy</strong></td><td>Version accélérée du mode Classic</td></tr>
+</tbody>
+</table>
+</div>
+<h4 id="difficulté"><a class="header" href="#difficulté">Difficulté</a></h4>
+<div class="table-wrapper">
+<table>
+<thead>
+<tr><th>Difficulté</th><th>Multiplicateur</th></tr>
+</thead>
+<tbody>
+<tr><td><strong>Easy</strong></td><td>0.5x (ennemis plus faibles)</td></tr>
+<tr><td><strong>Medium</strong></td><td>1.0x (difficulté normale)</td></tr>
+<tr><td><strong>Hard</strong></td><td>1.5x (ennemis plus forts)</td></tr>
+<tr><td><strong>Impossible</strong></td><td>3.0x (mode cauchemar)</td></tr>
+</tbody>
+</table>
+</div>
+<h3 id="boutons"><a class="header" href="#boutons">Boutons</a></h3>
+<ul>
+<li><strong>Create</strong> : Crée le salon avec les paramètres choisis</li>
+<li><strong>Cancel</strong> : Annule et retourne au lobby</li>
+</ul>
+<hr>
+<h2 id="en-jeu"><a class="header" href="#en-jeu">En Jeu</a></h2>
+<p>Une fois dans une partie, vous pouvez interagir avec l’interface de jeu.</p>
+<h3 id="chat-en-partie"><a class="header" href="#chat-en-partie">Chat en Partie</a></h3>
+<p>Le chat fonctionne de la même manière que dans le lobby :</p>
+<ul>
+<li>Appuyez sur <strong>T</strong> pour écrire un message</li>
+<li>Appuyez sur <strong>Entrée</strong> pour envoyer</li>
+<li>Appuyez sur <strong>Echap</strong> pour annuler</li>
+</ul>
+<h3 id="menu-paramètres"><a class="header" href="#menu-paramètres">Menu Paramètres</a></h3>
+<p>Appuyez sur <strong>Echap</strong> pour ouvrir le menu des paramètres.</p>
+<h3 id="menu-pause"><a class="header" href="#menu-pause">Menu Pause</a></h3>
+<p>Appuyez sur <strong>P</strong> pour ouvrir le menu pause.</p>
+<blockquote>
+<p><strong>ATTENTION</strong> : Le menu pause <strong>ne met pas le jeu en pause</strong>. La partie continue pendant que le menu est ouvert.</p>
+</blockquote>
+<p>Le menu pause contient 4 boutons :</p>
+<div class="table-wrapper">
+<table>
+<thead>
+<tr><th>Bouton</th><th>Action</th></tr>
+</thead>
+<tbody>
+<tr><td><strong>Resume</strong></td><td>Ferme le menu et reprend le jeu</td></tr>
+<tr><td><strong>Settings</strong></td><td>Ouvre les paramètres</td></tr>
+<tr><td><strong>Exit Party</strong></td><td>Quitte la partie et retourne au lobby</td></tr>
+<tr><td><strong>Exit</strong></td><td>Quitte complètement le jeu</td></tr>
+</tbody>
+</table>
+</div>
+<p>Pour fermer le menu pause, vous pouvez :</p>
+<ul>
+<li>Cliquer sur <strong>Resume</strong></li>
+<li>Appuyer sur <strong>P</strong></li>
+<li>Appuyer sur <strong>Echap</strong></li>
+</ul>
+<h3 id="ecran-de-fin-de-partie"><a class="header" href="#ecran-de-fin-de-partie">Ecran de Fin de Partie</a></h3>
+<p>Quand vous mourrez ou quand vous gagnez la partie, un écran de fin s’affiche avec :</p>
+<ul>
+<li><strong>Votre score final</strong> de la partie</li>
+<li>Deux boutons :
+<ul>
+<li><strong>Return to Lobby</strong> : Retourne au lobby pour rejoindre ou créer une nouvelle partie</li>
+<li><strong>Exit</strong> : Quitte complètement le jeu</li>
+</ul>
+</li>
+</ul>
+<hr>
+<h2 id="avertissements-importants"><a class="header" href="#avertissements-importants">Avertissements Importants</a></h2>
+<blockquote>
+<p><strong>ATTENTION - Règle du “No Rejoin”</strong></p>
+<p>Une fois que vous quittez une partie (que ce soit en mourant, en cliquant sur “Exit Party”, ou en fermant le jeu), <strong>vous ne pouvez plus rejoindre cette partie</strong>.</p>
+<p>Quitter = Game Over définitif pour cette session.</p>
+</blockquote>
+<p>Cela signifie :</p>
+<ul>
+<li>Si vous mourrez, vous ne pouvez pas revenir dans la partie en cours</li>
+<li>Si vous retournez au lobby via “Exit Party”, la partie continue sans vous</li>
+<li>Les autres joueurs continueront sans vous jusqu’à la fin de la partie</li>
+</ul>
+<hr>
+<h2 id="les-modes-de-jeu-en-détail"><a class="header" href="#les-modes-de-jeu-en-détail">Les Modes de Jeu en Détail</a></h2>
+<h3 id="classic"><a class="header" href="#classic">Classic</a></h3>
+<p>Le mode de jeu principal :</p>
+<ul>
+<li>2 niveaux complets</li>
+<li>Chaque niveau contient plusieurs vagues d’ennemis</li>
+<li>Un boss apparaît à la fin de chaque niveau</li>
+<li>Entre les vagues, choisissez des améliorations parmi 3 cartes</li>
+</ul>
+<h3 id="boss-only"><a class="header" href="#boss-only">Boss Only</a></h3>
+<p>Pour ceux qui veulent du défi direct :</p>
+<ul>
+<li>Passez directement aux combats de boss</li>
+<li>Aucune vague d’ennemis classiques</li>
+<li>Idéal pour s’entraîner contre les boss</li>
+</ul>
+<h3 id="endless-infini"><a class="header" href="#endless-infini">Endless (Infini)</a></h3>
+<p>Le mode compétitif :</p>
+<ul>
+<li>La partie ne s’arrête jamais</li>
+<li>Les niveaux se répètent en boucle</li>
+<li>La difficulté augmente à chaque cycle</li>
+<li><strong>Vos scores sont enregistrés</strong> dans le leaderboard</li>
+<li>Nécessite un compte pour sauvegarder votre score</li>
+</ul>
+<h3 id="speedy"><a class="header" href="#speedy">Speedy</a></h3>
+<p>Une version frénétique :</p>
+<ul>
+<li>Identique au mode Classic</li>
+<li>Tout est plus rapide (ennemis, projectiles, spawn)</li>
+<li>Pour les joueurs expérimentés</li>
+</ul>
+<hr>
+<h2 id="scoreboard"><a class="header" href="#scoreboard">Scoreboard</a></h2>
+<p>Le tableau des scores affiche les classements du mode <strong>Endless</strong> :</p>
+<ul>
+<li>Accessible uniquement avec un compte</li>
+<li>Classement par difficulté</li>
+<li>Affiche le pseudo, le score et le nombre de cycles complétés</li>
+</ul>
+<div style="break-before: page; page-break-before: always;"></div>
 <h1 id="rfc-r-type-protocol"><a class="header" href="#rfc-r-type-protocol">RFC R-Type Protocol</a></h1>
 <p><strong>Version:</strong> 1.0.0
 <strong>Status:</strong> Draft
@@ -657,7 +878,7 @@ void CollisionSystem::update(Registry&amp; reg) {
   max_messages_per_frame: 100      # Messages réseau max par frame
   min_players_to_start: 1          # Joueurs minimum pour démarrer
 </code></pre>
-<h3 id="difficulté"><a class="header" href="#difficulté">Difficulté</a></h3>
+<h3 id="difficulté-1"><a class="header" href="#difficulté-1">Difficulté</a></h3>
 <pre><code class="language-yaml">difficulty:
   easy: 0.5          # Multiplicateur de difficulté
   normal: 1.0
