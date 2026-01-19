@@ -1,6 +1,6 @@
 version: '3.8'
 
-services:  # <--- Le bloc parent
+services:
 
   prometheus:
     image: prom/prometheus:latest
@@ -17,7 +17,7 @@ services:  # <--- Le bloc parent
     networks:
       - monitoring
 
-  grafana:   # <--- ALIGNÉ ICI (2 espaces)
+  grafana:
     image: grafana/grafana:latest
     container_name: r-type-grafana
     ports:
