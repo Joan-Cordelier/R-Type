@@ -57,21 +57,65 @@ void LobbyMenu::init() {
                              std::string("default_font_small"), Color(255, 255, 255), 101, false);
     _roomEntities.push_back(refreshLabel);
 
+    // Create "Scoreboard" button
+    _scoreboardButton = _reg.createEntity();
+    _reg.addComponent<Position>(_scoreboardButton, 668.f, 480.f);
+    _reg.addComponent<Sprite>(_scoreboardButton, std::string("textures/button/square_button.png"),
+                              std::string("square_button"), 280, 160, 100, 16.f, 0.f, false);
+    _reg.addComponent<Button>(_scoreboardButton, std::string("lobby_scoreboard"), 100, false);
+
+    // Label for Scoreboard button
+    Entity scoreboardLabel = _reg.createEntity();
+    _reg.addComponent<Position>(scoreboardLabel, 755.f, 545.f);
+    _reg.addComponent<Label>(scoreboardLabel, std::string("Scoreboard"),
+                             std::string("font/josefin-sans/JosefinSans-Regular.ttf"),
+                             std::string("default_font_small"), Color(255, 255, 255), 101, false);
+    _roomEntities.push_back(scoreboardLabel);
+
+    // Create "Logout" button (top left corner)
+    _logoutButton = _reg.createEntity();
+    _reg.addComponent<Position>(_logoutButton, 20.f, 20.f);
+    _reg.addComponent<Sprite>(_logoutButton, std::string("textures/button/square_button.png"),
+                              std::string("square_button"), 200, 100, 300, -30.f, -26.f, false);
+    _reg.addComponent<Button>(_logoutButton, std::string("lobby_logout"), 200, false);
+
+    // Label for Logout button
+    Entity logoutLabel = _reg.createEntity();
+    _reg.addComponent<Position>(logoutLabel, 45.f, 30.f);
+    _reg.addComponent<Label>(logoutLabel, std::string("Logout"),
+                             std::string("font/josefin-sans/JosefinSans-Regular.ttf"),
+                             std::string("default_font_small"), Color(255, 255, 255), 101, false);
+    _roomEntities.push_back(logoutLabel);
+
     std::cout << "[LobbyMenu] Initialized" << std::endl;
 }
 
 void LobbyMenu::setup(ButtonSystem &buttonsys) {
-    buttonsys.registerHandler("lobby_create_room", [this](Registry &r, Entity e) {
+    buttonsys.registerHandler("lobby_create_room", [this]([[maybe_unused]] Registry &r, [[maybe_unused]] Entity e) {
         if (_onCreateRoom && _visible) {
             std::cout << "[LobbyMenu] Create Room clicked" << std::endl;
             _onCreateRoom();
         }
     });
 
-    buttonsys.registerHandler("lobby_refresh", [this](Registry &r, Entity e) {
+    buttonsys.registerHandler("lobby_refresh", [this]([[maybe_unused]] Registry &r, [[maybe_unused]] Entity e) {
         if (_onRefresh && _visible) {
             std::cout << "[LobbyMenu] Refresh clicked" << std::endl;
             _onRefresh();
+        }
+    });
+
+    buttonsys.registerHandler("lobby_scoreboard", [this]([[maybe_unused]] Registry &r, [[maybe_unused]] Entity e) {
+        if (_onScoreboard && _visible) {
+            std::cout << "[LobbyMenu] Scoreboard clicked" << std::endl;
+            _onScoreboard();
+        }
+    });
+
+    buttonsys.registerHandler("lobby_logout", [this]([[maybe_unused]] Registry &r, [[maybe_unused]] Entity e) {
+        if (_onLogout && _visible) {
+            std::cout << "[LobbyMenu] Logout clicked" << std::endl;
+            _onLogout();
         }
     });
 }
@@ -91,6 +135,10 @@ void LobbyMenu::show() {
     _reg.getComponent<Button>(_createRoomButton).enabled = true;
     _reg.getComponent<Sprite>(_refreshButton).visible = true;
     _reg.getComponent<Button>(_refreshButton).enabled = true;
+    _reg.getComponent<Sprite>(_scoreboardButton).visible = true;
+    _reg.getComponent<Button>(_scoreboardButton).enabled = true;
+    _reg.getComponent<Sprite>(_logoutButton).visible = true;
+    _reg.getComponent<Button>(_logoutButton).enabled = true;
 
     // Show static room entities (button labels)
     std::cout << "[LobbyMenu] Showing " << _roomEntities.size() << " room entities" << std::endl;
@@ -136,6 +184,10 @@ void LobbyMenu::hide() {
     _reg.getComponent<Button>(_createRoomButton).enabled = false;
     _reg.getComponent<Sprite>(_refreshButton).visible = false;
     _reg.getComponent<Button>(_refreshButton).enabled = false;
+    _reg.getComponent<Sprite>(_scoreboardButton).visible = false;
+    _reg.getComponent<Button>(_scoreboardButton).enabled = false;
+    _reg.getComponent<Sprite>(_logoutButton).visible = false;
+    _reg.getComponent<Button>(_logoutButton).enabled = false;
 
     // Hide all room entities
     for (auto &entity : _roomEntities) {
@@ -164,8 +216,8 @@ void LobbyMenu::hide() {
 }
 
 void LobbyMenu::clearRoomEntities() {
-    // Keep the first two entities (button labels), destroy the rest
-    while (_roomEntities.size() > 2) {
+    // Keep the first four entities (button labels: Create Room, Refresh, Scoreboard, Logout), destroy the rest
+    while (_roomEntities.size() > 4) {
         _reg.destroyEntity(_roomEntities.back());
         _roomEntities.pop_back();
     }
@@ -253,11 +305,11 @@ void LobbyMenu::updateRoomList(const std::vector<RoomInfo> &rooms) {
     std::cout << "[LobbyMenu] Room list update complete" << std::endl;
 }
 
-void LobbyMenu::createRoomEntry(size_t index, const RoomInfo &room, ButtonSystem &buttonsys) {
+void LobbyMenu::createRoomEntry([[maybe_unused]] size_t index, const RoomInfo &room, ButtonSystem &buttonsys) {
     uint32_t roomId = room.id;
     std::string handlerName = "lobby_join_" + std::to_string(roomId);
 
-    buttonsys.registerHandler(handlerName, [this, roomId](Registry &r, Entity e) {
+    buttonsys.registerHandler(handlerName, [this, roomId]([[maybe_unused]] Registry &r, [[maybe_unused]] Entity e) {
         if (_onJoinRoom && _visible) {
             std::cout << "[LobbyMenu] Joining room " << roomId << std::endl;
             _onJoinRoom(roomId);

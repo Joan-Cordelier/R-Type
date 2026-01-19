@@ -12,8 +12,8 @@ struct SpriteSheets {
     int frameIndex = 0;
     int maxFrames = 1;
     int z = 0;
-    float offset_x = 0;
-    float offset_y = 0;
+    float offset_x = 0.f;
+    float offset_y = 0.f;
     bool visible = true;
     bool loop = false;
 };
