@@ -7,6 +7,7 @@
 - [Installation & Prérequis](user/installation.md)
 - [Lancer le Jeu](user/usage.md)
 - [Commandes & Contrôles](user/controls.md)
+- [Interface & Menus](user/interface.md)
 
 # Protocole Réseau
 - [RFC R-Type Protocol](network/rfc.md)
@@ -14,5 +15,6 @@
 
 # Documentation Technique
 - [Architecture du Moteur (ECS)](dev/ecs.md)
+- [Configuration YAML](dev/yaml_config.md)
 - [Guide: Ajouter une Feature](dev/new_feature.md)
 - [Guide: Ajouter un Paquet Réseau](dev/new_packet.md)

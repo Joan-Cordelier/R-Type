@@ -2,7 +2,7 @@ name: Release
 on:
   push:
     branches: 
-      - main  # Only trigger on main branch pushes
+      - dev  # Only trigger on main branch pushes
 
 permissions:
   contents: write
@@ -25,15 +25,39 @@ jobs:
     needs: release
     if: ${{ needs.release.outputs.release_created == 'true' }}
     runs-on: ubuntu-latest
+    env:
+      VCPKG_DEFAULT_BINARY_CACHE: ${{ github.workspace }}/vcpkg_cache
     steps:
       - uses: actions/checkout@v4
       
-      - name: Install dependencies (Linux)
+      - name: Create vcpkg binary cache directory
+        run: mkdir -p ${{ github.workspace }}/vcpkg_cache
+
+      - name: Cache vcpkg binary cache
+        uses: actions/cache@v4
+        with:
+          path: ${{ github.workspace }}/vcpkg_cache
+          key: vcpkg-binary-${{ runner.os }}-release-${{ hashFiles('vcpkg.json') }}
+          restore-keys: |
+            vcpkg-binary-${{ runner.os }}-
+
+      - name: Install dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y cmake build-essential ninja-build curl zip unzip tar
-          git clone https://github.com/microsoft/vcpkg.git
-          ./vcpkg/bootstrap-vcpkg.sh
+          sudo apt-get install -y cmake build-essential ninja-build curl zip unzip tar \
+            autoconf autoconf-archive automake libtool libltdl-dev \
+            libgl1-mesa-dev libx11-dev libxrandr-dev libxinerama-dev libxcursor-dev \
+            libxi-dev libxext-dev libwayland-dev libxkbcommon-dev
+
+      - name: Setup and bootstrap vcpkg
+        run: |
+          if [ ! -d "vcpkg/.git" ]; then
+            rm -rf vcpkg
+            git clone https://github.com/microsoft/vcpkg.git
+          fi
+          if [ ! -f vcpkg/vcpkg ]; then
+            ./vcpkg/bootstrap-vcpkg.sh
+          fi
       
       - name: Configure CMake
         run: cmake -B build -S . -DCMAKE_BUILD_TYPE=Release -G Ninja -DCMAKE_TOOLCHAIN_FILE=${{github.workspace}}/vcpkg/scripts/buildsystems/vcpkg.cmake
@@ -44,8 +68,11 @@ jobs:
       - name: Package binaries (Linux)
         run: |
           mkdir -p release
-          cp build/r-type_server release/r-type_server
-          cp build/r-type_client release/r-type_client
+          cp build/r-type_server release/
+          cp build/r-type_client release/
+          cp -r yaml release/
+          cp -r data release/ 2>/dev/null || true
+          cp -r textures release/ 2>/dev/null || true
           tar -czf r-type-linux.tar.gz -C release .
       
       - name: Upload binaries to GitHub Release
@@ -53,3 +80,4 @@ jobs:
         with:
           files: r-type-linux.tar.gz
           tag_name: ${{ needs.release.outputs.tag_name }}
+
