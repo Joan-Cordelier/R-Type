@@ -36,10 +36,10 @@
             const path_to_root = "";
             const default_light_theme = "light";
             const default_dark_theme = "navy";
-            window.path_to_searchindex_js = "searchindex-3b33487b.js";
+            window.path_to_searchindex_js = "searchindex-02017d0f.js";
         </script>
         <!-- Start loading toc.js asap -->
-        <script src="toc-645807ec.js"></script>
+        <script src="toc-8d02fba5.js"></script>
     </head>
     <body>
     <div id="mdbook-help-container">
@@ -637,6 +637,246 @@ void CollisionSystem::update(Registry&amp; reg) {
 </code></pre>
 <h3 id="étape-4--intégration"><a class="header" href="#étape-4--intégration">Étape 4 : Intégration</a></h3>
 <p>Instanciez votre système dans le <code>GameHandler</code> (Serveur) ou le <code>main.cpp</code> (Client) et appelez sa méthode <code>update()</code> dans la boucle principale.</p>
+<div style="break-before: page; page-break-before: always;"></div>
+<h1 id="système-de-configuration-yaml"><a class="header" href="#système-de-configuration-yaml">Système de Configuration YAML</a></h1>
+<p>Le jeu R-Type utilise des fichiers YAML pour configurer tous les aspects du gameplay. Ce système permet de modifier le comportement du jeu sans recompiler.</p>
+<h2 id="structure-des-fichiers"><a class="header" href="#structure-des-fichiers">Structure des Fichiers</a></h2>
+<pre><code>yaml/
+├── main_loop.yaml      # Configuration principale du jeu
+├── upgrades.yaml       # Système d'améliorations du joueur
+└── enemies/            # Configurations des boss
+    ├── obelisk.yaml
+    ├── blaster.yaml
+    └── pata_pata.yaml
+</code></pre>
+<h2 id="main_loopyaml"><a class="header" href="#main_loopyaml">main_loop.yaml</a></h2>
+<p>Fichier principal contenant la configuration de la boucle de jeu, les ennemis et les niveaux.</p>
+<h3 id="game-loop"><a class="header" href="#game-loop">Game Loop</a></h3>
+<pre><code class="language-yaml">game_loop:
+  tick_rate: 30                    # Ticks par seconde
+  max_messages_per_frame: 100      # Messages réseau max par frame
+  min_players_to_start: 1          # Joueurs minimum pour démarrer
+</code></pre>
+<h3 id="difficulté"><a class="header" href="#difficulté">Difficulté</a></h3>
+<pre><code class="language-yaml">difficulty:
+  easy: 0.5          # Multiplicateur de difficulté
+  normal: 1.0
+  hard: 1.5
+  impossible: 3.0
+</code></pre>
+<h3 id="types-dennemis"><a class="header" href="#types-dennemis">Types d’Ennemis</a></h3>
+<pre><code class="language-yaml">enemy_types:
+  basic_enemy:
+    sprite: "textures/ships/enemy_ship.png"
+    texture_id: "enemy_ship"
+    health: 50
+    damage: 10
+    speed: 100
+    score: 100
+    width: 50.0
+    height: 50.0
+    velocity_x: 0.0
+    velocity_y: 100.0
+    move_amplitude: 100.0
+    move_frequency: 0.5
+</code></pre>
+<h3 id="configuration-des-niveaux"><a class="header" href="#configuration-des-niveaux">Configuration des Niveaux</a></h3>
+<pre><code class="language-yaml">levels:
+  - id: 1
+    name: "Zone 1 - Asteroid Belt"
+    background: "textures/backgrounds/level1.png"
+    difficulty_multiplier: 1
+    waves:
+      - id: 1
+        start_delay: 1.0
+        groups:
+          - type: "basic_enemy"    # Référence à enemy_types
+            count: 3
+            interval: 0.8
+      - id: 2
+        start_delay: 2.0
+        boss: "obelisk"            # Invoque un boss (voir enemies/)
+        groups: []
+</code></pre>
+<h3 id="configuration-du-joueur"><a class="header" href="#configuration-du-joueur">Configuration du Joueur</a></h3>
+<pre><code class="language-yaml">player:
+  initial_position:
+    x: 100.0
+    y: 300.0
+  hitbox:
+    width: 30.0
+    height: 30.0
+    offset_x: 45.0
+    offset_y: 50.0
+    sprite_width: 120.0
+    sprite_height: 130.0
+  stats:
+    health: 100
+    max_health: 100
+    attack_damage: 10
+    attack_speed: 10
+    defense: 1
+    speed: 200
+</code></pre>
+<h3 id="projectiles"><a class="header" href="#projectiles">Projectiles</a></h3>
+<pre><code class="language-yaml">projectiles:
+  player:
+    speed: 400.0
+    offset_x: 52.0
+    offset_y: 30.0
+  enemy:
+    speed: 200.0
+    offset_x: 18.0
+    offset_y: 50.0
+</code></pre>
+<h2 id="upgradesyaml"><a class="header" href="#upgradesyaml">upgrades.yaml</a></h2>
+<p>Système d’améliorations présentées au joueur entre les vagues.</p>
+<h3 id="structure-dune-amélioration"><a class="header" href="#structure-dune-amélioration">Structure d’une Amélioration</a></h3>
+<pre><code class="language-yaml">upgrades:
+  - id: "move_speed_1"           # ID unique
+    name: "Propulseurs Mk.I"     # Nom affiché
+    description: "Augmente la vitesse de deplacement de 15%."
+    type: "stat_boost"           # Type: stat_boost ou hybrid
+    target: "movement_speed"     # Stat ciblée
+    value: 15.0                  # Valeur du boost
+    rarity: "common"             # Rareté: common/rare/epic/legendary
+    visuals:
+      card_color: "blue"         # Couleur de la carte
+</code></pre>
+<h3 id="types-daméliorations"><a class="header" href="#types-daméliorations">Types d’Améliorations</a></h3>
+<p>| Type | Description |
+||-|
+| <code>stat_boost</code> | Modifie une seule stat |
+| <code>hybrid</code> | Modifie plusieurs stats (utilise <code>effects</code>) |
+| <code>add_weapon</code> | Ajoute une arme/drone |</p>
+<h3 id="targets-disponibles"><a class="header" href="#targets-disponibles">Targets Disponibles</a></h3>
+<div class="table-wrapper">
+<table>
+<thead>
+<tr><th>Target</th><th>Description</th></tr>
+</thead>
+<tbody>
+<tr><td><code>movement_speed</code></td><td>Vitesse de déplacement</td></tr>
+<tr><td><code>max_health</code></td><td>Points de vie maximum</td></tr>
+<tr><td><code>current_health_percent</code></td><td>Restaure un % des PV</td></tr>
+<tr><td><code>damage_multiplier</code></td><td>Multiplicateur de dégâts</td></tr>
+<tr><td><code>fire_rate</code></td><td>Cadence de tir</td></tr>
+<tr><td><code>extra_projectiles</code></td><td>Projectiles supplémentaires</td></tr>
+<tr><td><code>add_diagonal</code></td><td>Active les tirs diagonaux</td></tr>
+<tr><td><code>projectile_scale</code></td><td>Taille des projectiles</td></tr>
+</tbody>
+</table>
+</div>
+<h3 id="exemple-hybrid"><a class="header" href="#exemple-hybrid">Exemple Hybrid</a></h3>
+<pre><code class="language-yaml">- id: "projectile_size_up"
+  name: "Chargeur Plasma"
+  type: "hybrid"
+  effects:
+    - target: "projectile_scale"
+      value: 0.5
+    - target: "damage_multiplier"
+      value: 0.10
+  rarity: "epic"
+</code></pre>
+<h2 id="enemiesyaml-boss"><a class="header" href="#enemiesyaml-boss">enemies/*.yaml (Boss)</a></h2>
+<p>Chaque boss est défini dans un fichier séparé avec phases et patterns d’attaque.</p>
+<h3 id="structure-dun-boss"><a class="header" href="#structure-dun-boss">Structure d’un Boss</a></h3>
+<pre><code class="language-yaml">enemies:
+  - id: "obelisk"
+    name: "Ancient Obelisk"
+    type: "boss"
+    
+    stats:
+      health: 1000
+      max_health: 1000
+      health_per_player: 500    # PV ajoutés par joueur supplémentaire
+      speed: 5.0
+      collision_damage: 20
+      score_value: 8000
+    
+    visuals:
+      texture_path: "textures/ships/bosses/Obelisk.png"
+      scale: 2
+      width: 190
+      height: 240
+      animations:
+        idle: { ... }
+        channeling: { ... }
+    
+    behavior:
+      phases: [ ... ]
+      attack_patterns: [ ... ]
+</code></pre>
+<h3 id="phases-du-boss"><a class="header" href="#phases-du-boss">Phases du Boss</a></h3>
+<pre><code class="language-yaml">phases:
+  - id: 1
+    name: "Awakening"
+    trigger_health_percentage: 100    # Déclenché à 100% HP
+    patterns: ["enter_screen"]
+    
+  - id: 2
+    name: "Zone_Control"
+    trigger_health_percentage: 99
+    loop_patterns: true               # Répète les patterns
+    patterns:
+      - "spawn_void_zones"
+      - "energy_pulse"
+      - "screen_shake"
+</code></pre>
+<h3 id="types-de-patterns-dattaque"><a class="header" href="#types-de-patterns-dattaque">Types de Patterns d’Attaque</a></h3>
+<pre><code class="language-yaml">attack_patterns:
+  # Spawner de zones de dégâts
+  - id: "spawn_void_zones"
+    type: "area_spawner"
+    count: 3
+    duration: 3.0
+    damage: 15
+    warning_time: 1.5
+    texture_override: "textures/..."
+    
+  # Ring de projectiles
+  - id: "energy_pulse"
+    type: "projectile_ring"
+    projectile_id: "boss_orb"
+    count: 8
+    speed: 200.0
+    
+  # Pause entre attaques
+  - id: "wait_medium"
+    type: "wait"
+    duration: 2.0
+</code></pre>
+<h2 id="ajouter-du-contenu"><a class="header" href="#ajouter-du-contenu">Ajouter du Contenu</a></h2>
+<h3 id="ajouter-un-ennemi"><a class="header" href="#ajouter-un-ennemi">Ajouter un Ennemi</a></h3>
+<ol>
+<li>Ajouter l’entrée dans <code>enemy_types</code> de <code>main_loop.yaml</code></li>
+<li>Référencer le type dans une <code>wave.groups</code></li>
+</ol>
+<h3 id="ajouter-un-boss"><a class="header" href="#ajouter-un-boss">Ajouter un Boss</a></h3>
+<ol>
+<li>Créer <code>yaml/enemies/mon_boss.yaml</code></li>
+<li>Définir stats, visuals, phases et patterns</li>
+<li>Référencer avec <code>boss: "mon_boss"</code> dans une wave</li>
+</ol>
+<h3 id="ajouter-une-amélioration"><a class="header" href="#ajouter-une-amélioration">Ajouter une Amélioration</a></h3>
+<ol>
+<li>Ajouter l’entrée dans <code>upgrades.yaml</code></li>
+<li>Le jeu piochera automatiquement parmi les upgrades disponibles</li>
+</ol>
+<h2 id="api-c-gameloopconfig"><a class="header" href="#api-c-gameloopconfig">API C++ (GameLoopConfig)</a></h2>
+<p>Le code charge les fichiers YAML via la classe <code>GameLoopConfig</code>:</p>
+<pre><code class="language-cpp">GameLoopConfig config;
+config.loadFromFile("yaml/main_loop.yaml");
+config.loadUpgradesFromFile("yaml/upgrades.yaml");
+config.loadBossesFromDirectory("yaml/enemies");
+
+// Accès aux données
+const auto&amp; player = config.getPlayerConfig();
+const auto&amp; enemies = config.getEnemyTypes();
+const auto&amp; levels = config.getLevels();
+const auto&amp; upgrades = config.getUpgrades();
+const auto&amp; bosses = config.getBosses();
+</code></pre>
 <div style="break-before: page; page-break-before: always;"></div>
 <h1 id="guide--ajouter-une-feature-gameplay"><a class="header" href="#guide--ajouter-une-feature-gameplay">Guide : Ajouter une Feature (Gameplay)</a></h1>
 <p>Ce guide explique comment ajouter une nouvelle fonctionnalité de jeu en respectant l’architecture ECS (Entity Component System) du projet.</p>
