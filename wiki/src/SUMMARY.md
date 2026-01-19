@@ -14,5 +14,6 @@
 
 # Documentation Technique
 - [Architecture du Moteur (ECS)](dev/ecs.md)
+- [Configuration YAML](dev/yaml_config.md)
 - [Guide: Ajouter une Feature](dev/new_feature.md)
 - [Guide: Ajouter un Paquet Réseau](dev/new_packet.md)
